@@ -294,7 +294,7 @@ fn a_burn_destroys_supply_and_records_a_hidden_recipient() {
     let ca = config_account(&BR, &w.cfg);
     let recipient = [0xee; 20];
     let bsecret = wrap_core::derive_secret(&ALICE_SEED, b'b', 0);
-    let ec = wrap_core::eth_commitment(&recipient, &bsecret);
+    let ec = wrap_core::eth_commitment(&recipient, 0, &bsecret);
     let burn = |ch: &mut Chain, k: &Key, amount: u128| {
         ch.send_as(
             k,
@@ -396,4 +396,48 @@ fn positions_are_recovered_from_the_seed_alone() {
     // One owner, two wrapped tokens: one associated token account each.
     assert_eq!(balance(&w.ch, &w.cfg, &ETH, alice().id), 1_100_000_000_000_000_000);
     assert_eq!(balance(&w.ch, &w.cfg, &w.a.usdt, alice().id), 100_000_000);
+}
+
+/// F.6: `BurnFrom` burns from the account that holds the wrapped token itself
+/// (on the private path, a private account; here alice's own public account,
+/// which a claim minted into directly), only when that holding is authorized,
+/// and records the same burn leaf as `Burn`.
+#[test]
+fn burn_from_takes_the_tokens_from_the_authorized_holding_only() {
+    let mut w = world();
+    let d = w.a.deposits[0].clone();
+    let c = claim_ix(&w.a, &w.cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), w.slot);
+    let mut rows = claim_rows(&w.cfg, &c);
+    rows[5] = sel(alice().id, TOKEN);
+    w.ch.send(BR, &Instruction::Claim(Box::new(c)), rows).expect("minted into alice's own account");
+    let ca = config_account(&BR, &w.cfg);
+    let ec = wrap_core::eth_commitment(&[0xee; 20], 0, &wrap_core::derive_secret(&ALICE_SEED, b'b', 0));
+    let ix = |amount: u128| Instruction::BurnFrom { config: w.cfg.clone(), eth_token: ETH, salt: SALT, amount, eth_commitment: ec };
+    let one = 1_000_000_000_000_000_000u128;
+
+    // Bob signs, naming alice's holding: not authorized.
+    assert_eq!(refused(w.ch.send_as(&bob(), BR, &ix(one), burn_from_rows(&w.cfg, &ETH, alice().id))), E_NOT_HOLDER);
+    // The holding row must be the token program's shard of the account.
+    let mut wrong_shard = burn_from_rows(&w.cfg, &ETH, alice().id);
+    wrong_shard[4] = sel(alice().id, BR);
+    assert_eq!(refused(w.ch.send_as(&alice(), BR, &ix(one), wrong_shard)), E_ACCOUNTS);
+    // The burn tree row must be this deployment's.
+    let mut wrong_tree = burn_from_rows(&w.cfg, &ETH, alice().id);
+    wrong_tree[2] = sel(nullifier_account(&BR, &ca, &[9; 32]), BR);
+    assert_eq!(refused(w.ch.send_as(&alice(), BR, &ix(one), wrong_tree)), E_ACCOUNTS);
+    let mut wrong_cfg = burn_from_rows(&w.cfg, &ETH, alice().id);
+    wrong_cfg[0] = sel(entry_account(&BR, &ca, &w.a.usdt), BR);
+    assert_eq!(refused(w.ch.send_as(&alice(), BR, &ix(one), wrong_cfg)), E_ACCOUNTS);
+    // Only a permitted amount.
+    assert_eq!(refused(w.ch.send_as(&alice(), BR, &ix(300_000_000_000_000_000), burn_from_rows(&w.cfg, &ETH, alice().id))), E_AMOUNT);
+    assert_eq!(supply(&w.ch, &w.cfg, &ETH), one, "nothing burned yet");
+
+    w.ch.send_as(&alice(), BR, &ix(one), burn_from_rows(&w.cfg, &ETH, alice().id)).expect("alice burns her own holding");
+    let held: token::TokenHolding = borsh::from_slice(&w.ch.shard_of(alice().id, TOKEN)).unwrap();
+    assert!(matches!(held, token::TokenHolding::Fungible { balance: 0, .. }));
+    assert_eq!(supply(&w.ch, &w.cfg, &ETH), 0);
+    let f: wrap_core::Frontier = borsh::from_slice(&w.ch.shard_of(burns_account(&BR, &ca), BR)).unwrap();
+    assert_eq!((f.next_index, f.root), (1, wrap_core::root(&[wrap_core::burn_leaf(&w.a.pairing, &ETH, one, &ec)])));
+    let e: TokenEntry = borsh::from_slice(&w.ch.shard_of(entry_account(&BR, &ca, &ETH), BR)).unwrap();
+    assert_eq!((e.minted, e.burned), (one, one));
 }

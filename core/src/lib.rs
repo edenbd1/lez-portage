@@ -145,9 +145,22 @@ pub fn known_root_slot(root: &H256) -> H256 {
     keccak(&[root, &word_u64(KNOWN_ROOTS_SLOT)])
 }
 
-/// The burner's hiding commitment to their Ethereum recipient.
-pub fn eth_commitment(recipient: &[u8; 20], secret: &H256) -> H256 {
-    sha256(&[&ETH_COMMIT_TAG, &word_addr(recipient), secret])
+/// The burner's hiding commitment to their Ethereum recipient and to the fee
+/// a relayer may take from the release. A release opens it on Ethereum, so
+/// the fee is fixed here, at burn time: whoever submits the release can then
+/// neither redirect it nor raise the fee (whoever relays earns that fee).
+pub fn eth_commitment(recipient: &[u8; 20], fee: u128, secret: &H256) -> H256 {
+    sha256(&[&ETH_COMMIT_TAG, &word_addr(recipient), &word_u128(fee), secret])
+}
+
+pub const ATTEST_TAG: H256 = tag(b"rfp022/burn-root-attestation/v1");
+
+/// What each member of the release committee signs (EIP-191, over this
+/// keccak digest): "the burn tree of the paired deployment had `root` in LEZ
+/// state at block `lez_block`, and `lez_final_block` is the highest block I
+/// consider final". `CommitteeBurnVerifier.attestationDigest` computes the same.
+pub fn attestation_digest(chain_id: u64, vault: &[u8; 20], pairing: &H256, root: &H256, lez_block: u64, lez_final_block: u64) -> H256 {
+    keccak(&[&ATTEST_TAG, &word_u64(chain_id), &word_addr(vault), pairing, root, &word_u64(lez_block), &word_u64(lez_final_block)])
 }
 
 pub fn burn_leaf(pairing: &H256, token: &[u8; 20], amount: u128, eth_commitment: &H256) -> H256 {
@@ -326,6 +339,31 @@ mod tests {
         let got = release_digest(31337, &a(1), &[0x11; 32], &a(2), 1_000_000, &a(3), &a(4), 5, &[0x33; 32], &[0x44; 32]);
         assert_eq!(got, h(RELEASE_VECTOR));
     }
+
+    /// The same burn-side hashes as vault/test/CommitteeBurnVerifier.t.sol
+    /// (`test_burn_hashes_are_shared_with_rust`): pairing 0x11…, token 0x…02,
+    /// 1 ETH, recipient 0x…03, fee 5, secret 0x55…, index 7.
+    #[test]
+    fn burn_hashes_are_the_verifiers() {
+        let a = |b: u8| {
+            let mut x = [0u8; 20];
+            x[19] = b;
+            x
+        };
+        let ec = eth_commitment(&a(3), 5, &[0x55; 32]);
+        let leaf = burn_leaf(&[0x11; 32], &a(2), 1_000_000_000_000_000_000, &ec);
+        let nf = burn_nullifier(&[0x11; 32], &[0x55; 32], 7);
+        let att = attestation_digest(31337, &a(1), &[0x11; 32], &[0x33; 32], 40, 43);
+        let got = [ec, leaf, nf, att].map(hex::encode);
+        assert_eq!(got, BURN_VECTORS, "{got:?}");
+    }
+
+    pub const BURN_VECTORS: [&str; 4] = [
+        "bbc8856a71249b9f3254eb8b6e962896d2f85388b584979cb7bf38358baba7b4",
+        "91a62580a02a2a83385299bd6ee8516d079cf61deee0bba79c6ace84a44a5ab8",
+        "c191ff0e20e847734710bc669edc21fcb03d0fd5b4eea2c1b603a9269eefb9ab",
+        "246310dd736d66ce3cb00c7d265f7d4556e56779f880e799f062f1c574b308c3",
+    ];
 
     pub const RELEASE_VECTOR: &str = "f6c5b41d69d736ebe3c139a70d2172fdf781b356f13abe0308c7694f7dd2feec";
 

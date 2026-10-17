@@ -34,7 +34,7 @@ fn main() {
     let g_claim_usdt = claim(&mut ch, &cfg, &claim_ix(&a, &cfg, &a.deposits[1], 4, alice().id, s1, SLOT)).unwrap();
 
     let ca = config_account(&BR, &cfg);
-    let ec = wrap_core::eth_commitment(&[0xee; 20], &wrap_core::derive_secret(&ALICE_SEED, b'b', 0));
+    let ec = wrap_core::eth_commitment(&[0xee; 20], 0, &wrap_core::derive_secret(&ALICE_SEED, b'b', 0));
     let g_burn = ch
         .send_as(
             &alice(),

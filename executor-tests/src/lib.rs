@@ -487,6 +487,18 @@ pub fn world() -> World {
 /// Carol's wallet seed: her deposit commits to a private LEZ account.
 pub const CAROL_SEED: H256 = *b"carol's wallet seed, test only!!";
 
+/// The rows of a `BurnFrom` of `eth_token` held by `holding` itself.
+pub fn burn_from_rows(cfg: &Config, eth_token: &[u8; 20], holding: AccountId) -> Vec<ProgramShardSelector> {
+    let ca = config_account(&BR, cfg);
+    vec![
+        sel(ca, BR),
+        sel(wrap_bridge::entry_account(&BR, &ca, eth_token), BR),
+        sel(wrap_bridge::burns_account(&BR, &ca), BR),
+        sel(wrap_bridge::definition_account(&BR, &ca, eth_token, &SALT).0, TOKEN),
+        sel(holding, TOKEN),
+    ]
+}
+
 /// The keys of a private (shielded) LEZ account: the authorization secret
 /// and the two halves of the ML-KEM-768 viewing key seed, all derived from a
 /// wallet seed, as a wallet would.
@@ -556,6 +568,63 @@ pub fn prove_private_claim(cfg: &Config, c: &wrap_bridge::Claim, to: &Shielded, 
         shard_selectors: private_claim_rows(cfg, c),
         private_witnesses: vec![to.init_witness(random_seed)],
         instruction_data: lee::program::Program::serialize_instruction(wrap_bridge::Instruction::Claim(Box::new(c.clone()))).map_err(|e| e.to_string())?,
+        ..Default::default()
+    };
+    let (output, proof) = lee::execute_and_prove(input, &pwd).map_err(|e| format!("{e}"))?;
+    let message = Message::from_circuit_output(vec![], output);
+    let witness_set = WitnessSet::for_message(&message, proof, &[]);
+    Ok(lee::PrivacyPreservingTransaction::new(message, witness_set))
+}
+
+/// The witness that updates `keys`' existing private account `account`
+/// (its current committed state), with the membership proof of its
+/// commitment in the chain's set.
+/// `holder` is the account the commitment is under: `keys.id()` for its owner.
+pub fn update_witness(ch: &Chain, keys: &Shielded, holder: AccountId, account: &lee_core::account::Account, view_tag: lee_core::ViewTag, random_seed: H256) -> Result<lee_core::PrivateWitness, String> {
+    let cm = lee_core::Commitment::new(&holder, account);
+    let membership_proof = ch.state.get_proof_for_commitment(&cm).ok_or("the account's commitment is not on chain")?;
+    Ok(lee_core::PrivateWitness {
+        vpk: keys.vpk(),
+        random_seed,
+        identifier: lee_core::Identifier::ZERO,
+        kind: lee_core::WitnessKind::Regular { ask: Some(keys.ask) },
+        nullifier: lee_core::NullifierWitness::Update {
+            account: account.clone(),
+            view_tag,
+            nsk: lee_core::NullifierSecretKey::from(&keys.ask),
+            membership_proof,
+        },
+    })
+}
+
+/// Prove a `BurnFrom` of `amount` from the private account `holder`
+/// (holding `account`, as its last note decrypted), with `keys` as its
+/// owner's keys, as a privacy-preserving
+/// transaction: the holder is authorized inside the circuit by its key, and
+/// appears nowhere; the deferred public effects are the bridge's config and
+/// entry checks, the burn-tree append and the definition's supply change.
+#[allow(clippy::too_many_arguments)]
+pub fn prove_private_burn(
+    ch: &Chain,
+    cfg: &Config,
+    eth_token: [u8; 20],
+    amount: u128,
+    eth_commitment: H256,
+    holder: AccountId,
+    keys: &Shielded,
+    account: &lee_core::account::Account,
+    view_tag: lee_core::ViewTag,
+    random_seed: H256,
+) -> Result<lee::PrivacyPreservingTransaction, String> {
+    use lee::privacy_preserving_transaction::{circuit::ProgramWithDependencies, Message, WitnessSet};
+    let p = |n: &str| lee::program::Program::new(bin(n).into()).expect("a RISC0 program binary");
+    let deps = std::collections::HashMap::from([(TOKEN, p("token.bin"))]);
+    let pwd = ProgramWithDependencies::new(p("wrap_bridge.bin"), BR, deps);
+    let ix = wrap_bridge::Instruction::BurnFrom { config: cfg.clone(), eth_token, salt: SALT, amount, eth_commitment };
+    let input = lee::ProvingInput {
+        shard_selectors: burn_from_rows(cfg, &eth_token, holder),
+        private_witnesses: vec![update_witness(ch, keys, holder, account, view_tag, random_seed)?],
+        instruction_data: lee::program::Program::serialize_instruction(ix).map_err(|e| e.to_string())?,
         ..Default::default()
     };
     let (output, proof) = lee::execute_and_prove(input, &pwd).map_err(|e| format!("{e}"))?;

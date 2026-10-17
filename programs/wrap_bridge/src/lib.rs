@@ -22,7 +22,11 @@
 //!
 //! **Burn** (outbound). The holder burns a permitted amount and appends
 //! `burn_leaf(token, amount, eth_commitment)` to this program's burn tree; the
-//! Ethereum recipient is hidden in `eth_commitment`.
+//! Ethereum recipient is hidden in `eth_commitment`. `Burn` takes the tokens
+//! from the signing owner's ATA; `BurnFrom` from the authorized account that
+//! holds them, which on the private path is a private account: run inside a
+//! privacy-preserving transaction, the holder never appears, and only the
+//! burn leaf, the token, the amount and the supply change are public.
 //!
 //! Accounts (all PDAs of this program, except the token program's shards):
 //!
@@ -145,6 +149,12 @@ pub enum Instruction {
     Claim(Box<Claim>),
     /// Rows: [config, entry, burns, definition, owner (signer), the owner's ATA].
     Burn { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, eth_commitment: H256 },
+    /// Rows: [config, entry, burns, definition, holding (authorized)]. Burns
+    /// from an account that holds the wrapped token itself rather than
+    /// through an ATA: on the private path, the private account a private
+    /// claim minted into, authorized inside the privacy circuit by its
+    /// owner's key, so that no public account appears in the burn.
+    BurnFrom { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, eth_commitment: H256 },
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
@@ -385,6 +395,29 @@ pub fn plan(input: &PlanInput, ix: Instruction) -> Plan {
                 config.ata_program,
                 vec![ProgramShardSelector::from(&owner), ProgramShardSelector::from(&ata), ProgramShardSelector::from(&def)],
                 &token::AtaInstruction::Burn { token_program_id: config.token_program, kind: token::TokenKind::Fungible, amount },
+            ));
+            plan.event(event("Burned", &Burned { leaf }));
+        }
+        Instruction::BurnFrom { config, eth_token, salt, amount, eth_commitment } => {
+            let [cfg, entry, burns, def, holding] = rows::<5>(input);
+            let ca = config_account(&me, &config);
+            expect_row(&cfg, ca, me, "BurnFrom: the first row is the config PDA");
+            expect_row(&entry, entry_account(&me, &ca, &eth_token), me, "BurnFrom: the second row is the token's entry PDA");
+            expect_row(&burns, burns_account(&me, &ca), me, "BurnFrom: the third row is the burn tree PDA");
+            let (did, _) = definition_account(&me, &ca, &eth_token, &salt);
+            expect_row(&def, did, config.token_program, "BurnFrom: the fourth row is the wrapped token's definition");
+            // The token program refuses an unauthorized holding too; refusing
+            // here first gives the typed code, and does not rest on it alone.
+            refuse_unless(holding.is_authorized, E_NOT_HOLDER, "the fifth row is the burning holding, authorized by its owner");
+            refuse_unless(holding.program_account_id == config.token_program, E_ACCOUNTS, "the fifth row is the holding's token-program shard");
+            let leaf = wrap_core::burn_leaf(&pairing(&me, &config), &eth_token, amount, &eth_commitment);
+            plan.effect(&cfg, &Effect::CheckLive { mint: false });
+            plan.effect(&entry, &Effect::Burn { salt, amount });
+            plan.effect(&burns, &Effect::Append(leaf));
+            plan.call(ChainedCall::new(
+                config.token_program,
+                vec![ProgramShardSelector::from(&def), ProgramShardSelector::from(&holding)],
+                &token::Instruction::Burn { amount_to_burn: amount, kind: token::TokenKind::Fungible },
             ));
             plan.event(event("Burned", &Burned { leaf }));
         }
