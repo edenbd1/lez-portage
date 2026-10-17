@@ -1,17 +1,30 @@
-  ok   the recorded manifest verifies (57 checks pass, 0 fail (7 applied and 5 refused public transactions, 1 privacy-preserving, in the manifest))
-  ok   mutation fake-hash caught: init-sextant: 784c8560ebe77d89… NOT FOUND on chain
+  ok   the recorded manifest verifies (73 checks pass, 0 fail (7 applied and 5 refused public transactions, 2 privacy-preserving, 2 applied and 7 refused releases, in the manifest))
+  ok   mutation fake-hash caught: init-sextant: e318b2d4b7fa0a2c… NOT FOUND on chain
   ok   mutation refusal-as-applied caught: claim-alice-eth-replay: expected applied, charged 330000 gas (pre-checked 330000, limit 330000)
   ok   mutation applied-as-refused caught: init-sextant: expected refused, charged 1831160 gas against a limit of 1859471
   ok   mutation wrong-gas caught: init-sextant: expected applied, charged 1831160 gas (pre-checked 1831161, limit 1859471)
-  ok   mutation wrong-block caught: init-sextant: aafe904b771f0eca… is in block 27, recorded in 28
-  ok   mutation swapped-hashes caught: init-sextant: 82d32be380d16530… is in block 28, recorded in 27
-  ok   mutation private-fake-hash caught: claim-carol-private: 784c8560ebe77d89… NOT FOUND on chain
+  ok   mutation wrong-block caught: init-sextant: ecf8fd05b67f3a50… is in block 27, recorded in 28
+  ok   mutation swapped-hashes caught: init-sextant: 0d5c6a57ba8b9afe… is in block 28, recorded in 27
+  ok   mutation private-fake-hash caught: claim-carol-private: e318b2d4b7fa0a2c… NOT FOUND on chain
   ok   mutation private-as-public caught: claim-carol-private: not a public transaction
-  ok   mutation private-destination caught: claim-carol-private: the private destination's id occurs in the transaction
-  ok   mutation private-size caught: claim-carol-private: 251527 bytes, recorded 251528
-  ok   mutation public-as-private caught: init-sextant: not a privacy-preserving transaction; 26133 bytes, recorded 251527
-  ok   mutation final-state caught: final state of nullifier_3 (3UboTv1xhyUt…): recorded 1 bytes 0000000000000000…, chain has 1 bytes 4bf5122f344554c5…
-  ok   mutation final-unclaimed caught: final state of nullifier_2 (7z6sW6vwQHTB…): recorded 1 bytes 4bf5122f344554c5…, chain has 0 bytes e3b0c44298fc1c14…
-  ok   mutation image-id caught: program wrap_bridge: header 2HPEPetkPVgh… names ImageID 0000000000000000… (chain has a7c903ab8c53cae2fc74928a569c772ef45
-  ok   mutation deploy-hash caught: deploy sextant_lc-segment6: 784c8560ebe77d89… resolves NOT FOUND
-15 of 15 mutations caught
+  ok   mutation private-destination caught: claim-carol-private: the private account's id 8RRNot1NLnQx… occurs in the transaction
+  ok   mutation private-size caught: claim-carol-private: 251335 bytes, recorded 251336
+  ok   mutation public-as-private caught: init-sextant: not a privacy-preserving transaction; 26133 bytes, recorded None; no hidden account recorded
+  ok   mutation final-state caught: final state of nullifier_3 (5ZPBKRfVQ57T…): recorded 1 bytes 0000000000000000…, chain has 1 bytes 4bf5122f344554c5…
+  ok   mutation final-unclaimed caught: final state of nullifier_2 (Hiqt31nN73S3…): recorded 1 bytes 4bf5122f344554c5…, chain has 0 bytes e3b0c44298fc1c14…
+  ok   mutation image-id caught: program wrap_bridge: header DQs598Da925L… names ImageID 0000000000000000… (chain has 073f046ce2a6fffd6adec655f0e65e91fd1
+  ok   mutation deploy-hash caught: deploy sextant_lc-segment6: e318b2d4b7fa0a2c… resolves NOT FOUND
+  ok   mutation private-burn-fake-hash caught: burn-carol-private: e318b2d4b7fa0a2c… NOT FOUND on chain
+  ok   mutation private-burn-holder caught: burn-carol-private: the private account's id 8RRNot1NLnQx… occurs in the transaction
+  ok   mutation private-burn-size caught: burn-carol-private: 248358 bytes, recorded 248359
+  ok   mutation eth-fake-hash caught: eth release-alice: 0xe318b2d4b7fa0a… NOT FOUND on anvil
+  ok   mutation eth-refusal-as-applied caught: eth release-carol-not-final: status 0, recorded applied; no Release event of the vault names the recorded nullifier
+  ok   mutation eth-applied-as-refused caught: eth release-alice: status 1, recorded reverted; replayed at block 16 it reverts with nothing, recorded 0xfb0612b1
+  ok   mutation eth-other-error caught: eth release-carol-redirected-to-relayer: replayed at block 18 it reverts with 0xfb0612b1, recorded 0xd7c25c79
+  ok   mutation eth-wrong-block caught: eth release-carol-not-final: in block 16, recorded 17
+  ok   mutation eth-wrong-nullifier caught: eth release-alice: no Release event of the vault names the recorded nullifier
+  ok   mutation eth-wrong-root caught: release-root 0xe318b2d4b7fa0a2c… is not the LEZ burn tree's root (the sequencer has 0x1d80c186f43acfe6203d9072b504392caf
+  ok   mutation eth-unreleased caught: eth final: nullifierSpent(0x9e64925f11c6…) = true, recorded false (release-alice)
+  ok   mutation eth-control-spent caught: eth final: nullifierSpent(0xcc52af09edd0…) = false, recorded true (control)
+  ok   mutation eth-balance caught: eth final: vault holds 100000000000000000 wei, recorded 100000000000000001
+28 of 28 mutations caught

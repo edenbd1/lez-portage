@@ -10,6 +10,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge test --root vault -vv
+      # Each check of the release path (CommitteeBurnVerifier, the vault's nullifier) removed in turn.
+      - run: scripts/mutation-test-vault.sh
   core:
     name: wrap-core (hashes shared with the vault)
     runs-on: ubuntu-latest
