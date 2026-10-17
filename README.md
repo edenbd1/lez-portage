@@ -13,7 +13,12 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   nothing (USDT, F.17); fee-on-transfer tokens and `false` returns are refused.
   Per-token caps per window, per-token and global freezes for each direction,
   releases paid on a proof checked by a verifier fixed at construction
-  (Security #8), each nullifier once.
+  (Security #8), each nullifier once. `CommitteeBurnVerifier.sol` is that
+  verifier today. It checks the LEZ burn leaf's opening on Ethereum: the
+  recipient, amount and relayer fee bound by the burn, the root and
+  nullifier derived. It checks the burn tree's root against a fixed k-of-n
+  committee's attestation that the root is final. **That committee is a trust
+  assumption, so F.7 is not met** ([docs/OUTBOUND.md](docs/OUTBOUND.md)).
 - `core/`: `wrap-core`, every hash both halves must agree on (leaf, tree,
   commitments, nullifiers, the `knownRoot` slot, the burn tree, the release
   digest), with shared test vectors asserted on both sides.
@@ -27,7 +32,10 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   Wrapped tokens are held in associated token accounts, one per owner and token,
   or, on the private path, in the private account the deposit committed to.
   `Burn` burns through the ATA program and appends a leaf hiding the Ethereum
-  recipient to the program's burn tree. `Register`, `SetPolicy`, `Freeze`.
+  recipient and the relayer fee to the program's burn tree. `BurnFrom` does
+  the same from the account that holds the token. On the private path that
+  account is a private one, authorized by its owner's key inside a
+  privacy-preserving transaction. `Register`, `SetPolicy`, `Freeze`.
 - `executor-tests/`: the four committed binaries (`sextant_lc` from Sextant,
   `token` and `associated_token_account` from LEZ v0.3.0, `wrap_bridge`)
   through `lee::V03State`, the state machine the v0.3 sequencer applies, under
@@ -37,10 +45,12 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
 - `cli/`: `wrap`, the client on a LEZ v0.3 sequencer (v0.3.0 `wallet` crate,
   v0.3.1 block format): loads the four binaries through program_loader,
   initialises Sextant and the bridge, sends public claims and burns with an
-  explicit gas limit after a local pre-check, and proves the private claim
-  into a wallet-held shielded account, which the wallet then syncs and
-  decrypts. `scripts/e2e-local.sh` drives it against a local v0.3.1
-  sequencer and anvil ([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)).
+  explicit gas limit after a local pre-check, proves the private claim into
+  a wallet-held shielded account and the private burn out of it, and builds
+  a release's opening (`release-proof`). `scripts/e2e-local.sh` drives the
+  round trip against a local v0.3.1 sequencer and anvil
+  ([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)). `scripts/anvil_release.py` is
+  the committee and the release on anvil.
 - `vectors/anvil/`: those deposits (`scripts/anvil_vectors.py`): the vault on a
   local anvil chain, five deposits by three seeds (one to a private LEZ
   account), the Deposit events, the block,
@@ -55,26 +65,28 @@ deposit's path, the nullifier, the mint.
 ## Run
 
 ```console
-forge test --root vault                                            # 21 tests
-cargo test --release --manifest-path core/Cargo.toml               # 7 tests
-cargo test --release --manifest-path executor-tests/Cargo.toml     # 12 tests (r0vm 3.0.5)
-RISC0_DEV_MODE=1 cargo test --release --manifest-path executor-tests/Cargo.toml --test private -- --ignored   # 2 tests
+forge test --root vault                                            # 39 tests
+scripts/mutation-test-vault.sh         # each check of the release path removed must fail them (13)
+cargo test --release --manifest-path core/Cargo.toml               # 8 tests
+cargo test --release --manifest-path executor-tests/Cargo.toml     # 13 tests (r0vm 3.0.5)
+RISC0_DEV_MODE=1 cargo test --release --manifest-path executor-tests/Cargo.toml --test private -- --ignored   # 3 tests
 scripts/measure-private-claim.sh       # the private claim with real proving (~7 GB, minutes)
 cargo run --release --manifest-path executor-tests/Cargo.toml --bin measure
 DOCKER=1 scripts/build-guest.sh        # rebuild artifacts/programs/v0.3/wrap_bridge.bin (reproducible)
-scripts/mutation-test.sh               # each guard removed in turn must fail the tests
+scripts/mutation-test.sh               # each guard removed in turn must fail the tests (21)
 python3 scripts/anvil_vectors.py       # regenerate vectors/anvil (local anvil, nothing spent)
 cargo build --release --manifest-path cli/Cargo.toml
 SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh    # local v0.3.1 sequencer + anvil, end to end (docs/LOCAL-E2E.md)
 # the run ends with both against its own sequencer; with KEEP=1 it stays up to re-run them:
-scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051
-scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051
+scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
+scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
 ```
 
 `artifacts/programs/v0.3/wrap_bridge.bin` is the `DOCKER=1` build, in RISC
 Zero's pinned builder (`risczero/risc0-guest-builder:r0.1.91.1`): 434,496
-bytes, sha256 `973aec2aceed4caa0094b06067fea0883e38b20e0bec5c9b9f12f02a42967008`,
-ImageID `a7c903ab8c53cae2fc74928a569c772ef45520f323de2e1c3be43dd04d82e3d7`.
+bytes, sha256 `6975794938335ab3715a9acdc783bc1e6eb5203e9fe411c5e7efd9f78cca1903`,
+ImageID `073f046ce2a6fffd6adec655f0e65e91fd1ab7e47774e2685c40f2d51ea1c670`
+(two builds from scratch, identical).
 CI rebuilds it from a clean checkout and `cmp`s it with the committed bytes
 (`.github/workflows/ci.yml`, job `reproduce`). The local build (no `DOCKER`)
 is for iterating and for the mutation test; its bytes differ.
@@ -83,12 +95,12 @@ is for iterating and for the mutation test; its bytes differ.
 
 | | gas |
 |---|---:|
-| LEZ `Claim` (path, chained `Attest`, chained token `Mint`) | 297,502 (2.98% of the cap) |
+| LEZ `Claim` (path, chained `Attest`, chained token `Mint`) | 297,457 (2.97% of the cap) |
 | of which Sextant's `Attest` of the storage slot | 111,122 |
-| LEZ `Burn` (burn-tree append, chained ATA `Burn`) | 228,690 |
+| LEZ `Burn` (burn-tree append, chained ATA `Burn`) | 228,728 |
 | LEZ `Register` (entry, chained `NewFungibleDefinition`) | 90,577 |
 | Ethereum `deposit` (median, max) | 257,854, 336,694 |
-| Ethereum `release` with a stand-in verifier (max) | 158,669 |
+| Ethereum `release`, `CommitteeBurnVerifier`, 2 signatures (local run, gas used) | 143,096 (fee 0), 152,400 (paying a relayer) |
 
 The private claim, as a privacy-preserving transaction to a private account
 with real proving ([docs/PRIVATE-CLAIM-MEASURED.md](docs/PRIVATE-CLAIM-MEASURED.md)):
@@ -101,6 +113,13 @@ destination, secret, commitment, leaf, index and path stay private; the root,
 token, amount and nullifier account are public, so a claim hides among the
 unclaimed deposits of its token and amount under its root.
 
+The private burn, a `BurnFrom` out of carol's private account through the
+same client and sequencer: 202.9 s, 7.22 GB, 248,358 bytes. Her account id,
+her Ethereum recipient and the burn secret are absent from it, and the burn
+leaf is public ([docs/OUTBOUND.md](docs/OUTBOUND.md)). The claim in the same
+run took 247.6 s, 6.17 GB and 251,335 bytes. The machine was busier during
+the burn.
+
 The anvil account proof has 3 nodes; a mainnet one has 8 to 9, which Sextant
 measured at 304,267 gas for a storage `Attest`: a mainnet claim is about
 490,000 gas, still under 5% of the cap.
@@ -108,11 +127,18 @@ measured at 304,267 gas for a storage `Attest`: a mainnet claim is about
 ## What this prototype is not yet
 
 A public claim carries the deposit's opening, so it links the claim to its
-deposit. The private claim runs through a local v0.3.1 sequencer and the
-wallet ([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)), not yet on a public network;
-the private burn is not built. The vault's release verifier is a stand-in:
-nothing on Ethereum verifies LEZ state yet (LEZ v0.3 block headers carry no
-state root). No protocol fee, no rolling-window cap on LEZ (an outstanding-
+deposit. The private claim and the private burn run through a local v0.3.1
+sequencer and the wallet ([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)), not yet on
+a public network.
+
+**The release (F.7) is not cryptographically verified.** Its root rests on a
+k-of-n committee, because nothing on Ethereum can check LEZ state today: LEZ
+v0.3 block headers carry no state root, and there is no Bedrock light client
+for Ethereum. In the local run, "final" is the standalone sequencer's tip.
+The release also opens its burn leaf, so it is linkable to the LEZ burn
+transaction. Not built: the zero-knowledge membership proof (RISC Zero +
+Groth16) and the Cryptarchia light client that would replace the committee
+([docs/OUTBOUND.md](docs/OUTBOUND.md)). No protocol fee, no rolling-window cap on LEZ (an outstanding-
 supply cap instead), no relayer, no Logos modules, no SPEL IDL (SPEL does not
 build v0.3 programs), no deployment on a public network (the local run's
 Sextant instance is initialised from a beacon header built around the anvil

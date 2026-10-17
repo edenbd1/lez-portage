@@ -1,8 +1,10 @@
 # The bridge on a local LEZ v0.3.1 sequencer, end to end
 
-[`scripts/e2e-local.sh`](../scripts/e2e-local.sh) runs the whole inbound leg
-and a public burn through the client (`cli/`, `wrap`) against a **local**
-LEZ v0.3.1 standalone sequencer and a **local** anvil chain. Nothing reaches a
+[`scripts/e2e-local.sh`](../scripts/e2e-local.sh) runs the round trip through
+the client (`cli/`, `wrap`) against a **local** LEZ v0.3.1 standalone
+sequencer and a **local** anvil chain: the inbound leg (deposits, public and
+private claims), the burns (public, and private from a private account), and
+the releases back on Ethereum, with their refusals. Nothing reaches a
 public network and nothing of value is spent: the LEZ fees are paid by a
 genesis test account of LEZ's debug configuration, the Ethereum side uses
 anvil's development keys, and both chains are discarded at the end.
@@ -17,18 +19,20 @@ Record of the run: [`evidence/local/`](../evidence/local/)
    program_loader by the client: Sextant's `sextant_lc.bin` (lez-sextant
    `main`, ImageID `fa229edd…`), LEZ v0.3.0's `token.bin` (`912d412c…`) and
    `associated_token_account.bin` (`2b1d5580…`), and `wrap_bridge.bin`, the
-   committed Docker build (`a7c903ab…`), the last one with an immutable
+   committed Docker build (`073f046c…`), the last one with an immutable
    header. They are loaded before the vault exists because the vault is
    deployed with the pairing, which names wrap_bridge's program id.
-2. **Ethereum (anvil): the deposits.** `WrapVault` and a USDT-shaped token
-   (transfers return nothing) are deployed with that pairing, both tokens are
-   registered, and four deposits are made
+2. **Ethereum (anvil): the deposits.** `WrapVault`, its release verifier
+   (`CommitteeBurnVerifier`: anvil accounts 5, 6, 7 as a 2-of-3 committee,
+   finality depth 3 LEZ blocks) and a USDT-shaped token (transfers return
+   nothing) are deployed with that pairing, both tokens are registered, and
+   four deposits are made
    ([`scripts/anvil_deposits.py`](../scripts/anvil_deposits.py)):
    alice 1 ETH and 100 USDT, bob 0.1 ETH, all to public LEZ accounts, and
    carol 1 ETH committed to her **private** LEZ account, created in her wallet
    before the deposit. Then the block, the `Deposit` events and an
    `eth_getProof` of `knownRoot[root]` for every root.
-3. **LEZ: Sextant, the bridge, the claims, the burn.**
+3. **LEZ: Sextant, the bridge, the claims, the burns.**
 
 | step | expected |
 |---|---|
@@ -42,7 +46,34 @@ Record of the run: [`evidence/local/`](../evidence/local/)
 | **carol's 1 ETH as a privacy-preserving claim into her shielded account, real proving** | applied |
 | carol's wallet syncs and decrypts her account: 1 wrapped ETH, its commitment in the chain's set | |
 | alice burns 0.3 ETH (not a permitted amount) | refused `E7408` |
-| alice burns 1 ETH (Ethereum recipient hidden in a commitment) | applied |
+| alice burns 1 ETH (Ethereum recipient and fee 0 hidden in a commitment) | applied |
+| carol burns 0.3 ETH privately (not a permitted amount) | refused by the client before proving `E7408` |
+| **carol burns 1 ETH from her private account (`BurnFrom`, privacy-preserving, real proving; fee 0.01 ETH)** | applied |
+| carol's wallet syncs and decrypts her account: 0 wrapped ETH | |
+
+4. **Ethereum (anvil): the releases** ([OUTBOUND.md](OUTBOUND.md)). The client
+   rebuilds the burn tree from its record and checks it against the chain's
+   frontier (`wrap release-proof`). Each committee member reads the burn
+   tree's root from the sequencer and signs the root it read
+   (`scripts/anvil_release.py`). The release is then sent with an explicit
+   gas limit, so a refused one is mined and recorded too.
+
+| release | expected |
+|---|---|
+| carol's, signed at the tip (0 blocks deep, 3 required) | refused `NotFinal` |
+| alice's, self-submitted | applied |
+| alice's again | refused `AlreadyReleased` |
+| carol's opening, redirected to the relayer | refused `RootNotAttested` |
+| carol's opening, with another amount | refused `RootNotAttested` |
+| a burn that never happened, the members signing what they read | refused `RootNotAttested` |
+| the same, signed by two outsiders | refused `RootNotAttested` |
+| carol's, signed by one member | refused `RootNotAttested` |
+| carol's, by a relayer who earns her 0.01 ETH fee | applied |
+
+**Caveat on the release, stated in the manifest:** the committee is the
+trust assumption of the release path (a federation; F.7 is not met, see
+[OUTBOUND.md](OUTBOUND.md)), and "final" is the standalone sequencer's tip,
+three blocks above the block a member read: there is no Bedrock in this run.
 
 **Caveat, stated in the run's output and manifest:** anvil has no beacon
 chain. The Sextant instance is initialised from a beacon header built around
@@ -76,96 +107,131 @@ verdict is the deposit's nullifier account, written once.
 
 ## Results
 
-Run of 2026-10-17 12:54Z at commit `66210e5`, Apple M4 Pro (14 cores,
+Run of 2026-10-17 16:33Z at commit `c6328fe`, Apple M4 Pro (14 cores,
 24 GiB), sequencer `1a003bfb` (standalone), wallet `db66590a`, r0vm 3.0.5.
-**PASS: 13 transactions, 8 applied and 5 refused as expected, 15 state checks
-ok**, after 25 program_loader transactions loading the four programs (each
-header names its ImageID).
+**PASS: 14 LEZ transactions, 9 applied and 5 refused as expected; 9 releases
+on anvil, 2 applied and 7 refused as expected; 27 state checks ok.** Before
+them, 25 program_loader transactions loaded the four programs (each header
+names its ImageID).
 
 | transaction | expected | verdict | block | gas (charged) |
 |---|---|---|---:|---:|
 | `init-sextant` | applied | applied | 27 | 1,831,160 |
-| `init-bridge` | applied | applied | 28 | 27,053 |
-| `register-eth` (admin-signed) | applied | applied | 29 | 90,577 |
-| `register-usdt` (admin-signed) | applied | applied | 30 | 89,935 |
-| `claim-alice-eth` | applied | applied | 31 | 291,351 |
+| `init-bridge` | applied | applied | 28 | 27,049 |
+| `register-eth` (admin-signed) | applied | applied | 29 | 90,958 |
+| `register-usdt` (admin-signed) | applied | applied | 30 | 90,316 |
+| `claim-alice-eth` | applied | applied | 31 | 287,283 |
 | `claim-alice-eth-replay` | refused `E7402` | reverted | 32 | 330,000 (its limit) |
 | `claim-alice-eth-replay-old-root` | refused `E7402` | reverted | 33 | 330,000 (its limit) |
-| `claim-alice-usdt` | applied | applied | 34 | 291,423 |
+| `claim-alice-usdt` | applied | applied | 34 | 287,355 |
 | `claim-bob-redirected-to-alice` | refused `E7403` | reverted | 35 | 330,000 (its limit) |
 | `claim-phantom-unknown-root` | refused `E7208` (Sextant) | reverted | 36 | 330,000 (its limit) |
-| `claim-carol-private` | applied | applied (nullifier written) | 90 | none: no fee, no signer |
-| `burn-alice-eth-not-a-denomination` | refused `E7408` | reverted | 91 | 255,000 (its limit) |
-| `burn-alice-eth` (owner-signed) | applied | applied | 92 | 228,691 |
+| `claim-carol-private` | applied | applied (nullifier written) | 86 | none: no fee, no signer |
+| `burn-alice-eth-not-a-denomination` | refused `E7408` | reverted | 87 | 255,000 (its limit) |
+| `burn-alice-eth` (owner-signed) | applied | applied | 88 | 228,729 |
+| `burn-carol-private` | applied | applied (leaf appended) | 129 | none: no fee, no signer |
 
-Every applied transaction was charged exactly the gas the client's pre-check
-measured, and every refusal exactly its gas limit, with nothing changed. The
-public claim costs 291,351 gas on the sequencer (297,502 in the executor
-tests, whose vault, root and proofs differ).
+Every applied public transaction was charged exactly the gas the client's
+pre-check measured. Every refusal was charged exactly its gas limit, and
+nothing changed.
 
-State checks along the way: alice holds 1 wrapped ETH, then 100 wrapped USDT;
-supply 1 ETH after the public claims, 2 after the private claim, 1 after the
-burn, alice 0; bob's deposit stays unclaimed (its nullifier account is empty).
+State checks along the way:
 
-### The private claim, through the sequencer
+- alice holds 1 wrapped ETH, then 100 wrapped USDT;
+- the supply of wrapped ETH is 1 ETH after the public claims, 2 after the
+  private claim, 1 after alice's burn and 0 after carol's;
+- bob's deposit stays unclaimed (its nullifier account is empty);
+- the vault paid out exactly 2 ETH, and carol received 0.99 ETH;
+- both burn nullifiers are recorded as released.
 
-Carol's deposit (index 3, 1 ETH) committed to `Private/4NRsHioF…`, an account
-her wallet created before the deposit. The client proved the claim and the
-sequencer included it in block 90:
+### The private transactions, through the sequencer
 
-| | |
-|---|---:|
-| prove and submit (`send_privacy_preserving_tx`, real proving) | **263.1 s** |
-| the client process, wall | 269.2 s |
-| peak resident memory (`/usr/bin/time -l`) | **6.87 GB** |
-| transaction on chain (`getTransaction`, with its variant tag) | **251,527 bytes** |
-| RISC Zero dev mode | off |
+| | private claim | private burn |
+|---|---:|---:|
+| prove and submit (`send_privacy_preserving_tx`, real proving) | **247.6 s** | **202.9 s** |
+| the client process, wall | 249.7 s | 204.9 s |
+| peak resident memory (`/usr/bin/time -l`) | **6.17 GB** | **7.22 GB** |
+| transaction on chain (`getTransaction`, with its variant tag) | **251,335 bytes** | **248,358 bytes** |
+| load average before | 4.9 | 34 |
+| RISC Zero dev mode | off | off |
 
-The same order as the executor-level measurement (252 to 254 s, 6.7 to 8.3
-GB, [PRIVATE-CLAIM-MEASURED.md](PRIVATE-CLAIM-MEASURED.md)). The transaction
-is 21 kB larger than that one's 230,510 bytes: the wallet pads every
-privacy-preserving transaction to seven private inputs (six dummies here) and
-every note to 512 bytes, so that the number of private accounts a transaction
-touches does not show; the executor-level transaction has neither. The split
-of those 21 kB was not measured.
+The heavy lock (`$HEAVY`) kept a second prover out during
+both. The machine was busy with other work during the burn, so its time is an
+upper bound for an idle machine. Each was measured once in this run. The
+previous run measured the claim at 263 s and 6.87 GB, and the executor-level
+measurement gave 252 to 254 s and 6.7 to 8.3 GB
+([PRIVATE-CLAIM-MEASURED.md](PRIVATE-CLAIM-MEASURED.md)). The wallet pads
+every privacy-preserving transaction to seven private inputs and every note to
+512 bytes, so the two transactions are the same order of size whatever they
+do.
 
-What the client checked in the transaction's bytes as the chain returns
-them: the destination's account id, the secret, the deposit's commitment and
-leaf, and both non-empty nodes of its Merkle path occur nowhere. The verifier
-re-checks the destination's absence from the chain's copy.
+What the client checked in each transaction's bytes as the chain returns
+them:
 
-Decryption: the client's wallet (`WalletCore::sync_to_latest_block`) synced
-to block 90, found the note by its view tag and decrypted it: carol holds
-1 wrapped ETH of the definition the bridge registered, and the note's
-commitment is in the chain's commitment set. The v0.3.0 `wallet` binary then
-shows the same record from the same wallet home (`wallet account get
---account-id Private/4NRsHioF… --scope <token header>`: a fungible holding of
-`0x0de0b6b3a7640000` = 10^18). Nothing about the account is public: the
-chain has no shard under its id.
+- **The claim.** The destination's account id, the secret, the deposit's
+  commitment and leaf, and both non-empty nodes of its Merkle path occur
+  nowhere.
+- **The burn.** Carol's account id, her Ethereum recipient and the burn secret
+  occur nowhere. The burn leaf does occur in it, and the chain's burn tree
+  appended it.
+
+The verifier re-checks, for each transaction, that carol's account id is
+absent from the chain's copy.
+
+**Decryption.** The client's wallet (`WalletCore::sync_to_latest_block`)
+found and decrypted carol's notes. After the claim she holds 1 wrapped ETH of
+the definition the bridge registered, and the note's commitment is in the
+chain's set. The v0.3.0 `wallet` binary shows the same record
+(`wallet account get --account-id Private/… --scope <token header>`). After
+the burn she holds 0. Nothing about the account is public: the chain has no
+shard under its id.
+
+### The releases, on anvil
+
+See the table in [OUTBOUND.md](OUTBOUND.md): the applied releases used
+143,096 gas (alice, fee 0) and 152,400 gas (carol, through a relayer), and
+the refusals used 56,008 to 107,035 gas.
 
 ## The verifier and its mutation test
 
 [`scripts/verify-onchain.sh`](../scripts/verify-onchain.sh) re-checks a
-manifest against the sequencer with nothing but JSON-RPC: every program
+manifest against the sequencer and anvil with nothing but JSON-RPC: every program
 header names its ImageID; every deployment transaction resolves; every
 transaction resolves by hash (`getTransaction`) to its recorded block, and
 the hash is SHA-256 of the returned bytes after the variant tag; a public one
 was charged as its verdict says (applied: the pre-checked gas, below the
 limit; refused: exactly the limit; it must be the only charged transaction of
-its block); the private one is a privacy-preserving transaction of the
-recorded size in which the private destination's id does not occur; every
-account the run wrote (the Sextant instance and header record, the bridge
-config, both entries, the burn tree, the four nullifier accounts, both
-definitions, alice's two ATAs) holds the bytes the run left; and a random
-hash does not resolve.
+its block); each private one is a privacy-preserving transaction of its
+recorded size in which carol's account id does not occur; every account the
+run wrote (the Sextant instance and header record, the bridge config, both
+entries, the burn tree, the four nullifier accounts, both definitions,
+alice's two ATAs) holds the bytes the run left; and a random hash does not
+resolve.
+
+On anvil (`--eth-rpc`), every release attempt is checked:
+
+- its receipt is in the recorded block, with the recorded gas, as a call to
+  the vault;
+- an applied one has a `Release` event of the vault that names the recorded
+  nullifier, under the root the run recorded;
+- a refused one, replayed with `eth_call` at the block before, reverts with
+  the recorded selector, which is the expected error's.
+
+Then:
+
+- the root the releases were checked against is the LEZ burn tree's root on
+  the sequencer now;
+- both burn nullifiers are spent and a random one is not;
+- the vault's final balance is the one recorded;
+- a random transaction hash does not resolve on anvil.
 
 [`scripts/mutation-test-verifier.sh`](../scripts/mutation-test-verifier.sh)
 corrupts one thing at a time in a copy of the manifest and requires the
 verifier to fail on each with a FAIL line.
 
-Against this run ([`mutation-test.txt`](../evidence/local/mutation-test.txt)):
-the manifest as recorded verifies (57 checks, 0 fail), and **all 15
-mutations are caught**: an applied transaction's hash replaced by one never
+Against this run ([`mutation-test.txt`](../evidence/local/mutation-test.txt)),
+the manifest as recorded verifies (73 checks, 0 fail), and **all 28 mutations
+are caught**. The 15 on the inbound side: an applied transaction's hash replaced by one never
 sent; a refusal claimed as applied; an application claimed as refused; the
 pre-checked gas off by one; a transaction recorded in the next block; two
 hashes swapped; the private claim's hash replaced; the private claim recorded
@@ -173,7 +239,15 @@ as public; a public transaction recorded as the private claim; the private
 destination replaced by an id the transaction does carry (the bridge config);
 the private claim's size off by one; a nullifier account's final bytes
 altered; the unclaimed deposit's nullifier recorded as spent; another ImageID
-for wrap_bridge; a deployment hash never sent.
+for wrap_bridge; a deployment hash never sent. The 13 added with the burn and
+release legs: the private burn's hash replaced; the private burn's hidden
+account replaced by one it carries; its size off by one; an applied release's
+hash replaced; a refused release recorded as applied, and the reverse; a
+refusal recorded with another error than the one the chain gives; a release
+recorded in another block; an applied release's nullifier altered; the
+released root not the LEZ burn tree's; a released nullifier recorded as
+unspent; a random nullifier recorded as spent; the vault's balance off by one
+wei.
 
 The local chain is discarded when the run ends, so the verifier and the
 mutation test run inside the script against the live sequencer
@@ -207,13 +281,15 @@ machine) and `/usr/bin/time` for its peak memory.
 - The checkpoint caveat above: on Sepolia the checkpoint is a finalized beacon
   block root and Sextant follows the sync committee from there (Sextant v2 for
   Gloas); that run needs the vault on Sepolia.
-- The private burn and the release verifier are not built; the burn here is
-  public.
+- The release verifier is a 2-of-3 committee over the burn tree's root
+  ([OUTBOUND.md](OUTBOUND.md)): a stated trust assumption, not the
+  cryptographic F.7. The release opens its burn leaf, so it is linkable to
+  the LEZ burn transaction.
 - The v0.3.0 `wallet` binary cannot sync against v0.3.1 blocks itself
   (`wallet account sync-private` fails decoding the header: v0.3.1 dropped the
   producer key and signature). The sync is the wallet crate's, in the client,
   built against LEZ's v0.3.1 `common` (`cli/vendor/lez-common`); the binary
   then reads the decrypted account from the same wallet home.
 - The run is one sequential client: nothing else touched the bridge's
-  accounts while the private claim was proven (block 36 to 90). Concurrent
-  claims of the same token during a proof were not exercised.
+  accounts while the private claim or burn was proven. Concurrent claims or
+  burns of the same token during a proof were not exercised.

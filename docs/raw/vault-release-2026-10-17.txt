@@ -1,0 +1,27 @@
+No files changed, compilation skipped
+
+Ran 18 tests for test/CommitteeBurnVerifier.t.sol:CommitteeBurnVerifierTest
+[PASS] test_a_burn_not_yet_final_by_the_configured_depth_is_refused() (gas: 582837)
+[PASS] test_a_burn_that_never_happened_is_refused() (gas: 405497)
+[PASS] test_a_final_attested_burn_releases_once_to_its_committed_recipient() (gas: 383091)
+[PASS] test_a_higher_fee_is_refused_and_a_front_runner_earns_only_the_committed_fee() (gas: 624944)
+[PASS] test_a_malleated_signature_does_not_count() (gas: 262398)
+[PASS] test_a_relayer_other_than_the_proofs_is_refused() (gas: 308616)
+[PASS] test_a_second_nullifier_for_the_same_burn_is_refused() (gas: 507320)
+[PASS] test_an_attestation_for_another_vault_or_chain_is_refused() (gas: 675621)
+[PASS] test_another_amount_is_refused() (gas: 552167)
+[PASS] test_another_index_or_path_is_refused() (gas: 721377)
+[PASS] test_another_pairing_is_refused() (gas: 3743241)
+[PASS] test_another_recipient_is_refused() (gas: 554220)
+[PASS] test_burn_hashes_are_shared_with_rust() (gas: 20220)
+[PASS] test_one_member_signing_twice_counts_once() (gas: 349908)
+[PASS] test_only_the_vault_asks() (gas: 177301)
+[PASS] test_release_gas() (gas: 382267)
+Logs:
+  release through the committee verifier, 2 signatures (gas, test-measured): 219643
+
+[PASS] test_replay_is_refused() (gas: 418541)
+[PASS] test_the_committee_is_fixed_and_well_formed() (gas: 294352)
+Suite result: ok. 18 passed; 0 failed; 0 skipped; finished in 10.27ms (72.73ms CPU time)
+
+Ran 1 test suite in 14.71ms (10.27ms CPU time): 18 tests passed, 0 failed, 0 skipped (18 total tests)
