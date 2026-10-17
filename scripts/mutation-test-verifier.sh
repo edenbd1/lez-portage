@@ -4,17 +4,19 @@
 # scripts/verify-onchain.sh must exit non-zero on every one, with a FAIL line,
 # and zero on the manifest as recorded.
 #
-#   scripts/mutation-test-verifier.sh [--manifest FILE] [--rpc URL]
+#   scripts/mutation-test-verifier.sh [--manifest FILE] [--rpc URL] [--eth-rpc URL]
 set -uo pipefail
 cd "$(dirname "$0")/.."
-MANIFEST="evidence/local/e2e.tsv"; RPC="http://127.0.0.1:3051"
+MANIFEST="evidence/local/e2e.tsv"; RPC="http://127.0.0.1:3051"; ETH_RPC=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --manifest) MANIFEST="$2"; shift 2 ;;
     --rpc) RPC="$2"; shift 2 ;;
-    *) echo "usage: $0 [--manifest FILE] [--rpc URL]"; exit 2 ;;
+    --eth-rpc) ETH_RPC="$2"; shift 2 ;;
+    *) echo "usage: $0 [--manifest FILE] [--rpc URL] [--eth-rpc URL]"; exit 2 ;;
   esac
 done
+ETH=(); [ -n "$ETH_RPC" ] && ETH=(--eth-rpc "$ETH_RPC")
 T="$(mktemp -d)"
 fake="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
 mutate() { # mutation
@@ -26,6 +28,9 @@ def cols(i): return lines[i].split("\t")
 rows = [i for i, l in enumerate(lines) if l and not l.startswith("#")]
 public = [i for i in rows if cols(i)[6] != "private"]
 private = [i for i in rows if cols(i)[6] == "private"]
+eth = [i for i, l in enumerate(lines) if l.startswith("# eth ")]
+def ecols(i): return lines[i].split(" ")
+def eput(i, c): lines[i] = " ".join(c)
 def put(i, c): lines[i] = "\t".join(c)
 def comment(prefix):
     return next(i for i, l in enumerate(lines) if l.startswith(prefix))
@@ -45,11 +50,35 @@ elif how == "private-fake-hash":     # the private claim's hash replaced by one 
     i = private[0]; c = cols(i); c[4] = fake; put(i, c)
 elif how == "private-as-public":     # the private claim recorded as a public transaction
     i = private[0]; c = cols(i); c[6] = "gas=1"; put(i, c)
-elif how == "private-destination":   # a destination that the transaction does publish (the bridge config, a row of it)
+elif how in ("private-destination", "private-burn-holder"):  # an account the transaction does publish (the bridge config, a row of it)
     cfg = next(l.split()[2] for l in lines if l.startswith("# final ") and l.endswith(" config"))
-    i = comment("# private-destination "); lines[i] = "# private-destination " + cfg
-elif how == "private-size":          # the private claim's size off by one
-    i = comment("# private-claim prove"); p = lines[i].split(); k = p.index("tx_bytes") + 1; p[k] = str(int(p[k]) + 1); lines[i] = " ".join(p)
+    i = comment("# private claim-carol-private " if how == "private-destination" else "# private burn-carol-private ")
+    p = lines[i].split(); p[p.index("hides") + 1] = cfg; lines[i] = " ".join(p)
+elif how in ("private-size", "private-burn-size"):  # a private transaction's size off by one
+    i = comment("# private claim-carol-private " if how == "private-size" else "# private burn-carol-private ")
+    p = lines[i].split(); k = p.index("tx_bytes") + 1; p[k] = str(int(p[k]) + 1); lines[i] = " ".join(p)
+elif how == "private-burn-fake-hash":  # the private burn's hash replaced by one never sent
+    i = next(i for i in private if cols(i)[0] == "burn-carol-private"); c = cols(i); c[4] = fake; put(i, c)
+elif how == "eth-fake-hash":         # an applied release's hash replaced by one never sent
+    i = next(i for i in eth if ecols(i)[3] == "applied"); c = ecols(i); c[6] = "0x" + fake; eput(i, c)
+elif how == "eth-refusal-as-applied":  # a refused release recorded as applied
+    i = next(i for i in eth if ecols(i)[3] != "applied"); c = ecols(i); c[3] = "applied"; c[4] = "applied"; c[7] = "-"; eput(i, c)
+elif how == "eth-applied-as-refused":  # an applied release recorded as refused
+    i = next(i for i in eth if ecols(i)[3] == "applied"); c = ecols(i); c[3] = "RootNotAttested"; c[4] = "reverted"; c[7] = "0xfb0612b1"; eput(i, c)
+elif how == "eth-other-error":       # a refusal recorded with another error than the one the chain gives
+    i = next(i for i in eth if ecols(i)[3] == "RootNotAttested"); c = ecols(i); c[3] = "NotFinal"; c[7] = "0xd7c25c79"; eput(i, c)
+elif how == "eth-wrong-block":       # a release recorded in another block
+    i = eth[0]; c = ecols(i); c[5] = str(int(c[5]) + 1); eput(i, c)
+elif how == "eth-wrong-nullifier":   # an applied release recorded with another nullifier
+    i = next(i for i in eth if ecols(i)[3] == "applied"); c = ecols(i); c[9] = "0x" + fake; eput(i, c)
+elif how == "eth-wrong-root":        # the root the releases were checked against is not the LEZ burn tree's
+    i = comment("# release-root "); p = lines[i].split(); p[2] = "0x" + fake; lines[i] = " ".join(p)
+elif how == "eth-unreleased":        # a released burn's nullifier recorded as unspent
+    i = comment("# eth-final nullifier "); p = lines[i].split(); p[4] = "false"; lines[i] = " ".join(p)
+elif how == "eth-control-spent":     # a random nullifier recorded as spent
+    i = comment("# eth-final unspent "); p = lines[i].split(); p[4] = "true"; lines[i] = " ".join(p)
+elif how == "eth-balance":           # the vault's final balance off by one wei
+    i = comment("# eth-final balance "); p = lines[i].split(); p[4] = str(int(p[4]) + 1); lines[i] = " ".join(p)
 elif how == "public-as-private":     # a public transaction recorded as the private claim
     i = next(i for i in public if cols(i)[1] == "applied"); c = cols(i); c[6] = "private"; put(i, c)
 elif how == "final-state":           # a nullifier account's recorded final bytes altered
@@ -65,13 +94,17 @@ open(dst, "w").write("\n".join(lines) + "\n")
 PY
 }
 fail=0; caught=0; total=0
-./scripts/verify-onchain.sh --manifest "$MANIFEST" --rpc "$RPC" > "$T/clean.out" 2>&1 \
+./scripts/verify-onchain.sh --manifest "$MANIFEST" --rpc "$RPC" ${ETH[@]+"${ETH[@]}"} > "$T/clean.out" 2>&1 \
   && echo "  ok   the recorded manifest verifies ($(tail -1 "$T/clean.out"))" || { echo "  FAIL the recorded manifest does not verify"; tail -5 "$T/clean.out"; fail=1; }
-for m in fake-hash refusal-as-applied applied-as-refused wrong-gas wrong-block swapped-hashes private-fake-hash private-as-public \
-         private-destination private-size public-as-private final-state final-unclaimed image-id deploy-hash; do
+MUTS=(fake-hash refusal-as-applied applied-as-refused wrong-gas wrong-block swapped-hashes private-fake-hash private-as-public
+      private-destination private-size public-as-private final-state final-unclaimed image-id deploy-hash
+      private-burn-fake-hash private-burn-holder private-burn-size)
+[ -n "$ETH_RPC" ] && MUTS+=(eth-fake-hash eth-refusal-as-applied eth-applied-as-refused eth-other-error eth-wrong-block eth-wrong-nullifier
+                            eth-wrong-root eth-unreleased eth-control-spent eth-balance)
+for m in "${MUTS[@]}"; do
   total=$((total + 1))
   mutate "$m"
-  if ./scripts/verify-onchain.sh --manifest "$T/$m.tsv" --rpc "$RPC" > "$T/$m.out" 2>&1; then
+  if ./scripts/verify-onchain.sh --manifest "$T/$m.tsv" --rpc "$RPC" ${ETH[@]+"${ETH[@]}"} > "$T/$m.out" 2>&1; then
     echo "  FAIL mutation $m was NOT caught"; fail=1
   elif grep -q '^  FAIL' "$T/$m.out"; then
     caught=$((caught + 1))

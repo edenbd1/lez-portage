@@ -162,13 +162,29 @@ enum Cmd {
         #[arg(long)]
         private: bool,
     },
-    /// Burn `amount` of the wrapped token from `owner`'s associated token account.
+    /// Burn `amount` of the wrapped token from `owner`'s associated token
+    /// account, or with `--private` (carol) from her private account, as a
+    /// privacy-preserving `BurnFrom`. The Ethereum recipient is the owner's
+    /// anvil address, hidden with `--fee` in the burn's commitment.
     Burn {
         #[arg(value_enum)]
         owner: Who,
         #[arg(value_enum)]
         token: Token,
         amount: u128,
+        /// The fee a relayer may take from the release, fixed now.
+        #[arg(long, default_value_t = 0)]
+        fee: u128,
+        /// A privacy-preserving BurnFrom from carol's private account.
+        #[arg(long)]
+        private: bool,
+    },
+    /// The opening a release needs for `owner`'s burn (run/burns.json): its
+    /// leaf, index and path in the burn tree, which must lead to the root the
+    /// chain's burn tree holds now, and its nullifier.
+    ReleaseProof {
+        #[arg(value_enum)]
+        owner: Who,
     },
     /// Sync the wallet and decrypt carol's private account.
     ShowPrivate,
@@ -375,7 +391,7 @@ impl Ctx {
 
     /// Pre-check, then send over `rows`, signed by `signers` and the payer, paid by the payer.
     #[allow(clippy::too_many_arguments)]
-    async fn run_public(&self, w: &WalletCore, p: &Programs, op: &str, program: AccountId, data: Vec<u8>, rows: Vec<ProgramShardSelector>, signers: &[AccountId], fallback_gas: u64) -> Result<()> {
+    async fn run_public(&self, w: &WalletCore, p: &Programs, op: &str, program: AccountId, data: Vec<u8>, rows: Vec<ProgramShardSelector>, signers: &[AccountId], fallback_gas: u64) -> Result<Value> {
         let payer = self.payer()?;
         ensure!(!signers.contains(&payer), "the payer signs separately");
         let pre = self.precheck(w, p, program, &data, &rows, signers).await?;
@@ -390,7 +406,7 @@ impl Ctx {
         if matches!(pre, Pre::Refused(_)) && !self.force {
             line["verdict"] = "refused-precheck".into();
             println!("{line}");
-            return Ok(());
+            return Ok(line);
         }
         let mut keys = vec![];
         for s in signers.iter().chain(std::iter::once(&payer)) {
@@ -472,7 +488,7 @@ impl Ctx {
         }
         line["payer_balance_after"] = self.balance(payer).await?.to_string().into();
         println!("{line}");
-        Ok(())
+        Ok(line)
     }
 
     /// The claim a client builds for deposit `d` of `an`, against the root after `n` deposits.
@@ -508,6 +524,33 @@ impl Ctx {
     }
 }
 
+/// The run's record of the burns that landed, in the order the burn tree appended them.
+fn burns_record(ctx: &Ctx) -> Result<Vec<Value>> {
+    let p = ctx.run.join("burns.json");
+    if !p.exists() {
+        return Ok(vec![]);
+    }
+    Ok(read_json(&p)?.as_array().cloned().unwrap_or_default())
+}
+
+fn push_burn(ctx: &Ctx, entry: Value) -> Result<()> {
+    let mut all = burns_record(ctx)?;
+    all.push(entry);
+    std::fs::write(ctx.run.join("burns.json"), serde_json::to_vec_pretty(&all)?)?;
+    Ok(())
+}
+
+fn h32(v: &Value) -> Result<H256> {
+    let s = v.as_str().ok_or_else(|| anyhow!("not a hex string: {v}"))?;
+    hex::decode(s.trim_start_matches("0x"))?.try_into().map_err(|_| anyhow!("not 32 bytes: {s}"))
+}
+
+/// The burn tree's frontier as the chain holds it.
+async fn frontier(ctx: &Ctx, p: &Programs, cfg: &Config) -> Result<wrap_core::Frontier> {
+    let d = ctx.shard(burns_account(&p.br, &config_account(&p.br, cfg)), p.br).await?;
+    Ok(if d.is_empty() { wrap_core::Frontier::default() } else { borsh::from_slice(&d)? })
+}
+
 /// The first typed refusal in an error (`E72xx` sextant_lc, `E74xx` wrap_bridge), or the error.
 fn typed(e: &str) -> String {
     match et::refusal(e) {
@@ -538,7 +581,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let rpc = SequencerClientBuilder::default().build(&cli.rpc).with_context(|| format!("not a sequencer URL: {}", cli.rpc))?;
     let ctx = Ctx { rpc, run: cli.run, artifacts: cli.artifacts, payer: cli.payer, force: cli.force, wait: cli.wait, label: cli.label };
-    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. });
+    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. });
     let mut wallet = if opens_wallet {
         Some(WalletCore::from_env().await.context("this command needs a v0.3 wallet home (LEE_WALLET_HOME_DIR)")?)
     } else {
@@ -811,7 +854,7 @@ async fn main() -> Result<()> {
                 println!("{line}");
             }
         }
-        Cmd::Burn { owner, token, amount } => {
+        Cmd::Burn { owner, token, amount, fee, private } => {
             let p = ctx.programs()?;
             let a = ctx.accounts()?;
             let an = ctx.anvil();
@@ -820,17 +863,156 @@ async fn main() -> Result<()> {
             let eth_token = ctx.eth_token(&an, token);
             let o = a.of(owner);
             let recipient: [u8; 20] = et::h(&read_json(&ctx.run.join("anvil/deployment.json"))?[format!("{owner:?}").to_lowercase()]);
-            let ec = wrap_core::eth_commitment(&recipient, &wrap_core::derive_secret(&seed_of(owner), b'b', 0));
-            let rows = vec![
-                ProgramShardSelector::new(ca, p.br),
-                ProgramShardSelector::new(entry_account(&p.br, &ca, &eth_token), p.br),
-                ProgramShardSelector::new(burns_account(&p.br, &ca), p.br),
-                ProgramShardSelector::new(definition_account(&p.br, &ca, &eth_token, &SALT).0, p.token),
-                ProgramShardSelector::new(o, p.br),
-                ProgramShardSelector::new(ctx.ata(&p, &cfg, &eth_token, o), p.token),
-            ];
-            let ix = wrap_bridge::Instruction::Burn { config: cfg, eth_token, salt: SALT, amount, eth_commitment: ec };
-            ctx.run_public(wallet.as_ref().unwrap(), &p, "burn", p.br, Program::serialize_instruction(ix)?, rows, &[o], HONEST_BURN).await?;
+            let secret = wrap_core::derive_secret(&seed_of(owner), b'b', 0);
+            let ec = wrap_core::eth_commitment(&recipient, fee, &secret);
+            let leaf = wrap_core::burn_leaf(&wrap_bridge::pairing(&p.br, &cfg), &eth_token, amount, &ec);
+            let before = frontier(&ctx, &p, &cfg).await?;
+            let record = |tx: &str, block: u64| {
+                json!({"owner": format!("{owner:?}").to_lowercase(), "token": format!("0x{}", hex::encode(eth_token)), "amount": amount.to_string(),
+                       "recipient": format!("0x{}", hex::encode(recipient)), "fee": fee.to_string(), "secret": format!("0x{}", hex::encode(secret)),
+                       "leaf": format!("0x{}", hex::encode(leaf)), "index": before.next_index, "tx": tx, "block": block, "private": private})
+            };
+            if !private {
+                let rows = vec![
+                    ProgramShardSelector::new(ca, p.br),
+                    ProgramShardSelector::new(entry_account(&p.br, &ca, &eth_token), p.br),
+                    ProgramShardSelector::new(burns_account(&p.br, &ca), p.br),
+                    ProgramShardSelector::new(definition_account(&p.br, &ca, &eth_token, &SALT).0, p.token),
+                    ProgramShardSelector::new(o, p.br),
+                    ProgramShardSelector::new(ctx.ata(&p, &cfg, &eth_token, o), p.token),
+                ];
+                let ix = wrap_bridge::Instruction::Burn { config: cfg.clone(), eth_token, salt: SALT, amount, eth_commitment: ec };
+                let line = ctx.run_public(wallet.as_ref().unwrap(), &p, "burn", p.br, Program::serialize_instruction(ix)?, rows, &[o], HONEST_BURN).await?;
+                if line["verdict"] == "applied" {
+                    let after = frontier(&ctx, &p, &cfg).await?;
+                    ensure!(after.next_index == before.next_index + 1, "the burn tree did not grow by one leaf");
+                    push_burn(&ctx, record(line["tx"].as_str().unwrap_or("-"), line["block"].as_u64().unwrap_or(0)))?;
+                }
+            } else {
+                ensure!(owner == Who::Carol, "the private path burns from carol's private account");
+                let w = wallet.as_mut().expect("burn opens the wallet");
+                w.sync_to_latest_block().await?;
+                w.store_persistent_data()?;
+                let held = w.get_account_private(a.carol).ok_or_else(|| anyhow!("the wallet does not hold carol's private account"))?;
+                let held_balance = holding_balance(&held.data.shard(p.token).to_vec()).unwrap_or(0);
+                let mut line = json!({"op": "burn-private", "label": ctx.label, "held_before": held_balance.to_string(),
+                                      "dev_mode": std::env::var("RISC0_DEV_MODE").is_ok_and(|v| !v.is_empty() && v != "0" && v != "false")});
+                // The policy and freeze flags live in public accounts the plan cannot
+                // read: settlement checks them (and a sequencer drops a private
+                // transaction that fails there). Check them here, before proving.
+                let entry: wrap_bridge::TokenEntry = borsh::from_slice(&ctx.shard(entry_account(&p.br, &ca, &eth_token), p.br).await?)?;
+                let live: wrap_bridge::Live = borsh::from_slice(&ctx.shard(ca, p.br).await?)?;
+                let refusal = if !entry.policy.denominations.contains(&amount) {
+                    Some(format!("E{}: burn one of the token's permitted amounts", wrap_bridge::E_AMOUNT))
+                } else if entry.frozen_burn || live.frozen_burn {
+                    Some(format!("E{}: burning of this token is frozen", wrap_bridge::E_FROZEN))
+                } else if held_balance < amount {
+                    Some("the private account holds less than the amount".into())
+                } else {
+                    None
+                };
+                if let Some(r) = refusal {
+                    line["precheck"] = json!({"refused": r});
+                    line["verdict"] = "refused-precheck".into();
+                    println!("{line}");
+                    return Ok(());
+                }
+                let rows = vec![
+                    ProgramShardSelector::new(ca, p.br),
+                    ProgramShardSelector::new(entry_account(&p.br, &ca, &eth_token), p.br),
+                    ProgramShardSelector::new(burns_account(&p.br, &ca), p.br),
+                    ProgramShardSelector::new(definition_account(&p.br, &ca, &eth_token, &SALT).0, p.token),
+                    ProgramShardSelector::new(a.carol, p.token),
+                ];
+                let mentions: Vec<AccountMention> = rows
+                    .iter()
+                    .map(|r| {
+                        if r.account_id == a.carol {
+                            AccountIdentity::PrivateOwned(r.account_id).select_program_shard(r.program_account_id)
+                        } else {
+                            AccountIdentity::PublicNoSign(r.account_id).select_program_shard(r.program_account_id)
+                        }
+                    })
+                    .collect();
+                let prog = |n: &str| -> Result<Program> { Ok(Program::new(ctx.bin(n)?.into())?) };
+                let deps = HashMap::from([(p.token, prog("token")?)]);
+                let pwd = lee::privacy_preserving_transaction::circuit::ProgramWithDependencies::new(prog("wrap_bridge")?, p.br, deps);
+                let data = Program::serialize_instruction(wrap_bridge::Instruction::BurnFrom { config: cfg.clone(), eth_token, salt: SALT, amount, eth_commitment: ec })?;
+                eprintln!("proving the private burn locally (real proving unless RISC0_DEV_MODE is set); this takes minutes");
+                let t0 = std::time::Instant::now();
+                let sent = w.send_privacy_preserving_tx(mentions, data, &pwd).await;
+                line["prove_and_submit_ms"] = (t0.elapsed().as_millis() as u64).into();
+                match sent {
+                    Err(e) => {
+                        line["verdict"] = "rejected".into();
+                        line["error"] = typed(&format!("{e:?}")).into();
+                    }
+                    Ok((h, _)) => {
+                        line["tx"] = h.to_string().into();
+                        line["attempts"] = json!([h.to_string()]);
+                        let start = std::time::Instant::now();
+                        let mut found = None;
+                        while start.elapsed() < Duration::from_secs(ctx.wait.max(300)) && found.is_none() {
+                            found = ctx.included(h).await;
+                            if found.is_none() {
+                                tokio::time::sleep(Duration::from_secs(2)).await;
+                            }
+                        }
+                        match found {
+                            None => line["verdict"] = "not-included".into(),
+                            Some((tx, b)) => {
+                                line["block"] = b.into();
+                                let bytes = borsh::to_vec(&tx)?;
+                                line["tx_bytes"] = bytes.len().into();
+                                line["kind"] = match &tx {
+                                    LeeTransaction::PrivacyPreserving(_) => "privacy-preserving",
+                                    LeeTransaction::Public(_) => "public",
+                                }
+                                .into();
+                                let has = |x: &[u8]| bytes.windows(x.len()).any(|y| y == x);
+                                line["absent_from_tx"] = json!({"holder": !has(a.carol.value()), "recipient": !has(&recipient), "secret": !has(&secret)});
+                                line["leaf_in_tx"] = has(&leaf).into();
+                                let after = frontier(&ctx, &p, &cfg).await?;
+                                line["burns_account"] = burns_account(&p.br, &ca).to_string().into();
+                                let mut expect = before.clone();
+                                expect.insert(&leaf);
+                                line["state_changed"] = (after != before).into();
+                                line["verdict"] = if after == expect { "applied" } else if after == before { "reverted" } else { "inconsistent" }.into();
+                                if after == expect {
+                                    push_burn(&ctx, record(&h.to_string(), b))?;
+                                }
+                            }
+                        }
+                    }
+                }
+                println!("{line}");
+            }
+        }
+        Cmd::ReleaseProof { owner } => {
+            let p = ctx.programs()?;
+            let a = ctx.accounts()?;
+            let an = ctx.anvil();
+            let cfg = ctx.config(&p, &a, an.vault);
+            let burns = burns_record(&ctx)?;
+            let leaves: Vec<H256> = burns.iter().map(|b| h32(&b["leaf"])).collect::<Result<_>>()?;
+            let chain = frontier(&ctx, &p, &cfg).await?;
+            // The client's leaves must be the chain's tree: the same count and the same root.
+            ensure!(chain.next_index == leaves.len() as u64 && chain.root == wrap_core::root(&leaves),
+                "the recorded burns ({}) do not rebuild the chain's burn tree ({} leaves, root {})", leaves.len(), chain.next_index, hex::encode(chain.root));
+            let me = format!("{owner:?}").to_lowercase();
+            let (i, b) = burns.iter().enumerate().find(|(_, b)| b["owner"] == me.as_str()).ok_or_else(|| anyhow!("no burn by {me} in the record"))?;
+            let secret = h32(&b["secret"])?;
+            let pair = wrap_bridge::pairing(&p.br, &cfg);
+            let path = wrap_core::path(&leaves, i);
+            ensure!(wrap_core::root_from_path(&leaves[i], i as u64, &path) == Some(chain.root));
+            println!(
+                "{}",
+                json!({"op": "release-proof", "owner": me, "token": b["token"], "amount": b["amount"], "recipient": b["recipient"], "fee": b["fee"],
+                       "secret": b["secret"], "index": i, "leaf": b["leaf"], "path": path.iter().map(|x| format!("0x{}", hex::encode(x))).collect::<Vec<_>>(),
+                       "root": format!("0x{}", hex::encode(chain.root)), "nullifier": format!("0x{}", hex::encode(wrap_core::burn_nullifier(&pair, &secret, i as u64))),
+                       "burn_tx": b["tx"], "burn_block": b["block"], "private": b["private"],
+                       "burns_account": burns_account(&p.br, &config_account(&p.br, &cfg)).to_string(), "bridge_program": p.br.to_string()})
+            );
         }
         Cmd::ShowPrivate => {
             let p = ctx.programs()?;

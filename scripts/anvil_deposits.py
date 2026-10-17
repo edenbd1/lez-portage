@@ -2,8 +2,10 @@
 """The Ethereum half of scripts/e2e-local.sh, against an anvil that is already running.
 
 Deploys vault/src/WrapVault.sol with the pairing of the LEZ deployment the run
-just loaded, a USDT-shaped token whose transfers return nothing, and a
-stand-in release verifier; registers ETH and USDT; makes the deposits of the
+just loaded, a USDT-shaped token whose transfers return nothing, and the
+release verifier (vault/src/CommitteeBurnVerifier.sol: anvil accounts 5, 6 and
+7 as a 2-of-3 committee attesting LEZ burn-tree roots, `--finality-depth` LEZ
+blocks); registers ETH and USDT; makes the deposits of the
 plan (`wrap plan`: depositor, token, amount, commitment); then records, in the
 layout of vectors/anvil, the Deposit events, the last block, an `eth_getProof`
 of `knownRoot[root]` for every root the tree had, and one for a root it never
@@ -43,6 +45,7 @@ def main():
     ap.add_argument("--rpc", required=True)
     ap.add_argument("--plan", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--finality-depth", default="3")
     a = ap.parse_args()
     rpc = a.rpc
     plan = json.load(open(a.plan))
@@ -64,7 +67,12 @@ def main():
 
     run("forge", "build", "--root", "vault")
     addr = {k: run("cast", "wallet", "address", v) for k, v in KEYS.items()}
-    verifier = create("test/Mocks.sol:MockVerifier")
+    # The release committee: anvil's dev accounts 5, 6, 7 (unlocked on anvil; they sign
+    # with eth_sign, so no key leaves anvil). Their addresses are derived from the
+    # node, not written here.
+    accounts = json.loads(cast("rpc", "eth_accounts"))
+    committee = [accounts[5], accounts[6], accounts[7]]
+    verifier = create("src/CommitteeBurnVerifier.sol:CommitteeBurnVerifier", "[" + ",".join(committee) + "]", "2", a.finality_depth)
     usdt = create("test/Mocks.sol:MockUSDT")
     vault = create("src/WrapVault.sol:WrapVault", plan["pairing"], verifier, "86400", addr["deployer"], addr["deployer"])
     print(f"vault {vault} (pairing {plan['pairing']}), usdt {usdt}, verifier {verifier}")
@@ -133,6 +141,8 @@ def main():
 
     dump = lambda name, obj: json.dump(obj, open(os.path.join(a.out, name), "w"), indent=1)
     dump("deployment.json", {"chain_id": int(cast("chain-id")), "vault": vault, "usdt": usdt, "verifier": verifier,
+                             "committee": committee, "threshold": 2, "finality_depth": int(a.finality_depth),
+                             "relayer": accounts[4], "outsiders": [accounts[8], accounts[9]],
                              "pairing": plan["pairing"], "admin": addr["deployer"], "alice": addr["alice"],
                              "bob": addr["bob"], "carol": addr["carol"], "block": int(number, 16)})
     dump("deposits.json", deposits)

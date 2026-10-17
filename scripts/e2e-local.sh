@@ -16,11 +16,20 @@
 #      a replay and other refusals, a privacy-preserving claim into carol's
 #      shielded account with real proving (under $HEAVY if
 #      present, and /usr/bin/time for the peak memory), carol's wallet syncing
-#      and decrypting it, and a public burn.
-#   4. The manifest $OUT, one line per transaction:
+#      and decrypting it; then the burns: alice's public one, and carol's
+#      private one from her private account (a privacy-preserving BurnFrom,
+#      real proving, measured the same way).
+#   4. Ethereum (anvil): the releases against the LEZ burn tree. A 2-of-3
+#      committee (CommitteeBurnVerifier) attests the burn tree's root as each
+#      member reads it from the LEZ sequencer; the vault checks each burn's
+#      opening against it. Refusals: not final yet, a replay, a redirected
+#      recipient, another amount, a burn that never happened (signed by the
+#      committee, then by outsiders), one member alone. Then both releases.
+#   5. The manifest $OUT, one line per LEZ transaction:
 #        label expected(applied|refused) verdict block tx attempts precheck gas_limit charged_gas
 #      plus `#` lines the verifier checks (programs, deployments, final state,
-#      the private claim's destination), then scripts/verify-onchain.sh and
+#      the private transactions' hidden accounts, the Ethereum releases and
+#      their final state), then scripts/verify-onchain.sh and
 #      scripts/mutation-test-verifier.sh against the same sequencer.
 #
 # Everything is local and discarded at the end (KEEP=1 leaves the sequencer and
@@ -33,6 +42,7 @@
 #              public genesis test key of the debug configuration's first account)
 #   anvil, forge, cast (Foundry), python3, r0vm 3.0.5, cli/target/release/wrap
 # Ports: sequencer $PORT (3051), metrics $METRICS_PORT (9471), anvil $ANVIL_PORT (8551).
+# FINALITY_DEPTH (3): the LEZ blocks a burn-tree root must be under the final head.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -46,6 +56,11 @@ OUT="${OUT:-evidence/local/e2e.tsv}"
 EVID="$(dirname "$OUT")"
 RUN="${RUN:-$(mktemp -d "${TMPDIR:-/tmp}/rfp022-e2e.XXXXXX")}"
 HEAVY="${HEAVY:-}"; [ -x "$HEAVY" ] || HEAVY=""
+FINALITY_DEPTH="${FINALITY_DEPTH:-3}"
+# DEV_MODE_DEBUG=1: RISC Zero dev mode for the sequencer and the client, to
+# iterate on this script in seconds. Such a run cannot pass: the checks that
+# dev mode is off fail, and the manifest records it.
+if [ "${DEV_MODE_DEBUG:-0}" = 1 ]; then export RISC0_DEV_MODE=1; echo "DEV_MODE_DEBUG=1: dev-mode receipts, this run will FAIL its real-proving checks"; fi
 RPC="http://127.0.0.1:$PORT"; ANVIL="http://127.0.0.1:$ANVIL_PORT"
 export WRAP_RPC="$RPC" WRAP_RUN="$RUN/state" LEE_WALLET_HOME_DIR="$RUN/wallet"
 mkdir -p "$EVID" "$RUN/seq" "$RUN/wallet" "$RUN/state"
@@ -160,11 +175,11 @@ ACC="$("$CLI" setup 2>/dev/null | grep '^{' | tail -1)"
 echo "  accounts $ACC"
 CAROL="$(jget "$ACC" carol_private)"; ALICE="$(jget "$ACC" alice)"
 echo "# accounts admin $(jget "$ACC" admin) freezer $(jget "$ACC" freezer) alice $ALICE bob $(jget "$ACC" bob)" >> "$OUT"
-echo "# private-destination $CAROL" >> "$OUT"
+echo "# private-account $CAROL carol" >> "$OUT"
 
 echo "== 2. Ethereum (anvil): the vault, both tokens, four deposits"
 "$CLI" plan > "$RUN/plan.json" || exit 1
-python3 scripts/anvil_deposits.py --rpc "$ANVIL" --plan "$RUN/plan.json" --out "$RUN/state/anvil" || exit 1
+python3 scripts/anvil_deposits.py --rpc "$ANVIL" --plan "$RUN/plan.json" --out "$RUN/state/anvil" --finality-depth "$FINALITY_DEPTH" || exit 1
 mkdir -p "$EVID/anvil"
 cp "$RUN/state/anvil/deployment.json" "$RUN/state/anvil/deposits.json" "$RUN/plan.json" "$EVID/anvil/"
 python3 - "$RUN/state/anvil" >> "$OUT" <<'PY'
@@ -172,6 +187,7 @@ import json, sys
 d = json.load(open(sys.argv[1] + "/deployment.json"))
 b = json.load(open(sys.argv[1] + "/block.json"))["result"]
 print(f"# anvil vault {d['vault']} usdt {d['usdt']} pairing {d['pairing']} block {int(b['number'], 16)} state_root {b['stateRoot']}")
+print(f"# anvil verifier {d['verifier']} committee {','.join(d['committee'])} threshold {d['threshold']} finality_depth {d['finality_depth']} relayer {d['relayer']}")
 for x in json.load(open(sys.argv[1] + "/deposits.json")):
     print(f"# anvil deposit {x['index']} token {x['token']} amount {x['amount']} tx {x['transactionHash']}")
 PY
@@ -219,7 +235,7 @@ step claim-phantom-unknown-root E7208 -- claim 0 --phantom
 check "wrapped ETH supply after the public claims" "$(jget "$("$CLI" balance alice eth)" supply)" 1000000000000000000
 
 echo "-- the private claim (deposit 3: carol 1 ETH, committed to her private account), real proving"
-unset RISC0_DEV_MODE
+[ "${DEV_MODE_DEBUG:-0}" = 1 ] || unset RISC0_DEV_MODE
 TIMEF="$RUN/private-time.txt"
 TIME=(/usr/bin/time -l); [ "$(uname)" = Darwin ] || TIME=(/usr/bin/time -v)
 echo "# private-claim load before: $(uptime | sed 's/.*load/load/'); r0vm processes before: $(pgrep -f 'r0vm' | wc -l | tr -d ' ')" >> "$OUT"
@@ -231,6 +247,7 @@ WALL="$(awk '/ real / {print $1}' "$TIMEF" | head -1)"
 printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' claim-carol-private applied "$(jget "$line" verdict)" "$(jget "$line" block)" "$(jget "$line" tx)" \
   "$(attempts_of "$line")" private - - >> "$OUT"
 echo "# line claim-carol-private $line" >> "$OUT"
+echo "# private claim-carol-private hides $CAROL tx_bytes $(jget "$line" tx_bytes)" >> "$OUT"
 echo "# private-claim prove_and_submit_ms $(jget "$line" prove_and_submit_ms) wall_s ${WALL:-?} peak_rss_bytes ${RSS:-?} tx_bytes $(jget "$line" tx_bytes) kind $(jget "$line" kind) dev_mode $(jget "$line" dev_mode)" >> "$OUT"
 check "the private claim landed" "$(jget "$line" verdict)" applied
 check "a privacy-preserving transaction" "$(jget "$line" kind)" privacy-preserving
@@ -256,11 +273,85 @@ check "the private account is not public: no token shard on chain under its id" 
   "$(rpc getAccount "[\"$CAROL\"]" | python3 -c 'import json,sys;r=json.load(sys.stdin).get("result") or {};print(len((r.get("data") or {}).get("shards") or {}))')" 0
 check "wrapped ETH supply after the private claim" "$(jget "$("$CLI" balance alice eth)" supply)" 2000000000000000000
 
-echo "-- a public burn (alice, 1 ETH, Ethereum recipient hidden in a commitment)"
+echo "-- a public burn (alice, 1 ETH, Ethereum recipient hidden in a commitment that also fixes the relayer fee, 0)"
 step burn-alice-eth-not-a-denomination E7408 -- burn alice eth 300000000000000000
 step burn-alice-eth applied -- burn alice eth 1000000000000000000
 check "alice holds no wrapped ETH" "$(jget "$("$CLI" balance alice eth)" balance)" 0
-check "wrapped ETH supply after the burn" "$(jget "$("$CLI" balance alice eth)" supply)" 1000000000000000000
+check "wrapped ETH supply after the public burn" "$(jget "$("$CLI" balance alice eth)" supply)" 1000000000000000000
+
+echo "-- the private burn (carol, 1 ETH, from her private account; fee 0.01 ETH), real proving"
+PRE="$("$CLI" --label burn-carol-private-not-a-denomination burn carol eth 300000000000000000 --private 2>/dev/null | grep '^{' | tail -1)"
+echo "$PRE"
+echo "# line burn-carol-private-not-a-denomination $PRE" >> "$OUT"
+check "a private burn of an amount that is not a denomination is refused before proving" "$(jget "$PRE" verdict) $(jget "$PRE" precheck.refused | cut -c1-5)" "refused-precheck E7408"
+TIMEB="$RUN/private-burn-time.txt"
+echo "# private-burn load before: $(uptime | sed 's/.*load/load/'); r0vm processes before: $(pgrep -f 'r0vm' | wc -l | tr -d ' ')" >> "$OUT"
+line="$(${HEAVY:+"$HEAVY"} "${TIME[@]}" -o "$TIMEB" "$CLI" --label burn-carol-private --wait 600 burn carol eth 1000000000000000000 --fee 10000000000000000 --private 2>"$RUN/private-burn.err" | grep '^{' | tail -1)"
+[ -n "$line" ] || line="$(python3 -c 'import json,sys;print(json.dumps({"verdict":"error","error":sys.stdin.read().strip()[-400:]}))' < "$RUN/private-burn.err")"
+echo "$line"
+RSS="$(awk '/maximum resident set size/ {print $1} /Maximum resident set size/ {print $NF * 1024}' "$TIMEB" | head -1)"
+WALL="$(awk '/ real / {print $1}' "$TIMEB" | head -1)"
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' burn-carol-private applied "$(jget "$line" verdict)" "$(jget "$line" block)" "$(jget "$line" tx)" \
+  "$(attempts_of "$line")" private - - >> "$OUT"
+echo "# line burn-carol-private $line" >> "$OUT"
+echo "# private burn-carol-private hides $CAROL tx_bytes $(jget "$line" tx_bytes)" >> "$OUT"
+echo "# private-burn prove_and_submit_ms $(jget "$line" prove_and_submit_ms) wall_s ${WALL:-?} peak_rss_bytes ${RSS:-?} tx_bytes $(jget "$line" tx_bytes) kind $(jget "$line" kind) dev_mode $(jget "$line" dev_mode)" >> "$OUT"
+check "the private burn landed" "$(jget "$line" verdict)" applied
+check "a privacy-preserving transaction" "$(jget "$line" kind)" privacy-preserving
+check "RISC0 dev mode off (real proving)" "$(jget "$line" dev_mode)" False
+check "the holder, the Ethereum recipient and the burn secret are absent from it" "$(python3 -c 'import json,sys;a=json.loads(sys.argv[1]).get("absent_from_tx") or {};print(all(a.get(k) for k in ("holder","recipient","secret")))' "$line")" True
+check "its burn leaf is public (what a release opens)" "$(jget "$line" leaf_in_tx)" True
+SP="$("$CLI" show-private 2>/dev/null | grep '^{' | tail -1)"
+echo "# show-private-after-burn $SP" >> "$OUT"
+check "carol's wallet decrypts her account after the burn: 0 wrapped ETH" "$(jget "$SP" wrapped_balance)" 0
+check "wrapped ETH supply after both burns" "$(jget "$("$CLI" balance alice eth)" supply)" 0
+
+echo "== 4. Ethereum (anvil): releases against the LEZ burn tree"
+echo "# caveat-release the release committee (anvil accounts 5, 6, 7; 2 of 3) attests the LEZ burn tree's root as each member reads it from the sequencer; 'final' is the standalone sequencer's tip, $FINALITY_DEPTH blocks above the block read: there is no Bedrock in this run, and the committee is the trust assumption of this release path" >> "$OUT"
+for who in alice carol; do
+  "$CLI" release-proof "$who" > "$RUN/proof-$who.json" 2>"$RUN/proof.err" || { echo "release-proof $who failed"; cat "$RUN/proof.err"; exit 1; }
+done
+python3 - "$RUN/proof-alice.json" "$RUN/proof-carol.json" >> "$OUT" <<'PY'
+import json, sys
+for f in sys.argv[1:]:
+    p = json.load(open(f))
+    print(f"# release-proof {p['owner']} index {p['index']} leaf {p['leaf']} root {p['root']} nullifier {p['nullifier']} burn_tx {p['burn_tx']} private {p['private']}")
+print(f"# release-root {p['root']} {p['burns_account']} {p['bridge_program']}")
+PY
+DEP="$RUN/state/anvil/deployment.json"
+VAULT="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["vault"])' "$DEP")"
+CAROL_ETH="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["carol"])' "$DEP")"
+RELAYER="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["relayer"])' "$DEP")"
+wei() { cast balance "$1" --rpc-url "$ANVIL"; }
+VAULT0="$(wei "$VAULT")"; CAROL0="$(wei "$CAROL_ETH")"
+rel() { # label expected -- args
+  local label="$1" expect="$2"; shift 3
+  local out
+  out="$(python3 scripts/anvil_release.py --anvil "$ANVIL" --lez "$RPC" --deployment "$DEP" --out "$OUT" --label "$label" --expect "$expect" "$@" 2>&1 | tail -1)"
+  echo "$out" | cut -c1-400
+  if [ "$(jget "$out" ok)" = True ]; then echo "  ok  $label: $(jget "$out" verdict) ($(jget "$out" precheck)), block $(jget "$out" block), gas $(jget "$out" gas_used)"
+  else echo "  FAIL $label: $out"; fail=1; fi
+}
+rel release-carol-not-final NotFinal -- --proof "$RUN/proof-carol.json" --sender relayer
+rel release-alice applied -- --proof "$RUN/proof-alice.json" --wait-final
+rel release-alice-replay AlreadyReleased -- --proof "$RUN/proof-alice.json" --wait-final
+rel release-carol-redirected-to-relayer RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --recipient-as-sender --wait-final
+rel release-carol-another-amount RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --amount 100000000000000000 --wait-final
+rel release-forged-burn-committee RootNotAttested -- --proof "$RUN/proof-carol.json" --sender outsider --forge --wait-final
+rel release-forged-burn-outsiders RootNotAttested -- --proof "$RUN/proof-carol.json" --sender outsider --forge --outsiders --wait-final
+rel release-carol-one-member RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --members 1 --wait-final
+rel release-carol applied -- --proof "$RUN/proof-carol.json" --sender relayer --wait-final
+VAULT1="$(wei "$VAULT")"; CAROL1="$(wei "$CAROL_ETH")"
+check "the vault paid out exactly the two releases (2 ETH)" "$(python3 -c "print($VAULT0 - $VAULT1)")" 2000000000000000000
+check "carol received 1 ETH less the 0.01 ETH fee her burn fixed" "$(python3 -c "print($CAROL1 - $CAROL0)")" 990000000000000000
+for who in alice carol; do
+  NF="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["nullifier"])' "$RUN/proof-$who.json")"
+  SPENT="$(cast call "$VAULT" 'nullifierSpent(bytes32)(bool)' "$NF" --rpc-url "$ANVIL")"
+  echo "# eth-final nullifier $NF $SPENT release-$who" >> "$OUT"
+  check "the vault recorded $who's burn nullifier as released" "$SPENT" true
+done
+echo "# eth-final unspent $(python3 -c 'import secrets;print("0x"+secrets.token_hex(32))') false control" >> "$OUT"
+echo "# eth-final balance $VAULT $VAULT1 vault" >> "$OUT"
 
 echo "== final state: the accounts the run wrote, as it left them"
 IDS="$("$CLI" ids)"
@@ -285,12 +376,14 @@ check "bob's deposit (2) stays unclaimed: its nullifier account is empty" "$(gre
 applied=$(awk -F'\t' '!/^#/ && $2=="applied" && $3=="applied"' "$OUT" | wc -l | tr -d ' ')
 refused=$(awk -F'\t' '!/^#/ && $2=="refused" && $3=="reverted"' "$OUT" | wc -l | tr -d ' ')
 total=$(grep -cv '^#' "$OUT")
-echo "== $( [ $fail = 0 ] && echo PASS || echo FAIL ): $total transactions in $OUT ($applied applied, $refused refused as expected), $(grep -c '^# check ok' "$OUT") state checks ok"
+eth_applied=$(awk '/^# eth / && $4=="applied" && $5=="applied"' "$OUT" | wc -l | tr -d ' ')
+eth_refused=$(awk '/^# eth / && $4!="applied" && $5=="reverted"' "$OUT" | wc -l | tr -d ' ')
+echo "== $( [ $fail = 0 ] && echo PASS || echo FAIL ): $total LEZ transactions in $OUT ($applied applied, $refused refused as expected), $((eth_applied + eth_refused)) Ethereum releases ($eth_applied applied, $eth_refused refused as expected), $(grep -c '^# check ok' "$OUT") state checks ok"
 
 if [ "${VERIFY:-1}" = 1 ]; then
   echo "== verifier, against the same sequencer"
-  scripts/verify-onchain.sh --manifest "$OUT" --rpc "$RPC" | tee "$EVID/verify.txt" || fail=1
+  scripts/verify-onchain.sh --manifest "$OUT" --rpc "$RPC" --eth-rpc "$ANVIL" | tee "$EVID/verify.txt" || fail=1
   echo "== mutation test of the verifier"
-  scripts/mutation-test-verifier.sh --manifest "$OUT" --rpc "$RPC" | tee "$EVID/mutation-test.txt" || fail=1
+  scripts/mutation-test-verifier.sh --manifest "$OUT" --rpc "$RPC" --eth-rpc "$ANVIL" | tee "$EVID/mutation-test.txt" || fail=1
 fi
 exit $fail
