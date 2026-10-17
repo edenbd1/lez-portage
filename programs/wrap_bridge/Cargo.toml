@@ -1,0 +1,47 @@
+# wrap_bridge: the LEZ half of the RFP-022 prototype, a LEZ v0.3 program.
+#
+# It mints a wrapped token against a deposit into vault/src/WrapVault.sol, with
+# no Ethereum verification of its own: the vault's `knownRoot[root]` storage
+# slot is proven by Sextant's `Attest` (RFP-021, edenbd1/lez-sextant at main)
+# as a chained call, under a header the light client finalized. Minting and
+# burning are chained calls into LEZ v0.3.0's token program, deployed as an
+# ordinary program: the bridge owns each wrapped token's definition as a PDA
+# and authorizes it by presenting the seed.
+[workspace]
+
+[package]
+name = "wrap-bridge"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "wrap_bridge"
+path = "src/bin/wrap_bridge.rs"
+
+[dependencies]
+wrap-core = { path = "../../core" }
+# `Instruction::Attest`, `header_account` and the statement types only.
+sextant-program = { git = "https://github.com/edenbd1/lez-sextant", rev = "81532728a94be3faedb05229b118a6df7527d974" }
+sextant-core = { git = "https://github.com/edenbd1/lez-sextant", rev = "81532728a94be3faedb05229b118a6df7527d974", default-features = false }
+# The token program's instruction type, mirrored in src/token.rs (its crate
+# pulls serde and the whole LEZ workspace).
+lee_core   = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", rev = "db66590ab821a4e142c211017a3866d007f6fa77" }
+risc0-zkvm = { version = "=3.0.5", default-features = false, features = ["std", "unstable"] }
+borsh      = { version = "1.5", features = ["derive"] }
+
+[profile.release]
+opt-level     = 3
+lto           = "thin"
+codegen-units = 1
+panic         = "abort"
+
+# The accelerated forks sextant_lc builds with (its dependency graph is shared).
+[patch.crates-io]
+blst        = { git = "https://github.com/risc0/blst", tag = "v0.3.16-risczero.0" }
+sha2        = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.8-risczero.0" }
+tiny-keccak = { git = "https://github.com/risc0/tiny-keccak", tag = "tiny-keccak/v2.0.2-risczero.0" }
