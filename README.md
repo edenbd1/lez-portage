@@ -34,6 +34,13 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   the 10,000,000 gas cap, on deposits made on anvil; and the claim as a
   privacy-preserving transaction to a private account, proven by LEZ's privacy
   circuit and settled through the same checks the sequencer runs.
+- `cli/`: `wrap`, the client on a LEZ v0.3 sequencer (v0.3.0 `wallet` crate,
+  v0.3.1 block format): loads the four binaries through program_loader,
+  initialises Sextant and the bridge, sends public claims and burns with an
+  explicit gas limit after a local pre-check, and proves the private claim
+  into a wallet-held shielded account, which the wallet then syncs and
+  decrypts. `scripts/e2e-local.sh` drives it against a local v0.3.1
+  sequencer and anvil ([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)).
 - `vectors/anvil/`: those deposits (`scripts/anvil_vectors.py`): the vault on a
   local anvil chain, five deposits by three seeds (one to a private LEZ
   account), the Deposit events, the block,
@@ -57,6 +64,11 @@ cargo run --release --manifest-path executor-tests/Cargo.toml --bin measure
 DOCKER=1 scripts/build-guest.sh        # rebuild artifacts/programs/v0.3/wrap_bridge.bin (reproducible)
 scripts/mutation-test.sh               # each guard removed in turn must fail the tests
 python3 scripts/anvil_vectors.py       # regenerate vectors/anvil (local anvil, nothing spent)
+cargo build --release --manifest-path cli/Cargo.toml
+SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh    # local v0.3.1 sequencer + anvil, end to end (docs/LOCAL-E2E.md)
+# the run ends with both against its own sequencer; with KEEP=1 it stays up to re-run them:
+scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051
+scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051
 ```
 
 `artifacts/programs/v0.3/wrap_bridge.bin` is the `DOCKER=1` build, in RISC
@@ -80,7 +92,11 @@ is for iterating and for the mutation test; its bytes differ.
 
 The private claim, as a privacy-preserving transaction to a private account
 with real proving ([docs/PRIVATE-CLAIM-MEASURED.md](docs/PRIVATE-CLAIM-MEASURED.md)):
-252 to 254 s, 6.7 to 8.3 GB peak RAM, 230,510 bytes (M4 Pro, 24 GiB). The
+252 to 254 s, 6.7 to 8.3 GB peak RAM, 230,510 bytes (M4 Pro, 24 GiB). Through
+the client, the wallet and a local v0.3.1 sequencer
+([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)): 263 s, 6.87 GB, 251,527 bytes on
+chain (the wallet pads to seven private inputs and 512-byte notes), decrypted
+by carol's wallet. The
 destination, secret, commitment, leaf, index and path stay private; the root,
 token, amount and nullifier account are public, so a claim hides among the
 unclaimed deposits of its token and amount under its root.
@@ -92,11 +108,14 @@ measured at 304,267 gas for a storage `Attest`: a mainnet claim is about
 ## What this prototype is not yet
 
 A public claim carries the deposit's opening, so it links the claim to its
-deposit. The private claim (above) is run at the executor level, not yet
-through a running sequencer and wallet; the private burn is not built. The vault's release verifier is a stand-in:
+deposit. The private claim runs through a local v0.3.1 sequencer and the
+wallet ([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)), not yet on a public network;
+the private burn is not built. The vault's release verifier is a stand-in:
 nothing on Ethereum verifies LEZ state yet (LEZ v0.3 block headers carry no
 state root). No protocol fee, no rolling-window cap on LEZ (an outstanding-
 supply cap instead), no relayer, no Logos modules, no SPEL IDL (SPEL does not
-build v0.3 programs), no deployment on any network.
+build v0.3 programs), no deployment on a public network (the local run's
+Sextant instance is initialised from a beacon header built around the anvil
+block, a checkpoint nothing signs).
 
 MIT OR Apache-2.0.

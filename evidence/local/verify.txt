@@ -1,0 +1,59 @@
+wrap_bridge run against http://127.0.0.1:3051, from evidence/local/e2e.tsv
+  ok   program sextant_lc: header 769aNw2WdGwd… names ImageID fa229eddbae15b2a…
+  ok   deploy sextant_lc-segment6: 5f3d3920efae109e… resolves (block 2)
+  ok   deploy sextant_lc-segment5: 1e3ba972d39be8b8… resolves (block 3)
+  ok   deploy sextant_lc-segment4: 675055dc229e8f00… resolves (block 4)
+  ok   deploy sextant_lc-segment3: decc62eec0b4315a… resolves (block 5)
+  ok   deploy sextant_lc-segment2: c7d15e8731829110… resolves (block 6)
+  ok   deploy sextant_lc-segment1: a0048f12c5a4408d… resolves (block 7)
+  ok   deploy sextant_lc-segment0: 4513d10252a4ef4f… resolves (block 8)
+  ok   deploy sextant_lc-header: e849be0523cc5ceb… resolves (block 9)
+  ok   program token: header iw8XdEZ31pPm… names ImageID 912d412c6e82c5a5…
+  ok   deploy token-segment4: 8213c4d9380b9836… resolves (block 10)
+  ok   deploy token-segment3: 988d72d0009226e1… resolves (block 11)
+  ok   deploy token-segment2: c958bb347486dc24… resolves (block 12)
+  ok   deploy token-segment1: cb491f091237a4e6… resolves (block 13)
+  ok   deploy token-segment0: af84834b4df4a0dd… resolves (block 14)
+  ok   deploy token-header: 8cac7c79ed5d6a83… resolves (block 15)
+  ok   program associated_token_account: header 4VNYvfaTGaQs… names ImageID 2b1d5580b54895db…
+  ok   deploy associated_token_account-segment3: feae281ff9656345… resolves (block 16)
+  ok   deploy associated_token_account-segment2: cf10e8e562f92389… resolves (block 17)
+  ok   deploy associated_token_account-segment1: d10a1f2868c65579… resolves (block 18)
+  ok   deploy associated_token_account-segment0: aa75e55ec2a3ef28… resolves (block 19)
+  ok   deploy associated_token_account-header: 32dd9910152a084a… resolves (block 20)
+  ok   program wrap_bridge: header 2HPEPetkPVgh… names ImageID a7c903ab8c53cae2…
+  ok   deploy wrap_bridge-segment4: 5f28ca72388d2a25… resolves (block 21)
+  ok   deploy wrap_bridge-segment3: 8a80e1252985f152… resolves (block 22)
+  ok   deploy wrap_bridge-segment2: ba7b83ed651cf0dc… resolves (block 23)
+  ok   deploy wrap_bridge-segment1: 2345fa4b5da431b8… resolves (block 24)
+  ok   deploy wrap_bridge-segment0: b1e10465669165e5… resolves (block 25)
+  ok   deploy wrap_bridge-header: 8280bb1a8d202a79… resolves (block 26)
+  ok   init-sextant: applied, aafe904b771f0eca… in block 27, charged 1831160 gas = the pre-checked gas, below its limit 1859471
+  ok   init-bridge: applied, 82d32be380d16530… in block 28, charged 27053 gas = the pre-checked gas, below its limit 37323
+  ok   register-eth: applied, e97cf24033cd665e… in block 29, charged 90577 gas = the pre-checked gas, below its limit 101482
+  ok   register-usdt: applied, 261560829a48ffda… in block 30, charged 89935 gas = the pre-checked gas, below its limit 100834
+  ok   claim-alice-eth: applied, cb9e6e12c3498f91… in block 31, charged 291351 gas = the pre-checked gas, below its limit 304264
+  ok   claim-alice-eth-replay: refused (E7402), 2740e42604900f70… in block 32, charged its whole limit 330000
+  ok   claim-alice-eth-replay-old-root: refused (E7402), 97c2e12394abe9bf… in block 33, charged its whole limit 330000
+  ok   claim-alice-usdt: applied, 161e2890784dbbef… in block 34, charged 291423 gas = the pre-checked gas, below its limit 304337
+  ok   claim-bob-redirected-to-alice: refused (E7403), 37825507c2387346… in block 35, charged its whole limit 330000
+  ok   claim-phantom-unknown-root: refused (E7208), f38461f72b9f9569… in block 36, charged its whole limit 330000
+  ok   claim-carol-private: privacy-preserving, 17b48028340af35e… in block 90, 251527 bytes, the destination absent from its bytes
+  ok   burn-alice-eth-not-a-denomination: refused (E7408), ee46023c3f423ada… in block 91, charged its whole limit 255000
+  ok   burn-alice-eth: applied, c151e968f00ac517… in block 92, charged 228691 gas = the pre-checked gas, below its limit 240977
+  ok   final state of sextant_instance (CoMeV2RZ5VbH…): 307 bytes as the run left them
+  ok   final state of sextant_header (G4AkWeF3Ry8L…): 120 bytes as the run left them
+  ok   final state of config (GDyg12ygJPP6…): 2 bytes as the run left them
+  ok   final state of eth_entry (GYgpnubXXquj…): 150 bytes as the run left them
+  ok   final state of usdt_entry (4XbtekZTARyS…): 150 bytes as the run left them
+  ok   final state of burns (h23GzWcNa63p…): 812 bytes as the run left them
+  ok   final state of nullifier_0 (9cKLzidgawr5…): 1 bytes as the run left them
+  ok   final state of nullifier_1 (ChY8xj2QyhXo…): 1 bytes as the run left them
+  ok   final state of nullifier_2 (7z6sW6vwQHTB…): 0 bytes as the run left them
+  ok   final state of nullifier_3 (3UboTv1xhyUt…): 1 bytes as the run left them
+  ok   final state of eth_definition (FZNwpxhNH18b…): 43 bytes as the run left them
+  ok   final state of usdt_definition (8SejVZ1gGr9P…): 42 bytes as the run left them
+  ok   final state of alice_eth_ata (8xFRaWWP2jvp…): 49 bytes as the run left them
+  ok   final state of alice_usdt_ata (BkAkKxd4Zaj7…): 49 bytes as the run left them
+  ok   control: a random hash (7c629412d3c2…) does not resolve, and the endpoint answers
+57 checks pass, 0 fail (7 applied and 5 refused public transactions, 1 privacy-preserving, in the manifest)

@@ -143,11 +143,10 @@ cap must read the 50-block clock account.
 
 - It runs at the executor level, through `V03State`, with the sequencer's
   validation function, not through a running sequencer: there is no network,
-  mempool or block production, and no wallet. The prototype has no client CLI
-  yet; running the same transaction on a local v0.3.1 standalone sequencer
-  needs one (the deploy of the four programs, Sextant's `Init`, the bridge's
-  `Init` and `Register`, then the private claim through the wallet), and is
-  the next step.
+  mempool or block production, and no wallet. The same claim through the
+  client and the wallet on a local v0.3.1 standalone sequencer, from the
+  deploy of the four programs to carol's wallet decrypting the note, is
+  [LOCAL-E2E.md](LOCAL-E2E.md).
 - The public part's gas (Sextant's MPT check runs in settlement) is not
   reported by `from_privacy_preserving_transaction`; the public claim's
   297,502 gas is an upper bound for it.

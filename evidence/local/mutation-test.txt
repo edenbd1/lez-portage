@@ -1,0 +1,17 @@
+  ok   the recorded manifest verifies (57 checks pass, 0 fail (7 applied and 5 refused public transactions, 1 privacy-preserving, in the manifest))
+  ok   mutation fake-hash caught: init-sextant: 784c8560ebe77d89… NOT FOUND on chain
+  ok   mutation refusal-as-applied caught: claim-alice-eth-replay: expected applied, charged 330000 gas (pre-checked 330000, limit 330000)
+  ok   mutation applied-as-refused caught: init-sextant: expected refused, charged 1831160 gas against a limit of 1859471
+  ok   mutation wrong-gas caught: init-sextant: expected applied, charged 1831160 gas (pre-checked 1831161, limit 1859471)
+  ok   mutation wrong-block caught: init-sextant: aafe904b771f0eca… is in block 27, recorded in 28
+  ok   mutation swapped-hashes caught: init-sextant: 82d32be380d16530… is in block 28, recorded in 27
+  ok   mutation private-fake-hash caught: claim-carol-private: 784c8560ebe77d89… NOT FOUND on chain
+  ok   mutation private-as-public caught: claim-carol-private: not a public transaction
+  ok   mutation private-destination caught: claim-carol-private: the private destination's id occurs in the transaction
+  ok   mutation private-size caught: claim-carol-private: 251527 bytes, recorded 251528
+  ok   mutation public-as-private caught: init-sextant: not a privacy-preserving transaction; 26133 bytes, recorded 251527
+  ok   mutation final-state caught: final state of nullifier_3 (3UboTv1xhyUt…): recorded 1 bytes 0000000000000000…, chain has 1 bytes 4bf5122f344554c5…
+  ok   mutation final-unclaimed caught: final state of nullifier_2 (7z6sW6vwQHTB…): recorded 1 bytes 4bf5122f344554c5…, chain has 0 bytes e3b0c44298fc1c14…
+  ok   mutation image-id caught: program wrap_bridge: header 2HPEPetkPVgh… names ImageID 0000000000000000… (chain has a7c903ab8c53cae2fc74928a569c772ef45
+  ok   mutation deploy-hash caught: deploy sextant_lc-segment6: 784c8560ebe77d89… resolves NOT FOUND
+15 of 15 mutations caught
