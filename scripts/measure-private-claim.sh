@@ -24,7 +24,7 @@ provers() { pgrep -f 'r0vm --port' | wc -l | tr -d ' '; }
 LOADER=$!
 TIME=(/usr/bin/time -l); [ "$(uname)" = Darwin ] || TIME=(/usr/bin/time -v)
 "${TIME[@]}" executor-tests/target/release/measure_private >> "$OUT" 2>&1 || echo "# exit $?" >> "$OUT"
-kill "$LOADER" 2>/dev/null || true
+kill "$LOADER" 2>/dev/null || true; wait "$LOADER" 2>/dev/null || true
 cat "$OUT.load" >> "$OUT"; rm -f "$OUT.load"
 echo "# load after: $(uptime | sed 's/.*load/load/')" >> "$OUT"
 sed "s|$HOME|~|g" "$OUT" > "$OUT.tmp" && mv "$OUT.tmp" "$OUT"

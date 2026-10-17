@@ -78,16 +78,22 @@ is for iterating and for the mutation test; its bytes differ.
 | Ethereum `deposit` (median, max) | 257,854, 336,694 |
 | Ethereum `release` with a stand-in verifier (max) | 158,669 |
 
+The private claim, as a privacy-preserving transaction to a private account
+with real proving ([docs/PRIVATE-CLAIM-MEASURED.md](docs/PRIVATE-CLAIM-MEASURED.md)):
+252 to 254 s, 6.7 to 8.3 GB peak RAM, 230,510 bytes (M4 Pro, 24 GiB). The
+destination, secret, commitment, leaf, index and path stay private; the root,
+token, amount and nullifier account are public, so a claim hides among the
+unclaimed deposits of its token and amount under its root.
+
 The anvil account proof has 3 nodes; a mainnet one has 8 to 9, which Sextant
 measured at 304,267 gas for a storage `Attest`: a mainnet claim is about
 490,000 gas, still under 5% of the cap.
 
 ## What this prototype is not yet
 
-Public transactions only: a public claim carries the deposit's opening, so it
-links the claim to its deposit. The unlinkable path is the same plan inside a
-privacy-preserving transaction (destination a private account, the opening and
-path private inputs), not yet run. The vault's release verifier is a stand-in:
+A public claim carries the deposit's opening, so it links the claim to its
+deposit. The private claim (above) is run at the executor level, not yet
+through a running sequencer and wallet; the private burn is not built. The vault's release verifier is a stand-in:
 nothing on Ethereum verifies LEZ state yet (LEZ v0.3 block headers carry no
 state root). No protocol fee, no rolling-window cap on LEZ (an outstanding-
 supply cap instead), no relayer, no Logos modules, no SPEL IDL (SPEL does not

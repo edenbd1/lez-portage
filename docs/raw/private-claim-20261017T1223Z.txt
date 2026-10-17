@@ -1,0 +1,49 @@
+# 2026-10-17T12:23:14Z executor-tests --bin measure_private, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# Mac16,8 Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# commit 6fa6ec0 (uncommitted changes); wrap_bridge.bin sha256 973aec2aceed4caa0094b06067fea0883e38b20e0bec5c9b9f12f02a42967008
+# load before: load averages: 20.31 25.83 15.44; other provers running: 0
+private claim of deposit 4 (1000000000000000000 wei), root after 5 deposits, header slot 8192000
+wrap_bridge ImageID a7c903ab8c53cae2fc74928a569c772ef45520f323de2e1c3be43dd04d82e3d7
+prove_ms 253885
+tx_bytes 230510 (borsh PrivacyPreservingTransaction; the wire LeeTransaction adds a 1-byte tag)
+  witness set (the succinct receipt, no signatures) 226831
+  message 3679
+  signatures 0 nonces 0
+public actions (deferred effects the sequencer applies):
+  7bMT5fivBaeX6vrqLy3kvSwCURrXv2gkQrERJH5dqMnp [Sextant header record (slot)] program 8mTdKqh2Tm1Us4RmAy494VoJx7BaXvVAxRCaZV2TWmdJ shard 8mTdKqh2Tm1Us4RmAy494VoJx7BaXvVAxRCaZV2TWmdJ effect 1484 bytes
+  6qaWtpsE34qFLDwQZqWW5BXkUzZwGuEZVNVgeNrSF6G1 [bridge config] program 93Gg99KhVi9LmcaqQmVAfnHuJkyjGVyZfZ7Et9rHvjXN shard 93Gg99KhVi9LmcaqQmVAfnHuJkyjGVyZfZ7Et9rHvjXN effect 6 bytes
+  4MTrULiRgwYFCVcX7ZVAufzxZzF9c31Shtr8sdpS2Luz [token entry (ETH)] program 93Gg99KhVi9LmcaqQmVAfnHuJkyjGVyZfZ7Et9rHvjXN shard 93Gg99KhVi9LmcaqQmVAfnHuJkyjGVyZfZ7Et9rHvjXN effect 53 bytes
+  6tv1RtFC166XEk924RUb1PyCrRAiHiUyUrniZiSKsbNx [deposit nullifier PDA] program 93Gg99KhVi9LmcaqQmVAfnHuJkyjGVyZfZ7Et9rHvjXN shard 93Gg99KhVi9LmcaqQmVAfnHuJkyjGVyZfZ7Et9rHvjXN effect 5 bytes
+  Htpwi9KCuS67V8jPQfEEb5Lwct9QiiVnzCch5Vqtp2Hp [wrapped token definition] program 8qWqJxkvmN6YzoEN199WVHcLEjYy9DyZxysVZftLAKtc shard 8qWqJxkvmN6YzoEN199WVHcLEjYy9DyZxysVZftLAKtc effect 21 bytes
+private actions 1 (commitment, nullifier, encrypted note 1299 bytes)
+program image claims 3
+opening absent from the transaction bytes: destination true, secret true, commitment true, leaf true, 1 non-empty path nodes true
+settle_ms 171 (proof verification + deferred public effects)
+carol reads her private account: 1000000000000000000 wei; supply 1000000000000000000
+      255.07 real      2903.76 user        27.20 sys
+          8270397440  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             2772761  page reclaims
+                 182  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                 218  messages sent
+                 788  messages received
+                   0  signals received
+                 579  voluntary context switches
+             3224665  involuntary context switches
+          3446308837  instructions retired
+          1101847383  cycles elapsed
+            19055000  peak memory footprint
+# load during: 12:23:44 27.58 27.01 16.22; r0vm processes incl. this run's: 1
+# load during: 12:24:14 28.23 27.20 16.66; r0vm processes incl. this run's: 1
+# load during: 12:24:44 42.79 30.79 18.32; r0vm processes incl. this run's: 1
+# load during: 12:25:14 49.42 33.79 19.86; r0vm processes incl. this run's: 1
+# load during: 12:25:45 53.72 36.34 21.26; r0vm processes incl. this run's: 1
+# load during: 12:26:15 50.32 37.29 22.14; r0vm processes incl. this run's: 1
+# load during: 12:26:45 43.57 36.98 22.55; r0vm processes incl. this run's: 1
+# load during: 12:27:15 34.48 35.42 22.49; r0vm processes incl. this run's: 1
+# load after: load averages: 31.35 34.68 22.45
