@@ -469,3 +469,126 @@ pub fn world() -> World {
     register(&mut ch, &admin(), &cfg, a.usdt, "Wrapped USDT (anvil)", SALT, usdt_policy()).expect("Register USDT");
     World { ch, a, cfg, slot: SLOT }
 }
+
+// ---- the privacy-preserving claim ----
+
+/// Carol's wallet seed: her deposit commits to a private LEZ account.
+pub const CAROL_SEED: H256 = *b"carol's wallet seed, test only!!";
+
+/// The keys of a private (shielded) LEZ account: the authorization secret
+/// and the two halves of the ML-KEM-768 viewing key seed, all derived from a
+/// wallet seed, as a wallet would.
+pub struct Shielded {
+    pub ask: lee_core::AuthorizationSecretKey,
+    pub d: H256,
+    pub z: H256,
+}
+
+impl Shielded {
+    #[must_use]
+    pub fn from_seed(seed: &H256, n: u64) -> Self {
+        let k = |tag: &[u8]| wrap_core::sha256(&[b"shielded", tag, seed, &n.to_le_bytes()]);
+        Self { ask: lee_core::AuthorizationSecretKey(k(b"ask")), d: k(b"d"), z: k(b"z") }
+    }
+    #[must_use]
+    pub fn npk(&self) -> lee_core::NullifierPublicKey {
+        lee_core::NullifierPublicKey::from(&lee_core::NullifierSecretKey::from(&self.ask))
+    }
+    #[must_use]
+    pub fn vpk(&self) -> lee_core::encryption::ViewingPublicKey {
+        lee_core::encryption::ViewingPublicKey::from_seed(&self.d, &self.z)
+    }
+    /// The account id: nothing public names it until a transaction creates it.
+    #[must_use]
+    pub fn id(&self) -> AccountId {
+        AccountId::for_regular_private_account(&self.npk(), &self.vpk(), lee_core::Identifier::ZERO)
+    }
+    /// The witness that creates this account inside the privacy circuit.
+    #[must_use]
+    pub fn init_witness(&self, random_seed: H256) -> lee_core::PrivateWitness {
+        lee_core::PrivateWitness {
+            vpk: self.vpk(),
+            random_seed,
+            identifier: lee_core::Identifier::ZERO,
+            kind: lee_core::WitnessKind::Regular { ask: Some(self.ask) },
+            nullifier: lee_core::NullifierWitness::Init { npk: self.npk(), commitment_root: lee_core::DUMMY_COMMITMENT_HASH },
+        }
+    }
+}
+
+/// The private account carol's deposit committed to.
+#[must_use]
+pub fn carol_private() -> Shielded {
+    Shielded::from_seed(&CAROL_SEED, 0)
+}
+
+/// The rows of a claim minting to the committed private account itself.
+pub fn private_claim_rows(cfg: &Config, c: &wrap_bridge::Claim) -> Vec<ProgramShardSelector> {
+    let mut rows = claim_rows(cfg, c);
+    rows[5] = sel(c.destination, TOKEN);
+    rows
+}
+
+/// Prove `c` as a privacy-preserving transaction minting to the private
+/// account `to`: wrap_bridge's plan, Sextant's and the token program's plans
+/// and the token program's apply to the private account are each proven, and
+/// composed by LEZ's privacy circuit. The effects on public accounts are
+/// deferred: they travel in the transaction and the sequencer applies them.
+/// No account signs: the claimant needs no public account at all.
+pub fn prove_private_claim(cfg: &Config, c: &wrap_bridge::Claim, to: &Shielded, random_seed: H256) -> Result<lee::PrivacyPreservingTransaction, String> {
+    use lee::privacy_preserving_transaction::{circuit::ProgramWithDependencies, Message, WitnessSet};
+    let p = |n: &str| lee::program::Program::new(bin(n).into()).expect("a RISC0 program binary");
+    let deps = std::collections::HashMap::from([(LC, p("sextant_lc.bin")), (TOKEN, p("token.bin"))]);
+    let pwd = ProgramWithDependencies::new(p("wrap_bridge.bin"), BR, deps);
+    let input = lee::ProvingInput {
+        shard_selectors: private_claim_rows(cfg, c),
+        private_witnesses: vec![to.init_witness(random_seed)],
+        instruction_data: lee::program::Program::serialize_instruction(wrap_bridge::Instruction::Claim(Box::new(c.clone()))).map_err(|e| e.to_string())?,
+        ..Default::default()
+    };
+    let (output, proof) = lee::execute_and_prove(input, &pwd).map_err(|e| format!("{e}"))?;
+    let message = Message::from_circuit_output(vec![], output);
+    let witness_set = WitnessSet::for_message(&message, proof, &[]);
+    Ok(lee::PrivacyPreservingTransaction::new(message, witness_set))
+}
+
+/// Settle a privacy-preserving transaction the way the sequencer does: every
+/// check of `ValidatedStateDiff::from_privacy_preserving_transaction` (the
+/// proof against the circuit's ImageID and the program images, commitments
+/// new, nullifiers unspent), then the deferred public effects, applied by each
+/// program in the executor.
+pub fn settle_private(ch: &mut Chain, tx: &lee::PrivacyPreservingTransaction) -> Result<(), String> {
+    let r = ch.state.transition_from_privacy_preserving_transaction(tx, ch.block, ch.now).map_err(|e| format!("{e}"));
+    ch.block += 1;
+    ch.now += 12_000;
+    r
+}
+
+/// What `keys` reads from a transaction's notes: the private account it now
+/// holds, if one of the notes is addressed to it and opens to the commitment
+/// the chain recorded.
+#[must_use]
+pub fn read_note(ch: &Chain, tx: &lee::PrivacyPreservingTransaction, keys: &Shielded) -> Option<lee_core::account::Account> {
+    tx.message().private_actions.iter().find_map(|a| {
+        let ss = lee_core::SharedSecretKey::decapsulate(&a.encrypted_post_state.epk, &keys.d, &keys.z)?;
+        let (_, account) = lee_core::encryption::EncryptionScheme::decrypt(&a.encrypted_post_state.ciphertext, &ss, &a.nullifier)?;
+        let cm = lee_core::Commitment::new(&keys.id(), &account);
+        (cm == a.commitment && ch.state.get_proof_for_commitment(&cm).is_some()).then_some(account)
+    })
+}
+
+/// The wrapped-token balance in a private account's token shard.
+#[must_use]
+pub fn private_balance(account: &lee_core::account::Account) -> u128 {
+    let d = account.data.shard(TOKEN).to_vec();
+    match borsh::from_slice::<wrap_bridge::token::TokenHolding>(&d).expect("a token holding") {
+        wrap_bridge::token::TokenHolding::Fungible { balance, .. } => balance,
+        _ => panic!("not fungible"),
+    }
+}
+
+/// The ImageID of a committed program binary.
+#[must_use]
+pub fn image_id(name: &str) -> [u8; 32] {
+    risc0_binfmt::compute_image_id(&bin(name)).expect("a valid program binary").as_bytes().try_into().expect("32 bytes")
+}

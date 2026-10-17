@@ -39,3 +39,6 @@ path = "src/bin/vectors.rs"
 [[bin]]
 name = "measure"
 path = "src/bin/measure.rs"
+[[bin]]
+name = "measure_private"
+path = "src/bin/measure_private.rs"

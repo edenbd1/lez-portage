@@ -24,15 +24,19 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   and mints through LEZ v0.3.0's token program, which it calls with the seed of
   the definition PDA it owns: the mint authority is the program itself, with no
   stored authority field (LP-0013's authorities are not in the runtime).
-  Wrapped tokens are held in associated token accounts, one per owner and token.
+  Wrapped tokens are held in associated token accounts, one per owner and token,
+  or, on the private path, in the private account the deposit committed to.
   `Burn` burns through the ATA program and appends a leaf hiding the Ethereum
   recipient to the program's burn tree. `Register`, `SetPolicy`, `Freeze`.
 - `executor-tests/`: the four committed binaries (`sextant_lc` from Sextant,
   `token` and `associated_token_account` from LEZ v0.3.0, `wrap_bridge`)
   through `lee::V03State`, the state machine the v0.3 sequencer applies, under
-  the 10,000,000 gas cap, on deposits made on anvil.
+  the 10,000,000 gas cap, on deposits made on anvil; and the claim as a
+  privacy-preserving transaction to a private account, proven by LEZ's privacy
+  circuit and settled through the same checks the sequencer runs.
 - `vectors/anvil/`: those deposits (`scripts/anvil_vectors.py`): the vault on a
-  local anvil chain, four deposits by two seeds, the Deposit events, the block,
+  local anvil chain, five deposits by three seeds (one to a private LEZ
+  account), the Deposit events, the block,
   and `eth_getProof` of `knownRoot[r]` for every root, plus one never-known root.
 
 Anvil has no beacon chain, so the tests wrap its block in a beacon header and
@@ -46,21 +50,31 @@ deposit's path, the nullifier, the mint.
 ```console
 forge test --root vault                                            # 21 tests
 cargo test --release --manifest-path core/Cargo.toml               # 7 tests
-cargo test --release --manifest-path executor-tests/Cargo.toml     # 11 tests (r0vm 3.0.5)
+cargo test --release --manifest-path executor-tests/Cargo.toml     # 12 tests (r0vm 3.0.5)
+RISC0_DEV_MODE=1 cargo test --release --manifest-path executor-tests/Cargo.toml --test private -- --ignored   # 2 tests
+scripts/measure-private-claim.sh       # the private claim with real proving (~7 GB, minutes)
 cargo run --release --manifest-path executor-tests/Cargo.toml --bin measure
-scripts/build-guest.sh                 # rebuild artifacts/programs/v0.3/wrap_bridge.bin
+DOCKER=1 scripts/build-guest.sh        # rebuild artifacts/programs/v0.3/wrap_bridge.bin (reproducible)
 scripts/mutation-test.sh               # each guard removed in turn must fail the tests
 python3 scripts/anvil_vectors.py       # regenerate vectors/anvil (local anvil, nothing spent)
 ```
+
+`artifacts/programs/v0.3/wrap_bridge.bin` is the `DOCKER=1` build, in RISC
+Zero's pinned builder (`risczero/risc0-guest-builder:r0.1.91.1`): 434,496
+bytes, sha256 `973aec2aceed4caa0094b06067fea0883e38b20e0bec5c9b9f12f02a42967008`,
+ImageID `a7c903ab8c53cae2fc74928a569c772ef45520f323de2e1c3be43dd04d82e3d7`.
+CI rebuilds it from a clean checkout and `cmp`s it with the committed bytes
+(`.github/workflows/ci.yml`, job `reproduce`). The local build (no `DOCKER`)
+is for iterating and for the mutation test; its bytes differ.
 
 ## Measured (docs/raw/)
 
 | | gas |
 |---|---:|
-| LEZ `Claim` (path, chained `Attest`, chained token `Mint`) | 296,739 (2.97% of the cap) |
+| LEZ `Claim` (path, chained `Attest`, chained token `Mint`) | 297,502 (2.98% of the cap) |
 | of which Sextant's `Attest` of the storage slot | 111,122 |
-| LEZ `Burn` (burn-tree append, chained ATA `Burn`) | 227,796 |
-| LEZ `Register` (entry, chained `NewFungibleDefinition`) | 90,262 |
+| LEZ `Burn` (burn-tree append, chained ATA `Burn`) | 228,690 |
+| LEZ `Register` (entry, chained `NewFungibleDefinition`) | 90,577 |
 | Ethereum `deposit` (median, max) | 257,854, 336,694 |
 | Ethereum `release` with a stand-in verifier (max) | 158,669 |
 

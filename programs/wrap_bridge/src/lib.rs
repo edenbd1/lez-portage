@@ -7,16 +7,18 @@
 //! that the leaf `wrap_core::leaf(.., token, amount, commitment(destination,
 //! secret))` sits at `index` under `root` (a Merkle path, checked here). It
 //! spends `nullifier(secret, index)` and mints `amount` to `destination`'s
-//! associated token account through the token program. The destination is bound by the commitment, so a
+//! associated token account, or to `destination` itself (a private account),
+//! through the token program. The destination is bound by the commitment, so a
 //! relayer submitting the claim cannot redirect it (Security #3), and the
 //! nullifier is unlinkable to the deposit without the secret.
 //!
-//! In a public transaction, as in this prototype's tests, the instruction
-//! carries the opening and so links the claim to its deposit; the private
-//! path runs the same plan inside a privacy-preserving transaction, where the
-//! instruction, the path and the destination stay in the proof's private
-//! inputs and only the header read, the nullifier, the counters and the mint
-//! are public (ANALYSIS.md, "Privacy").
+//! In a public transaction the instruction carries the opening and so links
+//! the claim to its deposit. The private path runs the same plan inside a
+//! privacy-preserving transaction to a private destination: the instruction,
+//! the path and the destination stay in the proof's private inputs, and only
+//! the deferred effects on public accounts are published (the root and its
+//! storage proof in Sextant's check, the nullifier, the token and amount in
+//! the counters and the supply). See docs/PRIVATE-CLAIM-MEASURED.md.
 //!
 //! **Burn** (outbound). The holder burns a permitted amount and appends
 //! `burn_leaf(token, amount, eth_commitment)` to this program's burn tree; the
@@ -139,7 +141,7 @@ pub enum Instruction {
     /// Rows: [config or entry, freezer (signer)]. `eth_token: None` is global.
     Freeze { config: Config, eth_token: Option<[u8; 20]>, mint: bool, burn: bool },
     /// Rows: [header (Sextant's shard), config, entry, nullifier, definition,
-    /// the destination owner's ATA for this token].
+    /// the destination owner's ATA for this token, or the destination itself].
     Claim(Box<Claim>),
     /// Rows: [config, entry, burns, definition, owner (signer), the owner's ATA].
     Burn { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, eth_commitment: H256 },
@@ -159,7 +161,8 @@ pub struct Claim {
     pub proof: AccountStorageProof,
     pub index: u64,
     pub path: Vec<H256>,
-    /// The owner the deposit committed to; the tokens go to its ATA.
+    /// The account the deposit committed to; the tokens go to its ATA, or to
+    /// it directly (a private account in a privacy-preserving claim).
     pub destination: AccountId,
     pub secret: H256,
 }
@@ -321,8 +324,16 @@ pub fn plan(input: &PlanInput, ix: Instruction) -> Plan {
             expect_row(&entry, entry_account(&me, &ca, &eth_token), me, "the third row is the token's entry PDA");
             let (did, dseed) = definition_account(&me, &ca, &eth_token, &salt);
             expect_row(&def, did, config.token_program, "the fifth row is the wrapped token's definition");
+            // The tokens go to the committed destination's associated token
+            // account (a public owner), or to the committed account itself: a
+            // fresh private account, which a privacy-preserving claim creates
+            // and which no one else can name (one account holds one token).
             let ata = token::ata_account(&config.ata_program, &destination, &did, &config.token_program);
-            expect_row(&dest, ata, config.token_program, "the sixth row is the destination's associated token account for this token");
+            refuse_unless(
+                (dest.account_id == ata || dest.account_id == destination) && dest.program_account_id == config.token_program,
+                E_ACCOUNTS,
+                "the sixth row is the destination's associated token account for this token, or the destination itself",
+            );
             refuse_unless(amount > 0, E_AMOUNT, "nothing to claim");
 
             // The deposit: the leaf the vault appended for this opening, under `root`.

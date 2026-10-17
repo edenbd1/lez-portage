@@ -96,6 +96,21 @@ fn a_deposit_is_minted_once_to_its_committed_destination() {
     assert_eq!(balance(&w.ch, &w.cfg, &ETH, alice().id), d.amount, "nothing more was minted");
 }
 
+/// The mint row may also be the committed account itself (the private path
+/// mints to a fresh private account that way); a public claim can do it too.
+#[test]
+fn a_claim_may_mint_to_the_committed_account_itself() {
+    let mut w = world();
+    let d = w.a.deposits[0].clone();
+    let c = claim_ix(&w.a, &w.cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), w.slot);
+    let mut rows = claim_rows(&w.cfg, &c);
+    rows[5] = sel(alice().id, TOKEN);
+    w.ch.send(BR, &Instruction::Claim(Box::new(c)), rows).expect("the claim lands in the destination's own token shard");
+    let held: token::TokenHolding = borsh::from_slice(&w.ch.shard_of(alice().id, TOKEN)).unwrap();
+    assert!(matches!(held, token::TokenHolding::Fungible { balance, .. } if balance == d.amount));
+    assert_eq!(balance(&w.ch, &w.cfg, &ETH, alice().id), 0, "nothing went to the ATA");
+}
+
 /// R.4: an old root stays a valid anchor; a claim built when the tree had one
 /// leaf lands after three more deposits.
 #[test]
@@ -139,9 +154,13 @@ fn a_submitter_cannot_redirect_inflate_or_forge() {
     x.path = wrap_core::path(&fake, 0);
     assert_eq!(refused(claim(&mut w.ch, &w.cfg, &x)), E_PROOF, "the proof is of knownRoot[the real root], not of this one");
 
-    // The right opening, but the mint row pointed at another account's holding.
+    // The right opening, but the mint row pointed at another account's holding,
+    // or at another account itself.
     let mut rows = claim_rows(&w.cfg, &good);
     rows[5] = sel(ata(&w.cfg, &ETH, bob().id), TOKEN);
+    assert_eq!(refused(w.ch.send(BR, &Instruction::Claim(Box::new(good.clone())), rows)), E_ACCOUNTS);
+    let mut rows = claim_rows(&w.cfg, &good);
+    rows[5] = sel(bob().id, TOKEN);
     assert_eq!(refused(w.ch.send(BR, &Instruction::Claim(Box::new(good.clone())), rows)), E_ACCOUNTS);
 
     let mut x = good.clone();

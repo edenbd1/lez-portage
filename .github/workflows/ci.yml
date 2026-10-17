@@ -27,6 +27,9 @@ jobs:
         run: |
           curl -L https://risczero.com/install | bash
           echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+      # The executor runs the programs in r0vm. rzup asks api.github.com for
+      # release metadata; anonymous calls from a shared runner hit the rate
+      # limit, so authenticate and retry.
       - name: r0vm 3.0.5
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -34,4 +37,64 @@ jobs:
           for i in 1 2 3; do rzup install r0vm 3.0.5 && exit 0; sleep $((i * 20)); done
           exit 1
       - run: cargo test --release --manifest-path executor-tests/Cargo.toml
-      - run: cargo run --release --manifest-path executor-tests/Cargo.toml --bin measure
+      - name: The gas table is reproducible
+        run: cargo run --release --manifest-path executor-tests/Cargo.toml --bin measure | tee measure.txt
+      # The privacy-preserving claim, in RISC Zero dev mode: the programs and
+      # the privacy circuit execute, every settlement check but the receipt's
+      # seal runs, and every privacy assertion is the same. Real proving is
+      # measured locally (docs/PRIVATE-CLAIM-MEASURED.md): it needs ~7 GB and
+      # minutes per claim.
+      - name: The private claim (dev mode)
+        env:
+          RISC0_DEV_MODE: "1"
+        run: cargo test --release --manifest-path executor-tests/Cargo.toml --test private -- --ignored
+  reproduce:
+    name: A clean Docker rebuild is the committed wrap_bridge.bin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: RISC0
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+      # The build runs in RISC Zero's pinned builder image (r0.1.91.1);
+      # cargo-risczero still refuses to start without a host guest toolchain.
+      - name: cargo-risczero 3.0.5, r0vm 3.0.5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for i in 1 2 3; do
+            rzup install cargo-risczero 3.0.5 && rzup install r0vm 3.0.5 && rzup install rust && exit 0
+            sleep $((i * 20))
+          done
+          exit 1
+      - run: |
+          cp artifacts/programs/v0.3/wrap_bridge.bin /tmp/committed.bin
+          DOCKER=1 scripts/build-guest.sh
+          cmp /tmp/committed.bin artifacts/programs/v0.3/wrap_bridge.bin
+          sha256sum artifacts/programs/v0.3/wrap_bridge.bin
+  mutation:
+    name: Each guard of wrap_bridge, removed, fails the tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: RISC0
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+      # Each mutation is a local guest build: the RISC Zero Rust and C
+      # toolchains, not the Docker builder.
+      - name: r0vm 3.0.5, RISC Zero rust and cpp toolchains
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for i in 1 2 3; do
+            rzup install r0vm 3.0.5 && rzup install rust && rzup install cpp && exit 0
+            sleep $((i * 20))
+          done
+          exit 1
+      - run: cargo build --release --manifest-path executor-tests/Cargo.toml --tests --bins
+      - run: scripts/mutation-test.sh

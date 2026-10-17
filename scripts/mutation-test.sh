@@ -29,8 +29,17 @@ MUTATIONS=(
   "freezer not checked@@freezer.account_id == config.freezer && freezer.is_authorized@@true"
   "burn amount not a denomination@@refuse_unless(e.policy.denominations.contains(&amount)@@refuse_unless(true"
   "burn ATA not the signer's@@expect_row(&ata, token::ata_account(&config.ata_program, &owner.account_id, &did, &config.token_program), config.token_program@@expect_row(&ata, ata.account_id, config.token_program"
-  "destination ATA not checked@@expect_row(&dest, ata, config.token_program@@expect_row(&dest, dest.account_id, config.token_program"
+  "mint row may be any account@@|| dest.account_id == destination)@@|| true)"
+  "destination row not checked@@(dest.account_id == ata || dest.account_id == destination) && dest.program_account_id@@dest.program_account_id"
 )
+
+# The unmutated source, built the same way, must pass: otherwise every
+# mutation below would count as caught.
+restore
+scripts/build-guest.sh >/dev/null 2>&1 || { echo "BASELINE BUILD FAIL"; exit 1; }
+cargo test -q --release --manifest-path executor-tests/Cargo.toml --test bridge >/dev/null 2>&1 \
+  || { echo "BASELINE FAIL: the unmutated build does not pass the tests"; exit 1; }
+echo "baseline    the unmutated build passes"
 
 caught=0; missed=0
 for m in "${MUTATIONS[@]}"; do

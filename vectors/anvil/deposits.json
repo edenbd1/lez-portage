@@ -38,5 +38,15 @@
   "root": "0xcb8de4e50b4062fc2ffbaf503f06bb1e4d1496a5fa09fe021165a240647d4979",
   "transactionHash": "0x7a88db439a0970bf3950e9f50995ea80452848b0defdabb002a2deb54adcdea5",
   "blockNumber": 11
+ },
+ {
+  "index": 4,
+  "token": "0x0000000000000000000000000000000000000000",
+  "leaf": "0x9495b7f4b7d279a6e2858df9dcbd0e208e4380b8dc2efb8563d3b2a18a1068c2",
+  "commitment": "0x7012245af0c7caa0b75c84767a1c4e805ee5cd62d5227917de080a4c27e66cca",
+  "amount": "1000000000000000000",
+  "root": "0xd09388616ad77ffe130aae0d3bbb6348418c01627bec27d77e0b5b15ea4e12a4",
+  "transactionHash": "0x32d5d9a85fe3e8bcfbf4bfa583440a3e663240158a4c8e321815eff44de7eb01",
+  "blockNumber": 12
  }
 ]

@@ -6,12 +6,15 @@
 
 use wrap_executor_tests::*;
 
-/// `(depositor, seed counter, token, amount)`, in deposit order.
-pub const PLAN: [(&str, u64, &str, u128); 4] = [
+/// `(depositor, seed counter, token, amount)`, in deposit order. Carol's
+/// deposit commits to a private LEZ account (`carol_private()`), the one the
+/// privacy-preserving claim mints to (tests/private.rs, bin measure_private).
+pub const PLAN: [(&str, u64, &str, u128); 5] = [
     ("alice", 0, "eth", 1_000_000_000_000_000_000),
     ("alice", 1, "usdt", 100_000_000),
     ("bob", 0, "eth", 1_000_000_000_000_000_000),
     ("alice", 2, "eth", 100_000_000_000_000_000),
+    ("carol", 0, "eth", 1_000_000_000_000_000_000),
 ];
 
 /// The seed counter of the deposit alice never made.
@@ -28,7 +31,11 @@ fn main() {
     let deposits: Vec<String> = PLAN
         .iter()
         .map(|(who, n, token, amount)| {
-            let (seed, dest) = if *who == "alice" { (ALICE_SEED, alice().id) } else { (BOB_SEED, bob().id) };
+            let (seed, dest) = match *who {
+                "alice" => (ALICE_SEED, alice().id),
+                "bob" => (BOB_SEED, bob().id),
+                _ => (CAROL_SEED, carol_private().id()),
+            };
             let secret = wrap_core::derive_secret(&seed, b'd', *n);
             let c = wrap_core::commitment(&pairing, dest.value(), &secret);
             format!(r#"{{"from":"{who}","token":"{token}","amount":"{amount}","commitment":"{}"}}"#, hx(&c))
