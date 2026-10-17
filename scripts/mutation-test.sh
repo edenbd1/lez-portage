@@ -31,6 +31,10 @@ MUTATIONS=(
   "burn ATA not the signer's@@expect_row(&ata, token::ata_account(&config.ata_program, &owner.account_id, &did, &config.token_program), config.token_program@@expect_row(&ata, ata.account_id, config.token_program"
   "mint row may be any account@@|| dest.account_id == destination)@@|| true)"
   "destination row not checked@@(dest.account_id == ata || dest.account_id == destination) && dest.program_account_id@@dest.program_account_id"
+  "BurnFrom holding not authorized@@refuse_unless(holding.is_authorized, E_NOT_HOLDER@@refuse_unless(true, E_NOT_HOLDER"
+  "BurnFrom holding shard not checked@@refuse_unless(holding.program_account_id == config.token_program, E_ACCOUNTS@@refuse_unless(true, E_ACCOUNTS"
+  "BurnFrom burn tree row not checked@@expect_row(&burns, burns_account(&me, &ca), me, \"BurnFrom: the third@@expect_row(&burns, burns.account_id, me, \"BurnFrom: the third"
+  "BurnFrom config row not checked@@expect_row(&cfg, ca, me, \"BurnFrom: the first@@expect_row(&cfg, cfg.account_id, me, \"BurnFrom: the first"
 )
 
 # The unmutated source, built the same way, must pass: otherwise every

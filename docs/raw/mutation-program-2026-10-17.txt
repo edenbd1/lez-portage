@@ -1,0 +1,23 @@
+baseline    the unmutated build passes
+caught      merkle path not checked
+caught      vault address not checked
+caught      knownRoot slot not checked
+caught      nullifier not spent once
+caught      no chained Attest
+caught      no PDA seed on the mint
+caught      global mint freeze ignored
+caught      token mint freeze ignored
+caught      token burn freeze ignored
+caught      supply cap ignored
+caught      admin not checked on Register
+caught      admin not checked on SetPolicy
+caught      freezer not checked
+caught      burn amount not a denomination
+caught      burn ATA not the signer's
+caught      mint row may be any account
+caught      destination row not checked
+caught      BurnFrom holding not authorized
+caught      BurnFrom holding shard not checked
+caught      BurnFrom burn tree row not checked
+caught      BurnFrom config row not checked
+21 caught, 0 missed
