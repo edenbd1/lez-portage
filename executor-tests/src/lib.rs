@@ -207,8 +207,20 @@ fn storage_proof(r: &Value) -> AccountStorageProof {
 
 #[must_use]
 pub fn anvil() -> Anvil {
-    let d = json("vectors/anvil/deployment.json");
-    let deposits = json("vectors/anvil/deposits.json")
+    anvil_at(&root_dir().join("vectors/anvil"))
+}
+
+fn json_at(p: &Path) -> Value {
+    serde_json::from_slice(&std::fs::read(p).unwrap_or_else(|_| panic!("read {}", p.display()))).unwrap()
+}
+
+/// The same vectors from any directory laid out like `vectors/anvil` (the
+/// client reads a live anvil run's this way).
+#[must_use]
+pub fn anvil_at(dir: &Path) -> Anvil {
+    let json = |name: &str| json_at(&dir.join(name));
+    let d = json("deployment.json");
+    let deposits = json("deposits.json")
         .as_array()
         .unwrap()
         .iter()
@@ -220,19 +232,19 @@ pub fn anvil() -> Anvil {
             amount: x["amount"].as_str().unwrap().parse().unwrap(),
         })
         .collect();
-    let proofs = json("vectors/anvil/proofs.json")
+    let proofs = json("proofs.json")
         .as_array()
         .unwrap()
         .iter()
         .map(|x| (h(&x["root"]), storage_proof(&x["proof"]["result"])))
         .collect();
-    let u = json("vectors/anvil/proof-unknown.json");
+    let u = json("proof-unknown.json");
     Anvil {
         vault: h(&d["vault"]),
         usdt: h(&d["usdt"]),
         pairing: h(&d["pairing"]),
         deposits,
-        block: json("vectors/anvil/block.json")["result"].clone(),
+        block: json("block.json")["result"].clone(),
         proofs,
         unknown: (h(&u["root"]), storage_proof(&u["proof"]["result"])),
     }

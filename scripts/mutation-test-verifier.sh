@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# The verifier is only evidence if it fails when the record is wrong. Each
+# mutation below corrupts one thing in a copy of a manifest;
+# scripts/verify-onchain.sh must exit non-zero on every one, with a FAIL line,
+# and zero on the manifest as recorded.
+#
+#   scripts/mutation-test-verifier.sh [--manifest FILE] [--rpc URL]
+set -uo pipefail
+cd "$(dirname "$0")/.."
+MANIFEST="evidence/local/e2e.tsv"; RPC="http://127.0.0.1:3051"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --manifest) MANIFEST="$2"; shift 2 ;;
+    --rpc) RPC="$2"; shift 2 ;;
+    *) echo "usage: $0 [--manifest FILE] [--rpc URL]"; exit 2 ;;
+  esac
+done
+T="$(mktemp -d)"
+fake="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
+mutate() { # mutation
+  python3 - "$MANIFEST" "$T/$1.tsv" "$1" "$fake" <<'PY'
+import sys
+src, dst, how, fake = sys.argv[1:5]
+lines = open(src).read().splitlines()
+def cols(i): return lines[i].split("\t")
+rows = [i for i, l in enumerate(lines) if l and not l.startswith("#")]
+public = [i for i in rows if cols(i)[6] != "private"]
+private = [i for i in rows if cols(i)[6] == "private"]
+def put(i, c): lines[i] = "\t".join(c)
+def comment(prefix):
+    return next(i for i, l in enumerate(lines) if l.startswith(prefix))
+if how == "fake-hash":               # an applied transaction's hash replaced by one never sent
+    i = next(i for i in public if cols(i)[1] == "applied"); c = cols(i); c[4] = fake; put(i, c)
+elif how == "refusal-as-applied":    # a refused transaction claimed as applied
+    i = next(i for i in public if cols(i)[1] == "refused"); c = cols(i); c[1] = "applied"; c[2] = "applied"; c[6] = "gas=" + c[7]; put(i, c)
+elif how == "applied-as-refused":    # an applied transaction claimed as refused
+    i = next(i for i in public if cols(i)[1] == "applied"); c = cols(i); c[1] = "refused"; c[2] = "reverted"; put(i, c)
+elif how == "wrong-gas":             # an applied transaction's pre-checked gas off by one
+    i = next(i for i in public if cols(i)[1] == "applied"); c = cols(i); c[6] = "gas=%d" % (int(c[6][4:]) + 1); put(i, c)
+elif how == "wrong-block":           # a transaction recorded in another block
+    i = public[0]; c = cols(i); c[3] = str(int(c[3]) + 1); put(i, c)
+elif how == "swapped-hashes":        # two transactions' hashes swapped (each exists, neither is its own)
+    a, b = public[0], public[1]; ca, cb = cols(a), cols(b); ca[4], cb[4] = cb[4], ca[4]; put(a, ca); put(b, cb)
+elif how == "private-fake-hash":     # the private claim's hash replaced by one never sent
+    i = private[0]; c = cols(i); c[4] = fake; put(i, c)
+elif how == "private-as-public":     # the private claim recorded as a public transaction
+    i = private[0]; c = cols(i); c[6] = "gas=1"; put(i, c)
+elif how == "private-destination":   # a destination that the transaction does publish (the bridge config, a row of it)
+    cfg = next(l.split()[2] for l in lines if l.startswith("# final ") and l.endswith(" config"))
+    i = comment("# private-destination "); lines[i] = "# private-destination " + cfg
+elif how == "private-size":          # the private claim's size off by one
+    i = comment("# private-claim prove"); p = lines[i].split(); k = p.index("tx_bytes") + 1; p[k] = str(int(p[k]) + 1); lines[i] = " ".join(p)
+elif how == "public-as-private":     # a public transaction recorded as the private claim
+    i = next(i for i in public if cols(i)[1] == "applied"); c = cols(i); c[6] = "private"; put(i, c)
+elif how == "final-state":           # a nullifier account's recorded final bytes altered
+    i = next(i for i, l in enumerate(lines) if l.startswith("# final ") and " nullifier_3" in l); p = lines[i].split(); p[5] = "0" * 64; lines[i] = " ".join(p)
+elif how == "final-unclaimed":       # the unclaimed deposit's nullifier claimed as spent
+    i = next(i for i, l in enumerate(lines) if l.startswith("# final ") and l.endswith(" nullifier_2")); p = lines[i].split()
+    p[4] = "1"; p[5] = "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"; lines[i] = " ".join(p)
+elif how == "image-id":              # another ImageID claimed for a deployed program
+    i = next(i for i, l in enumerate(lines) if l.startswith("# program ") and " wrap_bridge" in l); p = lines[i].split(); p[3] = "0" * 64; lines[i] = " ".join(p)
+elif how == "deploy-hash":           # a deployment transaction never sent
+    i = comment("# deploy "); p = lines[i].split(); p[3] = fake; lines[i] = " ".join(p)
+open(dst, "w").write("\n".join(lines) + "\n")
+PY
+}
+fail=0; caught=0; total=0
+./scripts/verify-onchain.sh --manifest "$MANIFEST" --rpc "$RPC" > "$T/clean.out" 2>&1 \
+  && echo "  ok   the recorded manifest verifies ($(tail -1 "$T/clean.out"))" || { echo "  FAIL the recorded manifest does not verify"; tail -5 "$T/clean.out"; fail=1; }
+for m in fake-hash refusal-as-applied applied-as-refused wrong-gas wrong-block swapped-hashes private-fake-hash private-as-public \
+         private-destination private-size public-as-private final-state final-unclaimed image-id deploy-hash; do
+  total=$((total + 1))
+  mutate "$m"
+  if ./scripts/verify-onchain.sh --manifest "$T/$m.tsv" --rpc "$RPC" > "$T/$m.out" 2>&1; then
+    echo "  FAIL mutation $m was NOT caught"; fail=1
+  elif grep -q '^  FAIL' "$T/$m.out"; then
+    caught=$((caught + 1))
+    echo "  ok   mutation $m caught: $(grep -m1 '^  FAIL' "$T/$m.out" | sed 's/^ *FAIL *//' | cut -c1-120)"
+  else
+    echo "  FAIL mutation $m: the verifier exited non-zero without a FAIL line ($(tail -1 "$T/$m.out" | cut -c1-120))"; fail=1
+  fi
+done
+echo "$caught of $total mutations caught"
+exit $fail
