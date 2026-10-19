@@ -170,7 +170,6 @@ ALICE_LEAF="$(python3 -c 'import json,sys;print(next(b["leaf"] for b in json.loa
 check "the chain-derived tree holds carol's private burn, from its block" \
   "$(python3 -c 'import json,sys;print(" ".join(l["leaf"] + "@" + str(l["block"]) for l in json.load(open(sys.argv[1]))["leaves"]))' "$CH/chain-2.json")" "$CAROL_LEAF@$BURN_BLOCK"
 check "alice's public burn is not in it" "$(grep -c "$ALICE_LEAF" "$CH/chain-2.json")" 0
-cp "$CH/blocks/$BURN_BLOCK.borsh" "$EVID/lez-block-$BURN_BLOCK.borsh"
 
 echo "== 3. the release proofs"
 DEPV() { fget "$DEP2" "$1"; }
@@ -181,7 +180,7 @@ zkp() { # out raw -- wrap args (zk-prove-measured.sh: heavy, time(1), the Groth1
   CLI="$CLI" scripts/zk-prove-measured.sh "$o" "$raw" -- "$@" > "$CH/zk-prove.log" 2>&1 || { echo "prove failed"; cat "$CH/zk-prove.log"; tail -20 "$raw"; exit 1; }
 }
 # The release binds the vault it is for: the chain vault.
-zkp "$CH/proof-carol.json" "$EVID/zk-prove-carol.txt" -- release-proof carol --zk --chain "$CH/chain-2.json" --relayer "$RELAYER" --vault "$VAULT"
+zkp "$CH/proof-carol.json" "$EVID/zk-chain-prove-carol.txt" -- release-proof carol --zk --chain "$CH/chain-2.json" --relayer "$RELAYER" --vault "$VAULT"
 "$CLI" release-proof alice --zk --chain "$CH/chain-2.json" --relayer "$RELAYER" --vault "$VAULT" > /dev/null 2> "$CH/alice.err"
 ALICE_RC=$?
 check "the client refuses to prove alice's public burn against the chain-derived tree" "$ALICE_RC $(grep -c 'not in the chain-derived tree' "$CH/alice.err")" "1 1"
@@ -212,14 +211,14 @@ F="$("$CLI" chain-forge --anchor "$ANCHOR" --anchor-hash "$ANCHOR_HASH" --leaf "
 echo "  forged: $F"; echo "# chain-forge $F" >> "$OUT"
 measure chain-prove-forged -- chain-prove --anchor "$ANCHOR" --anchor-hash "$ANCHOR_HASH" --to $((ANCHOR + 1)) --blocks-dir "$CH/forged-blocks" --out "$CH/chain-forged.json" > /dev/null \
   || { echo "forged chain proof failed"; tail -20 "$EVID/chain-prove-forged.txt"; exit 1; }
-zkp "$CH/proof-forged.json" "$EVID/zk-prove-forged.txt" -- zk-prove "$FORGED_IN" --chain "$CH/chain-forged.json"
+zkp "$CH/proof-forged.json" "$EVID/zk-chain-prove-forged.txt" -- zk-prove "$FORGED_IN" --chain "$CH/chain-forged.json"
 python3 - "$CH" "$EVID" >> "$OUT" <<'PY'
 import json, re, sys
 ch, evid = sys.argv[1:3]
 for who in ("carol", "forged"):
     p = json.load(open(f"{ch}/proof-{who}.json"))
     z = p.get("zk", p)
-    raw = open(f"{evid}/zk-prove-{who}.txt").read()
+    raw = open(f"{evid}/zk-chain-prove-{who}.txt").read()
     rss = re.search(r"(\d+)\s+maximum resident set size", raw) or re.search(r"Maximum resident set size \(kbytes\): (\d+)", raw)
     peak = re.search(r"container peak memory \(docker stats samples\) ([\d.]+) GiB", raw)
     wall = re.search(r"([\d.]+) real", raw)
@@ -275,7 +274,9 @@ NF="$(fget "$P" zk.fields.nullifier)"
 check "the vault recorded the release's nullifier" "$(cast call "$VAULT" 'nullifierSpent(bytes32)(bool)' "$NF" --rpc-url "$ANVIL")" true
 check "the release sent no leaf, secret, Ethereum commitment or path node" \
   "$(awk '/^# eth-zk release-carol / {if ($7=="True" && $9=="True" && $11=="True") { split($13, p, "/"); if (p[1]==p[2]) print "hidden" }}' "$OUT" | sort -u)" hidden
-cp "$P" "$EVID/proof-carol.json"; cp "$CH/chain-1.json" "$CH/chain-2.json" "$EVID/"
+# The public record of carol's proof (not its opening: no secret, index in the program's tree, leaf or path).
+python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));json.dump({k: d[k] for k in ("op","owner","token","amount","recipient","fee","relayer","chain_derived","zk") if k in d}, open(sys.argv[2],"w"), indent=1)' "$P" "$EVID/proof-carol.json"
+cp "$CH/chain-1.json" "$CH/chain-2.json" "$EVID/"
 eth_applied=$(awk '/^# eth / && $4=="applied" && $5=="applied"' "$OUT" | wc -l | tr -d ' ')
 eth_refused=$(awk '/^# eth / && $4!="applied" && $5=="reverted"' "$OUT" | wc -l | tr -d ' ')
 echo "== $( [ $fail = 0 ] && echo PASS || echo FAIL ): $((eth_applied + eth_refused)) chain-derived releases ($eth_applied applied, $eth_refused refused as expected), $(grep -c '^# check ok' "$OUT") checks ok"

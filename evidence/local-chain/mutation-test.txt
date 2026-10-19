@@ -1,0 +1,34 @@
+  ok   the recorded manifest verifies (81 checks pass, 0 fail (7 applied and 5 refused public transactions, 2 privacy-preserving, 2 applied and 9 refused releases, in the manifest))
+  ok   mutation fake-hash caught: init-sextant: d598a5444ae386c3… NOT FOUND on chain
+  ok   mutation refusal-as-applied caught: claim-alice-eth-replay: expected applied, charged 330000 gas (pre-checked 330000, limit 330000)
+  ok   mutation applied-as-refused caught: init-sextant: expected refused, charged 1831160 gas against a limit of 1859471
+  ok   mutation wrong-gas caught: init-sextant: expected applied, charged 1831160 gas (pre-checked 1831161, limit 1859471)
+  ok   mutation wrong-block caught: init-sextant: c835f0cabd137a54… is in block 27, recorded in 28
+  ok   mutation swapped-hashes caught: init-sextant: 44e1e9e5ae7945f6… is in block 28, recorded in 27
+  ok   mutation private-fake-hash caught: claim-carol-private: d598a5444ae386c3… NOT FOUND on chain
+  ok   mutation private-as-public caught: claim-carol-private: not a public transaction
+  ok   mutation private-destination caught: claim-carol-private: the private account's id 5D6HySq1zLrC… occurs in the transaction
+  ok   mutation private-size caught: claim-carol-private: 251777 bytes, recorded 251778
+  ok   mutation public-as-private caught: init-sextant: not a privacy-preserving transaction; 26133 bytes, recorded None; no hidden account recorded
+  ok   mutation final-state caught: final state of nullifier_3 (3qYFKTwVrscq…): recorded 1 bytes 0000000000000000…, chain has 1 bytes 4bf5122f344554c5…
+  ok   mutation final-unclaimed caught: final state of nullifier_2 (CGuR9tF5T7iY…): recorded 1 bytes 4bf5122f344554c5…, chain has 0 bytes e3b0c44298fc1c14…
+  ok   mutation image-id caught: program wrap_bridge: header 52VCiXqwzwyp… names ImageID 0000000000000000… (chain has 073f046ce2a6fffd6adec655f0e65e91fd1
+  ok   mutation deploy-hash caught: deploy sextant_lc-segment6: d598a5444ae386c3… resolves NOT FOUND
+  ok   mutation private-burn-fake-hash caught: burn-carol-private: d598a5444ae386c3… NOT FOUND on chain
+  ok   mutation private-burn-holder caught: burn-carol-private: the private account's id 5D6HySq1zLrC… occurs in the transaction
+  ok   mutation private-burn-size caught: burn-carol-private: 248358 bytes, recorded 248359
+  ok   mutation eth-fake-hash caught: eth release-alice: 0xd598a5444ae386… NOT FOUND on anvil
+  ok   mutation eth-refusal-as-applied caught: eth release-carol-not-final: status 0, recorded applied; no Release event of the vault names the recorded nullifier
+  ok   mutation eth-applied-as-refused caught: eth release-alice: status 1, recorded reverted; replayed at block 17 it reverts with nothing, recorded 0xfb0612b1
+  ok   mutation eth-other-error caught: eth release-forged-burn-committee: replayed at block 23 it reverts with 0xfb0612b1, recorded 0xd7c25c79
+  ok   mutation eth-wrong-block caught: eth release-carol-not-final: in block 17, recorded 18
+  ok   mutation eth-wrong-nullifier caught: eth release-alice: no Release event of the vault names the recorded nullifier
+  ok   mutation eth-wrong-root caught: release-root 0xd598a5444ae386c3… is not the LEZ burn tree's root (the sequencer has 0x8cdd73af636f6dac674f5542c237eda684
+  ok   mutation eth-unreleased caught: eth final: nullifierSpent(0xcd1f3767ff33…) = true, recorded false (release-alice)
+  ok   mutation eth-control-spent caught: eth final: nullifierSpent(0x09aeea65a08e…) = false, recorded true (control)
+  ok   mutation eth-balance caught: eth final: vault holds 100000000000000000 wei, recorded 100000000000000001
+  ok   mutation zk-image-id caught: zk: recorded image id 0x855dfc801b07750f… is not the committed guest's (0x0000000000000000000000000000000000000000000000
+  ok   mutation zk-verifier caught: zk: ZkBurnVerifier.IMAGE_ID() = 0x0x…, recorded 0x855dfc801b07750f…
+  ok   mutation zk-leaf-sent caught: zk release-carol: the burn leaf occurs in the input
+  ok   mutation zk-path-sent caught: zk release-alice: 1 path node(s) occur in the input
+32 of 32 mutations caught

@@ -24,6 +24,8 @@ jobs:
       - run: cargo test --release --manifest-path core/Cargo.toml
       # The zero-knowledge release statement (src/zk.rs, feature zk).
       - run: cargo test --release --manifest-path core/Cargo.toml --features zk
+      # The chain-derived release's statement (chain/: LEZ blocks, the burn tree, both journals).
+      - run: cargo test --release --manifest-path chain/Cargo.toml --features release
   executor:
     name: The committed binaries through lee::V03State
     runs-on: ubuntu-latest
@@ -87,6 +89,13 @@ jobs:
           cp artifacts/zk/burn_membership.bin /tmp/committed-zk.bin
           scripts/build-zk-guest.sh
           cmp /tmp/committed-zk.bin artifacts/zk/burn_membership.bin
+      # The chain-derived release's two guests, pinned in ZkChainBurnVerifier.
+      - run: |
+          cp artifacts/zk/lez_chain.bin /tmp/committed-chain.bin
+          cp artifacts/zk/burn_release.bin /tmp/committed-release.bin
+          scripts/build-chain-guests.sh
+          cmp /tmp/committed-chain.bin artifacts/zk/lez_chain.bin
+          cmp /tmp/committed-release.bin artifacts/zk/burn_release.bin
   mutation:
     name: Each guard of wrap_bridge, removed, fails the tests
     runs-on: ubuntu-latest

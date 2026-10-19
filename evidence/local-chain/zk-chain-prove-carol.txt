@@ -1,0 +1,33 @@
+# 2026-10-19T11:37:02Z wrap release-proof carol --zk --chain /tmp/rfp022-real/chain/chain-2.json --relayer 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65 --vault 0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.4.0 linux/aarch64 cpus=14 mem=12600381440; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 49a5b49 (uncommitted changes); guest sha256 2c800cd93d4c2cc3a4876165c93ebe4a231f151d8f09394951517c7dc0048881
+# load before: load averages: 26.00 22.98 22.44
+       86.96 real       786.23 user         3.03 sys
+          5370085376  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              434388  page reclaims
+                1277  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  20  messages sent
+                  61  messages received
+                  82  signals received
+                  73  voluntary context switches
+              382306  involuntary context switches
+           537947826  instructions retired
+           172394036  cycles elapsed
+             7143808  peak memory footprint
+# docker 11:38:09 confident_hofstadter 3.447GiB / 11.74GiB 209.55%
+# docker 11:38:12 confident_hofstadter 4.661GiB / 11.74GiB 100.01%
+# docker 11:38:16 confident_hofstadter 4.859GiB / 11.74GiB 100.13%
+# docker 11:38:19 confident_hofstadter 5.89GiB / 11.74GiB 871.79%
+# docker 11:38:22 confident_hofstadter 7.312GiB / 11.74GiB 1161.06%
+# docker 11:38:25 confident_hofstadter 7.563GiB / 11.74GiB 1177.12%
+# docker 11:38:28 confident_hofstadter 7.613GiB / 11.74GiB 797.45%
+# exit 0; load after: load averages: 19.31 21.74 22.02
+# groth16 container peak memory (docker stats samples) 7.61 GiB

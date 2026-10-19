@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The release path's checks, each removed in turn, must fail the Foundry tests
-# (vault/test/CommitteeBurnVerifier.t.sol, ZkBurnVerifier.t.sol, whose seal is
-# a real Groth16 proof, and WrapVault.t.sol). The sources are restored at the end.
+# (vault/test/CommitteeBurnVerifier.t.sol, ZkBurnVerifier.t.sol and
+# ZkChainBurnVerifier.t.sol, whose seals are real Groth16 proofs, and
+# WrapVault.t.sol). The sources are restored at the end.
 #   scripts/mutation-test-vault.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -9,9 +10,11 @@ V=vault/src/CommitteeBurnVerifier.sol
 C=vault/src/BurnRootCommittee.sol
 Z=vault/src/ZkBurnVerifier.sol
 W=vault/src/WrapVault.sol
+ZC=vault/src/ZkChainBurnVerifier.sol
+LB=vault/src/LezBlockCommittee.sol
 SAVE="$(mktemp -d /tmp/rfp022-mut-vault.XXXXXX)"
-for f in "$V" "$C" "$Z" "$W"; do cp "$f" "$SAVE/"; done
-restore() { for f in "$V" "$C" "$Z" "$W"; do cp "$SAVE/$(basename "$f")" "$f"; done; }
+for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB"; do cp "$f" "$SAVE/"; done
+restore() { for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB"; do cp "$SAVE/$(basename "$f")" "$f"; done; }
 trap restore EXIT
 
 # name @@ file @@ literal text @@ replacement
@@ -33,6 +36,26 @@ MUTATIONS=(
   "zk: the committee not consulted@@$Z@@_requireAttested(msg.sender, _word(r.journal, 3), _word(r.journal, 9), r.lezBlock, r.lezFinalBlock, r.signatures);@@"
   "zk: the attested root is not the journal's@@$Z@@_word(r.journal, 9), r.lezBlock@@_word(r.journal, 10), r.lezBlock"
   "zk: the attestation not bound to the journal's pairing@@$Z@@_requireAttested(msg.sender, _word(r.journal, 3),@@_requireAttested(msg.sender, keccak256(\"other pairing\"),"
+  "chain: the journal's length not checked@@$ZC@@if (j.length != JOURNAL_LEN) revert NotThisRelease();@@"
+  "chain: the release preimage not compared with the vault's digest@@$ZC@@if (_sha256Prefix(j, 352) != publicInputs) revert NotThisRelease();@@"
+  "chain: the preimage compared on 320 bytes@@$ZC@@_sha256Prefix(j, 352)@@_sha256Prefix(j, 320)"
+  "chain: the chain guest's image id not checked@@$ZC@@_word(j, 11) != CHAIN_IMAGE_ID || @@"
+  "chain: the program not checked@@$ZC@@_word(j, 12) != PROGRAM_ID || @@"
+  "chain: the burn-tree account not checked@@$ZC@@_word(j, 13) != BURNS_ACCOUNT@@false"
+  "chain: the anchor's height not checked@@$ZC@@_word(j, 14) != bytes32(uint256(ANCHOR_ID)) || @@"
+  "chain: the anchor's hash not checked@@$ZC@@ || _word(j, 15) != ANCHOR_HASH@@"
+  "chain: the seal not verified@@$ZC@@RISC0.verify(r.seal, IMAGE_ID, sha256(j));@@"
+  "chain: the seal checked against the preimage's digest only@@$ZC@@RISC0.verify(r.seal, IMAGE_ID, sha256(j));@@RISC0.verify(r.seal, IMAGE_ID, publicInputs);"
+  "chain: the tip not attested@@$ZC@@_requireFinalBlock(msg.sender, _word(j, 3), _word(j, 17), uint64(tipId), r.lezFinalBlock, r.signatures);@@"
+  "chain: the attested hash is not the journal's tip@@$ZC@@_word(j, 17), uint64(tipId)@@_word(j, 15), uint64(tipId)"
+  "chain: the attested height is not the journal's tip@@$ZC@@uint64(tipId), r.lezFinalBlock@@uint64(tipId) + 1, r.lezFinalBlock"
+  "block committee: finality depth not checked@@$LB@@if (uint256(lezFinalBlock) < uint256(lezBlock) + FINALITY_DEPTH) revert NotFinal();@@"
+  "block committee: threshold not checked@@$LB@@if (count < THRESHOLD) revert BlockNotAttested();@@"
+  "block committee: a non-member's signature counts@@$LB@@uint256 m = memberIndex[_recover(signed, signatures[i])];@@uint256 m = memberIndex[_recover(signed, signatures[i])]; if (m == 0) m = 1;"
+  "block committee: a member counted twice@@$LB@@ || seen \& (1 << (m - 1)) != 0) continue;@@) continue;"
+  "block committee: high-s signatures accepted@@$LB@@if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0 || (v != 27 \&\& v != 28)) {@@if (v != 27 \&\& v != 28) {"
+  "block committee: attestation not bound to the vault@@$LB@@abi.encode(BLOCK_ATTEST_TAG, block.chainid, vault,@@abi.encode(BLOCK_ATTEST_TAG, block.chainid, address(0),"
+  "block committee: attestation not bound to the pairing@@$LB@@block.chainid, vault, pairing, blockHash,@@block.chainid, vault, bytes32(0), blockHash,"
   "vault: release digest not bound to the chain@@$W@@abi.encode(RELEASE_TAG, block.chainid, address(this),@@abi.encode(RELEASE_TAG, uint256(31337), address(this),"
   "vault: release digest not bound to the vault@@$W@@abi.encode(RELEASE_TAG, block.chainid, address(this),@@abi.encode(RELEASE_TAG, block.chainid, address(0xfa22),"
   "vault: release digest omits the relayer@@$W@@token, amount, recipient, relayer, fee, lezBurnRoot, nullifier)@@token, amount, recipient, address(0), fee, lezBurnRoot, nullifier)"

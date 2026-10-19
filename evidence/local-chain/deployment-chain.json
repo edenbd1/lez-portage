@@ -1,0 +1,32 @@
+{
+ "chain_id": 31337,
+ "vault": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
+ "usdt": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+ "verifier": "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
+ "release_verifier": "zkchain",
+ "risc0_verifier": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+ "image_id": "0xfd3b52ce15d97b688f2c297afd466f6fde49a55f8f9925f956a68548f4799721",
+ "committee": [
+  "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
+  "0x976ea74026e726554db657fa54763abd0c3a0aa9",
+  "0x14dc79964da2c08b23698b3d3cc7ca32193d9955"
+ ],
+ "threshold": 2,
+ "finality_depth": 3,
+ "relayer": "0x15d34aaf54267db7d7c367839aaf71a00a2c6a65",
+ "outsiders": [
+  "0x23618e81e3f5cdf7f54c3d65f7fbc0abf5b21e8f",
+  "0xa0ee7a142d267c1f36714e4a8f75612f20a79720"
+ ],
+ "pairing": "0x611d80d34ac971ae31b9bbe76a46271dd7985372667a758535cf55fa65609a05",
+ "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+ "alice": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+ "bob": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+ "carol": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+ "block": 16,
+ "anchor_id": 27,
+ "anchor_hash": "0x4e2f2090753f566aa0d37062958e62f22be5a34a1c618e84a52daac107c517d0",
+ "program_id": "0x3bd0377454bbc5dc330966a1d3eb7c8e70c696a49ef02f748183a1f960802a8d",
+ "burns_account": "0x5581e4c04febadd468b24147f60e05174122e665e098daadf589774b988afba7",
+ "chain_image_id": "0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22"
+}

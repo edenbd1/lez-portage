@@ -7,7 +7,10 @@ built for each step, what it was measured at, and what the release path rests
 on. There are two release verifiers. `ZkBurnVerifier` proves the burn's
 membership in zero knowledge, and the local run uses it (section 3).
 `CommitteeBurnVerifier` opens the leaf in public (section 2). Both take the
-burn tree's root from a committee, and that is the part of F.7 still missing. Record of the run: [`evidence/local/`](../evidence/local/); how it runs:
+burn tree's root from a committee. A third, `ZkChainBurnVerifier` (section
+4), takes no root from anyone: the proof rebuilds the tree from LEZ blocks,
+and the committee only attests that the last block is final. That
+attestation is the part of F.7 still missing (docs/BEDROCK-FINALITY.md). Record of the run: [`evidence/local/`](../evidence/local/); how it runs:
 [LOCAL-E2E.md](LOCAL-E2E.md).
 
 ## 1. The burn
@@ -302,12 +305,12 @@ each needs a new vault (Security #8).
 1. **Done (locally):** part 1 as a RISC Zero guest, with its receipt checked
    on chain by RISC Zero's Groth16 verifier (section 3). The Groth16 wrap
    runs emulated on this machine, in about 52 s.
-2. Part 2 as a Cryptarchia light client in RISC Zero, proving the LEZ block's
-   finality on Bedrock and the burn's inclusion (option A). It would be a
-   second assumption of the same guest, or the same guest reading a header
-   chain. Trust would remain in one place: the burn tree's validity would
-   rest on LEZ's sequencer and nodes.
-3. A LEZ state commitment (option C), once LEZ has one.
+2. **Done (locally):** the root derived from LEZ blocks inside the proof
+   (section 4). The committee attests a block hash, not a root.
+3. The tip's Bedrock inclusion (the inscription in a Bedrock block) proven
+   too, then its finality: a Cryptarchia light client, which must replay
+   Bedrock's note ledger (docs/BEDROCK-FINALITY.md, sections 3 and 5).
+4. A LEZ state commitment or validity prover, for the blocks' validity.
 
 ### Tested
 
@@ -391,3 +394,46 @@ On anvil, through the local run of 2026-10-17 with the committee verifier
 
 The vault paid out exactly 2 ETH. Carol received 0.99 ETH. Both burn
 nullifiers are recorded as released.
+
+## 4. The chain-derived release: `ZkChainBurnVerifier`
+
+The committee's root is replaced by one the proof derives. The full account
+is in [BEDROCK-FINALITY.md](BEDROCK-FINALITY.md), sections 5 to 7. In short:
+
+- **The chain guest.** `zk/lez_chain`, with its statement in the
+  [`chain/`](../chain/) crate, reads LEZ v0.3.1 blocks as the sequencer
+  inscribes them on Bedrock. It goes from an anchor block pinned at
+  deployment, or continues an earlier receipt of itself verified inside.
+  For each block it checks the hash against the contents and the link to
+  the previous block.
+- **The tree it rebuilds.** It holds the bridge's burn leaves that
+  **privacy-preserving** transactions settled. On v0.3.1 such a transaction
+  is fee-exempt, and one that fails settlement invalidates its whole block.
+  A public burn is left out: a public transaction whose action fails stays
+  in its block, and the block does not say so. The run's block 84 is one:
+  alice's refused burn, included.
+- **The release guest.** `zk/burn_release` verifies the chain receipt
+  inside and proves the burn's opening under the chain's root. Ethereum
+  checks one Groth16 seal for both guests.
+- **What the vault's verifier checks.** `ZkChainBurnVerifier` checks the
+  preimage against the vault's digest, then that the journal names the
+  pinned chain guest, program, burn-tree account and anchor. Then the seal,
+  then that `LezBlockCommittee` attests the tip block hash final.
+- **The run.** `scripts/e2e-chain.sh` on a kept `e2e-local.sh` run
+  (`evidence/local-chain/`) passed: 12 releases, 1 applied, 11 refused as
+  expected. Among the refusals is a real proof over a made-up LEZ block,
+  refused only because the members sign the real block at that height.
+  Carol's release cost 347,250 gas. The chain proofs took 87 s and 141 s
+  for 93 and 197 blocks; the release took 39 s of STARK and 48 s of
+  emulated Groth16.
+
+The trust that remains, plainly:
+
+- **Finality.** The tip's finality on Bedrock is the committee's word,
+  about a public block hash.
+- **Validity.** The blocks' validity rests on LEZ's sequencer and nodes.
+- **Public burns.** A public burn cannot release this way. It needs the
+  other verifiers, or a burn made as a privacy-preserving transaction.
+
+F.7 is still not met as the RFP words it.
+

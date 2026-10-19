@@ -27,7 +27,7 @@ mkdir -p "$(dirname "$RAW")" "$(dirname "$OUT")"
   fi
   echo "# docker server $(docker info --format '{{.ServerVersion}} {{.OSType}}/{{.Architecture}} cpus={{.NCPU}} mem={{.MemTotal}}' 2>/dev/null); DOCKER_DEFAULT_PLATFORM=$DOCKER_DEFAULT_PLATFORM"
   echo "# groth16 image $(docker image inspect risczero/risc0-groth16-prover:v2025-04-03.1 --format '{{.Id}} {{.Os}}/{{.Architecture}} {{.Size}}' 2>/dev/null)"
-  echo "# commit $(git rev-parse --short HEAD)$(git diff --quiet || echo ' (uncommitted changes)'); guest sha256 $(shasum -a 256 artifacts/zk/burn_membership.bin | cut -d' ' -f1)"
+  echo "# commit $(git rev-parse --short HEAD)$(git diff --quiet || echo ' (uncommitted changes)'); guests sha256 $(for g in artifacts/zk/*.bin; do printf "%s=%s " "$(basename "$g" .bin)" "$(shasum -a 256 "$g" | cut -c1-16)"; done)"
   echo "# load before: $(uptime | sed 's/.*load/load/')"
 } > "$RAW"
 ( peak=0

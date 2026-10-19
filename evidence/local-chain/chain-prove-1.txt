@@ -1,0 +1,19 @@
+{"anchor":{"hash":"0x4e2f2090753f566aa0d37062958e62f22be5a34a1c618e84a52daac107c517d0","id":27},"block_bytes":343403,"blocks":93,"dev_mode":false,"from":28,"image_id":"0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22","journal":null,"leaves":[],"next_index":0,"op":"chain-prove","params":{"burns":"6knXuSx4NKPyRr3dNWq2ShTnN56NdP2jWrTuZkuh8uiv","burns_account":"0x5581e4c04febadd468b24147f60e05174122e665e098daadf589774b988afba7","program":"52VCiXqwzwyp3Q3xX16Bhc5p6iSbsraPGPkrrzr3YNdS","program_id":"0x3bd0377454bbc5dc330966a1d3eb7c8e70c696a49ef02f748183a1f960802a8d"},"prior":false,"root":"0x31206fa80a50bb6abe29085058f16212212a60eec8f049fecb92d8c8e0a84bc0","stats":{"paging_cycles":265102,"reserved_cycles":114303,"segments":2,"stark_succinct_ms":86857,"total_cycles":1310720,"user_cycles":931315},"tip":{"hash":"0x448376aef8fde457988cafdfa5cdd65c04fba0101d55e136f201db89f982f075","id":120}}
+       86.90 real      1038.03 user         8.21 sys
+          7526809600  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1238115  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                 182  messages sent
+                 284  messages received
+                   0  signals received
+                 119  voluntary context switches
+              687665  involuntary context switches
+           775024791  instructions retired
+           253913594  cycles elapsed
+             8765848  peak memory footprint

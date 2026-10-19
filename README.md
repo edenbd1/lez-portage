@@ -21,14 +21,28 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   vault's release digest. `CommitteeBurnVerifier.sol` checks the burn leaf's
   opening in public instead. Both check the burn tree's root against a fixed
   k-of-n committee's attestation that the root is final
-  (`BurnRootCommittee.sol`). **That committee is a trust assumption, so F.7
-  is not met** ([docs/OUTBOUND.md](docs/OUTBOUND.md)).
+  (`BurnRootCommittee.sol`). A third, `ZkChainBurnVerifier.sol`, takes no
+  root from anyone. One Groth16 seal proves the burn under a tree rebuilt
+  from LEZ blocks, and its committee (`LezBlockCommittee.sol`) only attests
+  that the last block is final. **That attestation is still a trust
+  assumption, so F.7 is not met** ([docs/OUTBOUND.md](docs/OUTBOUND.md),
+  [docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md)).
 - `zk/burn_membership/`: the RISC Zero guest of the zero-knowledge release. It
   proves knowledge of a burn (token, amount, recipient, fee, secret, index,
   path) under the root its path leads to, and commits the vault's release
   preimage of that root and the burn's nullifier. It is built reproducibly in
   RISC Zero's pinned builder into `artifacts/zk/burn_membership.bin` (ImageID
   `855dfc80…`).
+- `chain/`, `zk/lez_chain/`, `zk/burn_release/`: the chain-derived release.
+  `lez-chain` decodes LEZ v0.3.1 blocks strictly and recomputes their hashes
+  and links. It rebuilds the tree of the bridge's private burns: those of
+  privacy-preserving transactions, which on v0.3.1 cannot be included and
+  fail. The chain guest proves that from a pinned anchor, or from an
+  earlier receipt of itself. The release guest proves a burn under its root,
+  with the chain receipt verified inside. Both are built reproducibly
+  (`scripts/build-chain-guests.sh`; ImageIDs `68718ab0…` and `fd3b52ce…`).
+  [docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md) covers what Bedrock
+  finality would take on top.
 - `core/`: `wrap-core`, every hash both halves must agree on (leaf, tree,
   commitments, nullifiers, the `knownRoot` slot, the burn tree, the release
   digest), with shared test vectors asserted on both sides; feature `zk`, the
@@ -78,12 +92,14 @@ deposit's path, the nullifier, the mint.
 ## Run
 
 ```console
-forge test --root vault                                            # 66 tests (27 on a real Groth16 seal)
-scripts/mutation-test-vault.sh         # each check of the release path removed must fail them (22)
+forge test --root vault                                            # 86 tests (47 on real Groth16 seals)
+scripts/mutation-test-vault.sh         # each check of the release path removed must fail them (42)
+cargo test --manifest-path chain/Cargo.toml --features release     # 10 tests: the chain guest's statement
+scripts/build-chain-guests.sh          # rebuild artifacts/zk/lez_chain.bin and burn_release.bin (reproducible, Docker)
 cargo test --release --manifest-path core/Cargo.toml --features zk # 9 tests
 scripts/build-zk-guest.sh              # rebuild artifacts/zk/burn_membership.bin (reproducible, Docker)
 scripts/zk-fixture.sh                  # re-prove the Foundry fixture (x86_64 Docker image; ~75 s emulated)
-cargo test --release --manifest-path executor-tests/Cargo.toml     # 13 tests (r0vm 3.0.5)
+cargo test --release --manifest-path executor-tests/Cargo.toml     # 15 tests (r0vm 3.0.5)
 RISC0_DEV_MODE=1 cargo test --release --manifest-path executor-tests/Cargo.toml --test private -- --ignored   # 3 tests
 scripts/measure-private-claim.sh       # the private claim with real proving (~7 GB, minutes)
 cargo run --release --manifest-path executor-tests/Cargo.toml --bin measure
@@ -92,6 +108,7 @@ scripts/mutation-test.sh               # each guard removed in turn must fail th
 python3 scripts/anvil_vectors.py       # regenerate vectors/anvil (local anvil, nothing spent)
 cargo build --release --manifest-path cli/Cargo.toml
 SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh    # local v0.3.1 sequencer + anvil, end to end, zero-knowledge releases (docs/LOCAL-E2E.md)
+RUN=<a KEEP=1 run dir> BASE=<its e2e.tsv> scripts/e2e-chain.sh   # then the chain-derived release on it (evidence/local-chain/)
 # the run ends with both against its own sequencer; with KEEP=1 it stays up to re-run them:
 scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
 scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
