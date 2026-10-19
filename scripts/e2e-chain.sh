@@ -33,7 +33,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 : "${RUN:?the run directory of a KEEP=1 e2e-local.sh run}"
-: "${BASE:?that run's manifest}"
+: "${BASE:?the manifest of that run}"
 CLI="${CLI:-cli/target/release/wrap}"
 PORT="${PORT:-3051}"; ANVIL_PORT="${ANVIL_PORT:-8551}"
 RPC="http://127.0.0.1:$PORT"; ANVIL="http://127.0.0.1:$ANVIL_PORT"
@@ -147,13 +147,28 @@ echo "# chain-layout $(cat "$CH/layout.json")" >> "$OUT"
 check "LEZ's Block and the guest's mirror decode, re-encode and hash every block identically" "$(jget "$(cat "$CH/layout.json")" identical)" True
 check "the second step continues the first (its prior)" "$(fget "$CH/chain-2.json" prior)" True
 check "both chain proofs are real (RISC0 dev mode off)" "$(fget "$CH/chain-1.json" dev_mode) $(fget "$CH/chain-2.json" dev_mode)" "False False"
-check "the chain tip the proof ends at is the sequencer's block $(fget "$CH/chain-2.json" tip.id)" "$(fget "$CH/chain-2.json" tip.hash)" \
-  "$(curl -s -X POST "$RPC" -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getBlock\",\"params\":[$(fget "$CH/chain-2.json" tip.id)]}" \
-     | python3 -c 'import base64,json,sys;print("0x"+base64.b64decode(json.load(sys.stdin)["result"])[40:72].hex())')"
+lez_hash() { # the hash of LEZ block $1 as the sequencer returns it (borsh header: id, prev, hash, timestamp)
+  python3 - "$RPC" "$1" <<'PY'
+import base64, json, sys, time, urllib.request
+for i in range(6):
+    try:
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "getBlock", "params": [int(sys.argv[2])]}).encode()
+        r = json.load(urllib.request.urlopen(urllib.request.Request(sys.argv[1], body, {"Content-Type": "application/json"}), timeout=20))
+        if "result" in r:
+            print("0x" + base64.b64decode(r["result"])[40:72].hex()); sys.exit(0)
+        print(f"getBlock {sys.argv[2]}: {r.get('error')}", file=sys.stderr)
+    except Exception as e:
+        print(f"getBlock {sys.argv[2]}: {e}", file=sys.stderr)
+    time.sleep(2 * (i + 1))
+sys.exit(1)
+PY
+}
+TIP2="$(fget "$CH/chain-2.json" tip.id)"
+check "the chain tip the proof ends at is the sequencer's block $TIP2" "$(fget "$CH/chain-2.json" tip.hash)" "$(lez_hash "$TIP2")"
 CAROL_LEAF="$(python3 -c 'import json,sys;print(next(b["leaf"] for b in json.load(open(sys.argv[1])) if b["owner"]=="carol"))' "$RUN/state/burns.json")"
 ALICE_LEAF="$(python3 -c 'import json,sys;print(next(b["leaf"] for b in json.load(open(sys.argv[1])) if b["owner"]=="alice"))' "$RUN/state/burns.json")"
 check "the chain-derived tree holds carol's private burn, from its block" \
-  "$(python3 -c 'import json,sys;print(" ".join(f"{l[\"leaf\"]}@{l[\"block\"]}" for l in json.load(open(sys.argv[1]))["leaves"]))' "$CH/chain-2.json")" "$CAROL_LEAF@$BURN_BLOCK"
+  "$(python3 -c 'import json,sys;print(" ".join(l["leaf"] + "@" + str(l["block"]) for l in json.load(open(sys.argv[1]))["leaves"]))' "$CH/chain-2.json")" "$CAROL_LEAF@$BURN_BLOCK"
 check "alice's public burn is not in it" "$(grep -c "$ALICE_LEAF" "$CH/chain-2.json")" 0
 cp "$CH/blocks/$BURN_BLOCK.borsh" "$EVID/lez-block-$BURN_BLOCK.borsh"
 
