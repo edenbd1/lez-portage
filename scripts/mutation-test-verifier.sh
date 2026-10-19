@@ -90,6 +90,16 @@ elif how == "image-id":              # another ImageID claimed for a deployed pr
     i = next(i for i, l in enumerate(lines) if l.startswith("# program ") and " wrap_bridge" in l); p = lines[i].split(); p[3] = "0" * 64; lines[i] = " ".join(p)
 elif how == "deploy-hash":           # a deployment transaction never sent
     i = comment("# deploy "); p = lines[i].split(); p[3] = fake; lines[i] = " ".join(p)
+elif how == "zk-image-id":          # the committed guest recorded with another image id
+    i = comment("# binary burn_membership "); p = lines[i].split(); k = p.index("image_id") + 1; p[k] = "0" * 64; lines[i] = " ".join(p)
+elif how == "zk-verifier":           # the zk verifier recorded as RISC Zero's verifier (the vault does not use it)
+    i = comment("# anvil zk-verifier "); p = lines[i].split(); p[3] = p[5]; lines[i] = " ".join(p)
+elif how == "zk-leaf-sent":          # a released burn's leaf recorded as a word the release does send (its nullifier)
+    i = comment("# release-proof carol "); p = lines[i].split(); p[p.index("leaf") + 1] = p[p.index("nullifier") + 1]; lines[i] = " ".join(p)
+elif how == "zk-path-sent":          # a path node recorded as a word the release does send (its root)
+    i = comment("# release-path alice "); p = lines[i].split()
+    root = next(l.split()[2] for l in lines if l.startswith("# release-root "))
+    p[3] = root if p[3] == "-" else p[3] + "," + root; lines[i] = " ".join(p)
 open(dst, "w").write("\n".join(lines) + "\n")
 PY
 }
@@ -101,6 +111,7 @@ MUTS=(fake-hash refusal-as-applied applied-as-refused wrong-gas wrong-block swap
       private-burn-fake-hash private-burn-holder private-burn-size)
 [ -n "$ETH_RPC" ] && MUTS+=(eth-fake-hash eth-refusal-as-applied eth-applied-as-refused eth-other-error eth-wrong-block eth-wrong-nullifier
                             eth-wrong-root eth-unreleased eth-control-spent eth-balance)
+grep -q '^# anvil zk-verifier ' "$MANIFEST" && MUTS+=(zk-image-id zk-verifier zk-leaf-sent zk-path-sent)
 for m in "${MUTS[@]}"; do
   total=$((total + 1))
   mutate "$m"

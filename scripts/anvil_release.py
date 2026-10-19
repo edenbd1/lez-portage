@@ -30,18 +30,33 @@ eth_call and is the verdict the run expects. Tampering for the refusals:
 the sender, in a made-up tree, its root signed by `--outsiders` instead of the
 committee).
 
+**Zero-knowledge releases** (`--zk`, the vault's verifier is ZkBurnVerifier):
+`proof.json` is `wrap release-proof <owner> --zk --relayer <sender>`, whose
+`zk` part is the guest's journal (the release preimage: token, amount,
+recipient, relayer, fee, root, nullifier, with the chain, the vault and the
+pairing) and the Groth16 seal. The release's arguments are read from the
+journal, the proof sent is `(seal, journal, lezBlock, lezFinalBlock,
+signatures)`: the opening (secret, index, path, leaf) is not sent, which is
+checked on the calldata and recorded (`# eth-zk`). Tampering: as above
+(`--recipient-as-sender`, `--amount`; a `--sender` other than the relayer
+the proof names is a front-run), plus `--tamper-journal` (the recipient
+changed in the journal too, so that the vault's digest matches it: the seal
+then proves nothing), and `--forged PROOF` (a real proof of a burn that never
+happened: a made-up leaf in a made-up tree, proven by the same guest).
+
 One line per attempt is appended to the manifest:
     # eth <label> <expected> <verdict> <block> <tx> <error-selector|-> <gas_used> <nullifier> <root>
 Uses anvil's unlocked development accounts only; the chain is local.
 """
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
 import time
 import urllib.request
 
-ERRORS = ["NotThisRelease()", "BadOpening()", "NotFinal()", "RootNotAttested()", "AlreadyReleased()", "VerificationFailed()",
+ERRORS = ["SelectorMismatch(bytes4,bytes4)", "NotThisRelease()", "BadOpening()", "NotFinal()", "RootNotAttested()", "AlreadyReleased()", "VerificationFailed()",
           "IsFrozen()", "InvalidAmount()", "UnsupportedToken()", "CapExceeded()", "TransferFailed()"]
 RELEASE_T = "(address,uint256,address,address,uint256,bytes32,uint64,bytes32[24],uint64,uint64,bytes[])"
 
@@ -103,7 +118,12 @@ def main():
     ap.add_argument("--amount")
     ap.add_argument("--forge", action="store_true")
     ap.add_argument("--gas-limit", default="600000")
+    ap.add_argument("--zk", action="store_true", help="a zero-knowledge release (ZkBurnVerifier)")
+    ap.add_argument("--tamper-journal", action="store_true")
+    ap.add_argument("--forged", help="a zk proof of a burn that never happened (wrap zk-prove output)")
     a = ap.parse_args()
+    if a.zk:
+        return zk_release(a)
     dep = json.load(open(a.deployment))
     pr = json.load(open(a.proof))
     vault, verifier = dep["vault"], dep["verifier"]
@@ -162,7 +182,7 @@ def main():
                 token, amount, recipient, sender, fee, root, nullifier, proof)
     call = {"from": sender, "to": vault, "data": data, "gas": hex(int(a.gas_limit))}
     sim = rpc(a.anvil, "eth_call", [call, "latest"])
-    selectors = {cast("sig", e): e[:-2] for e in ERRORS}
+    selectors = {cast("sig", e): e.split("(")[0] for e in ERRORS}
     if "error" in sim:
         err_data = (sim["error"].get("data") or "")[:10]
         pre = selectors.get(err_data, f"unknown:{err_data or sim['error'].get('message')}")
@@ -187,6 +207,94 @@ def main():
     print(json.dumps({"label": a.label, "expect": a.expect, "precheck": pre, "verdict": verdict, "tx": h, "block": int(rc["blockNumber"], 16),
                       "gas_used": int(rc["gasUsed"], 16), "lez_block": lez_block, "lez_final_block": final, "root_seen": root_seen,
                       "root": root, "nullifier": nullifier, "ok": good}))
+    sys.exit(0 if good else 1)
+
+
+def zk_release(a):
+    dep = json.load(open(a.deployment))
+    pr = json.load(open(a.proof))
+    vault, depth = dep["vault"], int(dep["finality_depth"])
+    z = json.load(open(a.forged)) if a.forged else pr["zk"]
+    j = bytes.fromhex(z["journal"][2:])
+    w = lambda k: j[32 * k:32 * (k + 1)]
+    addr = lambda k: "0x" + w(k)[12:].hex()
+    token, amount, recipient, relayer, fee = addr(4), str(int.from_bytes(w(5), "big")), addr(6), addr(7), str(int.from_bytes(w(8), "big"))
+    root, nullifier = "0x" + w(9).hex(), "0x" + w(10).hex()
+    sender = {"recipient": recipient, "relayer": dep["relayer"], "outsider": dep["outsiders"][0]}[a.sender]
+
+    root_seen, leaves_seen, lez_block = lez_burn_root(a.lez, pr["burns_account"], pr["bridge_program"])
+    final = lez_block
+    if a.wait_final:
+        while lez_tip(a.lez) < lez_block + depth:
+            time.sleep(1)
+        final = lez_tip(a.lez)
+
+    # The release names the sender as its relayer (who submits earns the fee).
+    relayer = sender
+    if a.recipient_as_sender:
+        recipient = sender
+    if a.amount:
+        amount = a.amount
+    if a.tamper_journal:
+        recipient = sender
+        j = j[:6 * 32] + bytes.fromhex(sender[2:]).rjust(32, b"\0") + j[7 * 32:]
+
+    pairing = "0x" + w(3).hex()
+    signers = dep["outsiders"] if a.outsiders else [dep["committee"][int(i)] for i in a.members.split(",") if i != ""]
+    sigs = []
+    for s_ in signers:
+        r = root if a.outsiders else root_seen  # members sign what they read; outsiders what they are told
+        d = cast("call", dep["verifier"], "attestationDigest(address,bytes32,bytes32,uint64,uint64)(bytes32)", vault, pairing, r,
+                 str(lez_block), str(final), "--rpc-url", a.anvil)
+        sigs.append(ok(a.anvil, "eth_sign", [s_, d]))
+    proof = cast("abi-encode", "f((bytes,bytes,uint64,uint64,bytes[]))", f"({z['seal']},0x{j.hex()},{lez_block},{final},[{','.join(sigs)}])")
+    data = cast("calldata", "release(address,uint256,address,address,uint256,bytes32,bytes32,bytes)",
+                token, amount, recipient, relayer, fee, root, nullifier, proof)
+
+    # The opening stays with the prover: none of it is in what is sent.
+    hidden = {}
+    if not a.forged:
+        sec = bytes.fromhex(pr["secret"][2:])
+        ec = hashlib.sha256(b"rfp022/eth-commit/v1".ljust(32, b"\0") + bytes.fromhex(pr["recipient"][2:]).rjust(32, b"\0")
+                            + int(pr["fee"]).to_bytes(32, "big") + sec).hexdigest()
+        zeros, zz = set(), bytes(32)
+        for _ in range(25):
+            zeros.add(zz.hex()); zz = hashlib.sha256(zz + zz).digest()
+        nodes = [p[2:] for p in pr["path"] if p[2:] not in zeros]
+        hidden = {"leaf": pr["leaf"][2:] not in data, "secret": sec.hex() not in data, "eth_commitment": ec not in data,
+                  "path_nodes": f"{sum(n not in data for n in nodes)}/{len(nodes)}"}
+
+    call = {"from": sender, "to": vault, "data": data, "gas": hex(int(a.gas_limit))}
+    sim = rpc(a.anvil, "eth_call", [call, "latest"])
+    selectors = {cast("sig", e): e.split("(")[0] for e in ERRORS}
+    if "error" in sim:
+        err_data = (sim["error"].get("data") or "")[:10]
+        pre = selectors.get(err_data, f"unknown:{err_data or sim['error'].get('message')}")
+    else:
+        pre = "applied"
+    h = ok(a.anvil, "eth_sendTransaction", [call])
+    rc = None
+    for _ in range(60):
+        rc = ok(a.anvil, "eth_getTransactionReceipt", [h])
+        if rc:
+            break
+        time.sleep(0.5)
+    status = int(rc["status"], 16)
+    verdict = "applied" if status == 1 else "reverted"
+    sel = "-" if status == 1 else next((k for k, v in selectors.items() if v == pre), "-")
+    with open(a.out, "a") as f:
+        f.write(f"# eth {a.label} {a.expect} {verdict} {int(rc['blockNumber'], 16)} {h} {sel} {int(rc['gasUsed'], 16)} {nullifier} {root}\n")
+        f.write(f"# eth-attestation {a.label} lez_block {lez_block} lez_final_block {final} root_seen {root_seen} leaves_seen {leaves_seen} "
+                f"signers {','.join(signers)} sender {sender}\n")
+        if hidden:
+            f.write(f"# eth-zk {a.label} {h} hides leaf {hidden['leaf']} secret {hidden['secret']} eth_commitment {hidden['eth_commitment']} "
+                    f"path_nodes {hidden['path_nodes']} calldata_bytes {(len(data) - 2) // 2} seal_bytes {(len(z['seal']) - 2) // 2}\n")
+    good = (a.expect == "applied" and verdict == "applied" and pre == "applied") or (a.expect != "applied" and verdict == "reverted" and pre == a.expect)
+    if hidden and not (hidden["leaf"] and hidden["secret"] and hidden["eth_commitment"] and hidden["path_nodes"].split("/")[0] == hidden["path_nodes"].split("/")[1]):
+        good = False
+    print(json.dumps({"label": a.label, "expect": a.expect, "precheck": pre, "verdict": verdict, "tx": h, "block": int(rc["blockNumber"], 16),
+                      "gas_used": int(rc["gasUsed"], 16), "lez_block": lez_block, "lez_final_block": final, "root_seen": root_seen,
+                      "root": root, "nullifier": nullifier, "hidden": hidden, "ok": good}))
     sys.exit(0 if good else 1)
 
 

@@ -10,7 +10,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge test --root vault -vv
-      # Each check of the release path (CommitteeBurnVerifier, the vault's nullifier) removed in turn.
+      # ZkBurnVerifier.t.sol runs on a committed real Groth16 seal (vault/test/fixtures,
+      # scripts/zk-fixture.sh); the Groth16 prover itself needs x86_64 Docker and is run locally.
+      # Each check of the release path (both verifiers, their committee, the vault's digest and
+      # nullifier) removed in turn.
       - run: scripts/mutation-test-vault.sh
   core:
     name: wrap-core (hashes shared with the vault)
@@ -19,6 +22,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --release --manifest-path core/Cargo.toml
+      # The zero-knowledge release statement (src/zk.rs, feature zk).
+      - run: cargo test --release --manifest-path core/Cargo.toml --features zk
   executor:
     name: The committed binaries through lee::V03State
     runs-on: ubuntu-latest
@@ -76,6 +81,12 @@ jobs:
           DOCKER=1 scripts/build-guest.sh
           cmp /tmp/committed.bin artifacts/programs/v0.3/wrap_bridge.bin
           sha256sum artifacts/programs/v0.3/wrap_bridge.bin
+      # The zero-knowledge release guest, whose image id ZkBurnVerifier is
+      # pinned to and the Foundry fixture was proven with.
+      - run: |
+          cp artifacts/zk/burn_membership.bin /tmp/committed-zk.bin
+          scripts/build-zk-guest.sh
+          cmp /tmp/committed-zk.bin artifacts/zk/burn_membership.bin
   mutation:
     name: Each guard of wrap_bridge, removed, fails the tests
     runs-on: ubuntu-latest

@@ -3,9 +3,14 @@
 
 Deploys vault/src/WrapVault.sol with the pairing of the LEZ deployment the run
 just loaded, a USDT-shaped token whose transfers return nothing, and the
-release verifier (vault/src/CommitteeBurnVerifier.sol: anvil accounts 5, 6 and
-7 as a 2-of-3 committee attesting LEZ burn-tree roots, `--finality-depth` LEZ
-blocks); registers ETH and USDT; makes the deposits of the
+release verifier: with `--release-verifier zk` (the default),
+vault/src/ZkBurnVerifier.sol over RISC Zero's RiscZeroGroth16Verifier
+(risc0-ethereum v3.0.1, vendored, with its ControlID) pinned to `--image-id`,
+the committed zero-knowledge release guest; with `committee`,
+vault/src/CommitteeBurnVerifier.sol (the release opens the burn leaf). Both
+take the root from anvil accounts 5, 6 and 7 as a 2-of-3 committee attesting
+LEZ burn-tree roots, `--finality-depth` LEZ blocks. Registers ETH and USDT;
+makes the deposits of the
 plan (`wrap plan`: depositor, token, amount, commitment); then records, in the
 layout of vectors/anvil, the Deposit events, the last block, an `eth_getProof`
 of `knownRoot[root]` for every root the tree had, and one for a root it never
@@ -46,6 +51,8 @@ def main():
     ap.add_argument("--plan", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--finality-depth", default="3")
+    ap.add_argument("--release-verifier", default="zk", choices=["zk", "committee"])
+    ap.add_argument("--image-id", help="the zero-knowledge release guest's image id (--release-verifier zk)")
     a = ap.parse_args()
     rpc = a.rpc
     plan = json.load(open(a.plan))
@@ -72,10 +79,23 @@ def main():
     # node, not written here.
     accounts = json.loads(cast("rpc", "eth_accounts"))
     committee = [accounts[5], accounts[6], accounts[7]]
-    verifier = create("src/CommitteeBurnVerifier.sol:CommitteeBurnVerifier", "[" + ",".join(committee) + "]", "2", a.finality_depth)
+    members = "[" + ",".join(committee) + "]"
+    risc0 = None
+    if a.release_verifier == "zk":
+        if not a.image_id:
+            sys.exit("--release-verifier zk needs --image-id")
+        # RISC Zero's verifier for risc0-zkvm 3.0 receipts, with the control root and BN254
+        # control id it ships (ControlID.sol), as RISC Zero deploys it.
+        cid = open(os.path.join(ROOT, "vault/lib/risc0-ethereum/contracts/src/groth16/ControlID.sol")).read()
+        val = lambda k: "0x" + cid.split(k + ' = hex"')[1].split('"')[0]
+        risc0 = create("lib/risc0-ethereum/contracts/src/groth16/RiscZeroGroth16Verifier.sol:RiscZeroGroth16Verifier",
+                       val("CONTROL_ROOT"), val("BN254_CONTROL_ID"))
+        verifier = create("src/ZkBurnVerifier.sol:ZkBurnVerifier", risc0, a.image_id, members, "2", a.finality_depth)
+    else:
+        verifier = create("src/CommitteeBurnVerifier.sol:CommitteeBurnVerifier", members, "2", a.finality_depth)
     usdt = create("test/Mocks.sol:MockUSDT")
     vault = create("src/WrapVault.sol:WrapVault", plan["pairing"], verifier, "86400", addr["deployer"], addr["deployer"])
-    print(f"vault {vault} (pairing {plan['pairing']}), usdt {usdt}, verifier {verifier}")
+    print(f"vault {vault} (pairing {plan['pairing']}), usdt {usdt}, verifier {verifier} ({a.release_verifier}){', risc0 ' + risc0 if risc0 else ''}")
 
     send("deployer", vault, "registerToken(address,uint8,uint256[],uint128,uint128)", ETH, "18",
          "[100000000000000000,1000000000000000000]", "100000000000000000000", "100000000000000000000")
@@ -141,6 +161,7 @@ def main():
 
     dump = lambda name, obj: json.dump(obj, open(os.path.join(a.out, name), "w"), indent=1)
     dump("deployment.json", {"chain_id": int(cast("chain-id")), "vault": vault, "usdt": usdt, "verifier": verifier,
+                             "release_verifier": a.release_verifier, "risc0_verifier": risc0, "image_id": a.image_id,
                              "committee": committee, "threshold": 2, "finality_depth": int(a.finality_depth),
                              "relayer": accounts[4], "outsiders": [accounts[8], accounts[9]],
                              "pairing": plan["pairing"], "admin": addr["deployer"], "alice": addr["alice"],

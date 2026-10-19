@@ -229,14 +229,23 @@ contract ZkBurnVerifierTest is Test {
 
     function test_a_proven_attested_burn_releases_once_to_its_committed_recipient() public {
         uint256 before = address(v).balance;
+        (Args memory a, bytes memory proof) = (_args(), abi.encode(_carol()));
         vm.prank(relayer);
         uint256 g = gasleft();
-        _release(_args(), _carol());
-        emit log_named_uint("release gas (call, excl. 21000 and calldata)", g - gasleft());
+        v.release(ETH, a.amount, payable(a.recipient), payable(a.relayer), a.fee, a.root, a.nullifier, proof);
+        emit log_named_uint("WrapVault.release, execution gas (no 21000, no calldata)", g - gasleft());
         assertEq(carol.balance, ONE - FEE, "the recipient the burn committed to");
         assertEq(relayer.balance, FEE, "the fee the burn committed to");
         assertEq(address(v).balance, before - ONE);
         assertTrue(v.nullifierSpent(nullifier));
+    }
+
+    /// The Groth16 check alone, as the verifier makes it.
+    function test_the_groth16_check_alone() public {
+        bytes32 digest = sha256(journal);
+        uint256 g = gasleft();
+        risc0.verify(seal, imageId, digest);
+        emit log_named_uint("RiscZeroGroth16Verifier.verify, execution gas", g - gasleft());
     }
 
     function test_replay_is_refused() public {

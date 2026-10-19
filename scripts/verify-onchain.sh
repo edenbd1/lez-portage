@@ -20,6 +20,10 @@
 #   # release-root <root> <burns-account> <program>
 #                                          the root the releases were checked against is the
 #                                          LEZ burn tree's root now
+#   # anvil zk-verifier <verifier> risc0 <groth16-verifier> image_id <id>
+#                                          zero-knowledge releases (ZkBurnVerifier); with it:
+#   # binary burn_membership ... image_id <id>, # release-proof <owner> ... leaf <leaf> ...,
+#   # release-path <owner> <nodes>        the guest committed, and each released burn's opening
 #
 # What is checked, for every transaction line:
 # - it resolves by hash (getTransaction) to the recorded block, and the hash is
@@ -45,7 +49,15 @@
 # selector, which is the expected error's; every applied release's root is
 # the `release-root`, which is the LEZ burn tree's root on the sequencer now;
 # every `eth-final` line holds; and a random transaction hash does not
-# resolve on anvil either.
+# resolve on anvil either. With an `anvil zk-verifier` line: the vault's
+# verifier is it, pinned to the committed guest's image id (`binary
+# burn_membership`) over the recorded RISC Zero verifier; for every applied
+# release, the seal and journal are read back from the transaction's input:
+# sha256(journal) is the vault's releaseDigest of the release's arguments,
+# its root and nullifier are the recorded ones, RISC Zero's verifier accepts
+# the seal for that image id and digest (eth_call) and refuses it with one
+# byte flipped, and neither the burn's leaf nor any node of its path occurs
+# in the input.
 #
 # Needs python3. Exits non-zero on any mismatch.
 set -uo pipefail
@@ -259,6 +271,79 @@ elif eth_rpc:
             if got != sel: why.append(f"replayed at block {b - 1} it reverts with {got or 'nothing'}, recorded {sel}")
             report(not why, f"eth {label}: refused {expected} ({sel}), {tx[:16]}… in block {b}, replayed: the same revert" if not why
                    else f"eth {label}: " + "; ".join(why))
+    zkl = next((l.split() for l in lines if l.startswith("# anvil zk-verifier ")), None)
+    if zkl:
+        zv, r0, image = zkl[3], zkl[5], zkl[7]
+        ebytes = lambda h: bytes.fromhex(h[2:] if h.startswith("0x") else h)
+        def ecall(to, data, block="latest"):
+            return eth("eth_call", {"to": to, "data": data}, block)
+        def word_of(res): return (res.get("result") or "0x")[-64:].lower()
+        SEL = {"IMAGE_ID()": "0x549206ed", "RISC0()": "0x11efe2db", "VERIFIER()": "0x08c84e70",
+               "releaseDigest": "0x02826c0e", "verify": "0xab750e75"}
+        committed = next((l.split() for l in lines if l.startswith("# binary burn_membership ")), None)
+        cimg = "0x" + committed[committed.index("image_id") + 1] if committed else None
+        report(cimg == image, f"zk: the zk verifier's recorded image id is the committed guest's ({image[:18]}…)" if cimg == image
+               else f"zk: recorded image id {image[:18]}… is not the committed guest's ({cimg})")
+        got = "0x" + word_of(ecall(zv, SEL["IMAGE_ID()"]))
+        report(got == image.lower(), f"zk: ZkBurnVerifier.IMAGE_ID() = {got[:18]}…, the recorded image id" if got == image.lower()
+               else f"zk: ZkBurnVerifier.IMAGE_ID() = {got[:18]}…, recorded {image[:18]}…")
+        got = "0x" + word_of(ecall(zv, SEL["RISC0()"]))[-40:]
+        report(got == r0.lower(), f"zk: ZkBurnVerifier.RISC0() is the recorded RiscZeroGroth16Verifier {r0[:12]}…" if got == r0.lower()
+               else f"zk: ZkBurnVerifier.RISC0() = {got}, recorded {r0}")
+        got = "0x" + word_of(ecall(vault, SEL["VERIFIER()"]))[-40:]
+        report(got == zv.lower(), f"zk: the vault's VERIFIER() is the zk verifier {zv[:12]}…" if got == zv.lower()
+               else f"zk: the vault's VERIFIER() = {got}, recorded zk verifier {zv}")
+        openings = {}
+        for l in lines:
+            q = l.split()
+            if l.startswith("# release-proof "):
+                openings.setdefault(q[2], {})["leaf"] = q[q.index("leaf") + 1]
+            elif l.startswith("# release-path "):
+                openings.setdefault(q[2], {})["path"] = [] if q[3] == "-" else q[3].split(",")
+        def u(b, o): return int.from_bytes(b[o:o + 32], "big")
+        for p in eth_lines:
+            label, expected, verdict, block, tx, _sel, gas, nf, root = p[2:11]
+            if expected != "applied":
+                continue
+            t = eth("eth_getTransactionByHash", tx).get("result") or {}
+            inp = ebytes(t.get("input") or "0x")
+            why = []
+            try:
+                a = inp[4:]
+                args = [a[32 * i:32 * (i + 1)] for i in range(7)]
+                po = u(a, 7 * 32); proof = a[po + 32:po + 32 + u(a, po)]
+                to = u(proof, 0)
+                tup = proof[to:]
+                def dyn(k):
+                    o = u(tup, 32 * k); return tup[o + 32:o + 32 + u(tup, o)]
+                seal, journal = dyn(0), dyn(1)
+            except Exception as e:
+                report(False, f"zk {label}: the input does not decode as a zero-knowledge release ({e})"); continue
+            jd = hashlib.sha256(journal).hexdigest()
+            rd = word_of(ecall(vault, SEL["releaseDigest"] + b"".join(args).hex(), hex(int(block) - 1)))
+            if jd != rd: why.append(f"sha256(journal) {jd[:12]}… is not the vault's releaseDigest {rd[:12]}…")
+            if len(journal) != 352 or "0x" + journal[288:320].hex() != root or "0x" + journal[320:352].hex() != nf:
+                why.append("the journal's root or nullifier is not the recorded one")
+            def verify_call(sl):
+                data = (SEL["verify"] + (96).to_bytes(32, "big").hex() + image[2:].rjust(64, "0") + jd
+                        + len(sl).to_bytes(32, "big").hex() + sl.hex() + "00" * ((32 - len(sl) % 32) % 32))
+                return eth("eth_call", {"to": r0, "data": data, "gas": hex(5_000_000)}, "latest")
+            r1 = verify_call(seal)
+            if "error" in r1: why.append(f"RISC Zero's verifier refuses the seal: {r1['error'].get('message')}")
+            flipped = bytearray(seal); flipped[40] ^= 1
+            r2 = verify_call(bytes(flipped))
+            if "error" not in r2: why.append("RISC Zero's verifier accepts the seal with a byte flipped")
+            owner = label.replace("release-", "")
+            o = openings.get(owner)
+            hexin = inp.hex()
+            if not o or "leaf" not in o: why.append(f"no recorded opening for {owner}")
+            else:
+                if o["leaf"][2:].lower() in hexin: why.append("the burn leaf occurs in the input")
+                sent = [n for n in o.get("path", []) if n[2:].lower() in hexin]
+                if sent: why.append(f"{len(sent)} path node(s) occur in the input")
+            report(not why, f"zk {label}: seal ({len(seal)} B) and journal read back from {tx[:16]}…; sha256(journal) = the vault's digest; "
+                            f"RISC Zero's verifier accepts it for {image[:12]}… and refuses it altered; leaf and {len((o or {}).get('path', []))} path node(s) absent"
+                   if not why else f"zk {label}: " + "; ".join(why))
     for l in lines:
         if l.startswith("# eth-final nullifier ") or l.startswith("# eth-final unspent "):
             _, _, _, nf, want, name = l.split()[:6]

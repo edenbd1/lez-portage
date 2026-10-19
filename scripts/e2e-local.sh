@@ -20,11 +20,19 @@
 #      private one from her private account (a privacy-preserving BurnFrom,
 #      real proving, measured the same way).
 #   4. Ethereum (anvil): the releases against the LEZ burn tree. A 2-of-3
-#      committee (CommitteeBurnVerifier) attests the burn tree's root as each
-#      member reads it from the LEZ sequencer; the vault checks each burn's
-#      opening against it. Refusals: not final yet, a replay, a redirected
-#      recipient, another amount, a burn that never happened (signed by the
-#      committee, then by outsiders), one member alone. Then both releases.
+#      committee attests the burn tree's root as each member reads it from the
+#      LEZ sequencer. With RELEASE_VERIFIER=zk (the default) the vault's
+#      verifier is ZkBurnVerifier: each release carries a Groth16 proof made
+#      here (`wrap release-proof --zk`: the guest zk/burn_membership, real
+#      proving, the Groth16 step in RISC Zero's x86_64 Docker image, emulated
+#      on Apple Silicon), checked on chain by RISC Zero's
+#      RiscZeroGroth16Verifier, and the burn's opening is never sent.
+#      Refusals: not final yet, a replay, a redirected recipient, another
+#      amount, a front-run (another relayer), the journal tampered to match a
+#      redirection, a burn that never happened (really proven, in a made-up
+#      tree; signed by the committee, then by outsiders), one member alone.
+#      With RELEASE_VERIFIER=committee, CommitteeBurnVerifier: each release
+#      opens its burn leaf, with the refusals of that path. Then both releases.
 #   5. The manifest $OUT, one line per LEZ transaction:
 #        label expected(applied|refused) verdict block tx attempts precheck gas_limit charged_gas
 #      plus `#` lines the verifier checks (programs, deployments, final state,
@@ -43,6 +51,7 @@
 #   anvil, forge, cast (Foundry), python3, r0vm 3.0.5, cli/target/release/wrap
 # Ports: sequencer $PORT (3051), metrics $METRICS_PORT (9471), anvil $ANVIL_PORT (8551).
 # FINALITY_DEPTH (3): the LEZ blocks a burn-tree root must be under the final head.
+# RELEASE_VERIFIER (zk): zk (ZkBurnVerifier, Groth16) or committee (CommitteeBurnVerifier).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -57,6 +66,8 @@ EVID="$(dirname "$OUT")"
 RUN="${RUN:-$(mktemp -d "${TMPDIR:-/tmp}/rfp022-e2e.XXXXXX")}"
 HEAVY="${HEAVY:-}"; [ -x "$HEAVY" ] || HEAVY=""
 FINALITY_DEPTH="${FINALITY_DEPTH:-3}"
+RELEASE_VERIFIER="${RELEASE_VERIFIER:-zk}"
+case "$RELEASE_VERIFIER" in zk|committee) ;; *) echo "RELEASE_VERIFIER is zk or committee"; exit 2 ;; esac
 # DEV_MODE_DEBUG=1: RISC Zero dev mode for the sequencer and the client, to
 # iterate on this script in seconds. Such a run cannot pass: the checks that
 # dev mode is off fail, and the manifest records it.
@@ -179,7 +190,9 @@ echo "# private-account $CAROL carol" >> "$OUT"
 
 echo "== 2. Ethereum (anvil): the vault, both tokens, four deposits"
 "$CLI" plan > "$RUN/plan.json" || exit 1
-python3 scripts/anvil_deposits.py --rpc "$ANVIL" --plan "$RUN/plan.json" --out "$RUN/state/anvil" --finality-depth "$FINALITY_DEPTH" || exit 1
+ZK_IMAGE="0x$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["burn_membership"]["image_id"])' "$RUN/images.json")"
+python3 scripts/anvil_deposits.py --rpc "$ANVIL" --plan "$RUN/plan.json" --out "$RUN/state/anvil" --finality-depth "$FINALITY_DEPTH" \
+  --release-verifier "$RELEASE_VERIFIER" --image-id "$ZK_IMAGE" || exit 1
 mkdir -p "$EVID/anvil"
 cp "$RUN/state/anvil/deployment.json" "$RUN/state/anvil/deposits.json" "$RUN/plan.json" "$EVID/anvil/"
 python3 - "$RUN/state/anvil" >> "$OUT" <<'PY'
@@ -188,6 +201,8 @@ d = json.load(open(sys.argv[1] + "/deployment.json"))
 b = json.load(open(sys.argv[1] + "/block.json"))["result"]
 print(f"# anvil vault {d['vault']} usdt {d['usdt']} pairing {d['pairing']} block {int(b['number'], 16)} state_root {b['stateRoot']}")
 print(f"# anvil verifier {d['verifier']} committee {','.join(d['committee'])} threshold {d['threshold']} finality_depth {d['finality_depth']} relayer {d['relayer']}")
+if d.get("release_verifier") == "zk":
+    print(f"# anvil zk-verifier {d['verifier']} risc0 {d['risc0_verifier']} image_id {d['image_id']}")
 for x in json.load(open(sys.argv[1] + "/deposits.json")):
     print(f"# anvil deposit {x['index']} token {x['token']} amount {x['amount']} tx {x['transactionHash']}")
 PY
@@ -306,41 +321,113 @@ echo "# show-private-after-burn $SP" >> "$OUT"
 check "carol's wallet decrypts her account after the burn: 0 wrapped ETH" "$(jget "$SP" wrapped_balance)" 0
 check "wrapped ETH supply after both burns" "$(jget "$("$CLI" balance alice eth)" supply)" 0
 
-echo "== 4. Ethereum (anvil): releases against the LEZ burn tree"
+echo "== 4. Ethereum (anvil): releases against the LEZ burn tree ($RELEASE_VERIFIER)"
 echo "# caveat-release the release committee (anvil accounts 5, 6, 7; 2 of 3) attests the LEZ burn tree's root as each member reads it from the sequencer; 'final' is the standalone sequencer's tip, $FINALITY_DEPTH blocks above the block read: there is no Bedrock in this run, and the committee is the trust assumption of this release path" >> "$OUT"
-for who in alice carol; do
-  "$CLI" release-proof "$who" > "$RUN/proof-$who.json" 2>"$RUN/proof.err" || { echo "release-proof $who failed"; cat "$RUN/proof.err"; exit 1; }
-done
-python3 - "$RUN/proof-alice.json" "$RUN/proof-carol.json" >> "$OUT" <<'PY'
+DEP="$RUN/state/anvil/deployment.json"
+dep() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$DEP" "$1"; }
+VAULT="$(dep vault)"; CAROL_ETH="$(dep carol)"; RELAYER="$(dep relayer)"; ALICE_ETH="$(dep alice)"
+if [ "$RELEASE_VERIFIER" = zk ]; then
+  echo "# caveat-zk each release carries a Groth16 proof of the burn's membership (guest burn_membership, image $ZK_IMAGE), checked on chain by RISC Zero's RiscZeroGroth16Verifier; the opening (secret, index, path, leaf) is never sent; the journal (token, amount, recipient, relayer, fee, root, nullifier) is public; the root is still the committee's" >> "$OUT"
+  # The proof binds the address that will submit it: alice submits her own, a relayer carol's.
+  zkprove() { # out raw -- wrap args
+    local out="$1" raw="$2"; shift 3
+    echo "# zk-prove load before: $(uptime | sed 's/.*load/load/'); r0vm processes before: $(pgrep -f 'r0vm' | wc -l | tr -d ' ')" >> "$OUT"
+    CLI="$CLI" scripts/zk-prove-measured.sh "$out" "$raw" -- "$@" > "$RUN/zk-prove.log" 2>&1 || { echo "zk prove failed"; cat "$RUN/zk-prove.log"; tail -20 "$raw"; exit 1; }
+    cat "$RUN/zk-prove.log"
+  }
+  zkprove "$RUN/proof-alice.json" "$EVID/zk-prove-alice.txt" -- release-proof alice --zk --relayer "$ALICE_ETH"
+  zkprove "$RUN/proof-carol.json" "$EVID/zk-prove-carol.txt" -- release-proof carol --zk --relayer "$RELAYER"
+  # A burn that never happened, really proven: a leaf paying an outsider, alone in a made-up tree.
+  python3 - "$DEP" > "$RUN/forged-input.json" <<'PY'
+import hashlib, json, sys
+d = json.load(open(sys.argv[1]))
+z, path = bytes(32), []
+for _ in range(24):
+    path.append("0x" + z.hex()); z = hashlib.sha256(z + z).digest()
+json.dump({"chain_id": d["chain_id"], "vault": d["vault"], "pairing": d["pairing"], "relayer": d["outsiders"][0],
+           "token": "0x" + "00" * 20, "amount": "1000000000000000000", "recipient": d["outsiders"][0], "fee": "0",
+           "secret": "0x" + "66" * 32, "index": 0, "path": path}, sys.stdout)
+PY
+  zkprove "$RUN/proof-forged.json" "$EVID/zk-prove-forged.txt" -- zk-prove "$RUN/forged-input.json"
+  python3 - "$RUN" "$EVID" >> "$OUT" <<'PY'
+import json, re, sys
+run, evid = sys.argv[1:3]
+for who in ("alice", "carol", "forged"):
+    p = json.load(open(f"{run}/proof-{who}.json"))
+    z = p.get("zk", p)
+    raw = open(f"{evid}/zk-prove-{who}.txt").read()
+    rss = re.search(r"(\d+)\s+maximum resident set size", raw) or re.search(r"Maximum resident set size \(kbytes\): (\d+)", raw)
+    peak = re.search(r"container peak memory \(docker stats samples\) ([\d.]+) GiB", raw)
+    wall = re.search(r"([\d.]+) real", raw)
+    s = z["stats"]
+    print(f"# zk-proof {who} image_id {z['image_id']} journal_digest {z['journal_digest']} root {z['fields']['root']} nullifier {z['fields']['nullifier']} "
+          f"selector {z['verifier_parameters']['selector']} seal_bytes {z['seal_bytes']} stark_succinct_ms {s['stark_succinct_ms']} groth16_ms {s['groth16_ms']} "
+          f"total_cycles {s['total_cycles']} wall_s {wall.group(1) if wall else '?'} host_peak_rss_bytes {rss.group(1) if rss else '?'} "
+          f"groth16_container_peak_gib {peak.group(1) if peak else '?'} dev_mode {z['dev_mode']} platform {z['docker_default_platform']}")
+    if who != "forged":
+        zeros, zz = set(), bytes(32)
+        for _ in range(25):
+            zeros.add("0x" + zz.hex()); zz = __import__("hashlib").sha256(zz + zz).digest()
+        nodes = [x for x in p["path"] if x not in zeros]
+        print(f"# release-proof {p['owner']} index {p['index']} leaf {p['leaf']} root {p['root']} nullifier {p['nullifier']} burn_tx {p['burn_tx']} private {p['private']}")
+        print(f"# release-path {p['owner']} {','.join(nodes) or '-'}")
+p = json.load(open(f"{run}/proof-carol.json"))
+print(f"# release-root {p['root']} {p['burns_account']} {p['bridge_program']}")
+PY
+  check "the three Groth16 proofs are real (RISC0 dev mode off)" "$(grep -c '^# zk-proof .* dev_mode False ' "$OUT")" 3
+  check "the zk verifier is pinned to the committed guest's image id" "$(cast call "$(dep verifier)" 'IMAGE_ID()(bytes32)' --rpc-url "$ANVIL")" "$ZK_IMAGE"
+  check "the vault's verifier is the zk verifier" "$(cast call "$VAULT" 'VERIFIER()(address)' --rpc-url "$ANVIL" | tr A-F a-f)" "$(dep verifier | tr A-F a-f)"
+  check "the seals carry RISC Zero's verifier selector" "$(cast call "$(dep risc0_verifier)" 'SELECTOR()(bytes4)' --rpc-url "$ANVIL")" \
+    "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["zk"]["verifier_parameters"]["selector"])' "$RUN/proof-carol.json")"
+  REL=(--zk --gas-limit 900000)
+else
+  for who in alice carol; do
+    "$CLI" release-proof "$who" > "$RUN/proof-$who.json" 2>"$RUN/proof.err" || { echo "release-proof $who failed"; cat "$RUN/proof.err"; exit 1; }
+  done
+  python3 - "$RUN/proof-alice.json" "$RUN/proof-carol.json" >> "$OUT" <<'PY'
 import json, sys
 for f in sys.argv[1:]:
     p = json.load(open(f))
     print(f"# release-proof {p['owner']} index {p['index']} leaf {p['leaf']} root {p['root']} nullifier {p['nullifier']} burn_tx {p['burn_tx']} private {p['private']}")
 print(f"# release-root {p['root']} {p['burns_account']} {p['bridge_program']}")
 PY
-DEP="$RUN/state/anvil/deployment.json"
-VAULT="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["vault"])' "$DEP")"
-CAROL_ETH="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["carol"])' "$DEP")"
-RELAYER="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["relayer"])' "$DEP")"
+  REL=()
+fi
 wei() { cast balance "$1" --rpc-url "$ANVIL"; }
 VAULT0="$(wei "$VAULT")"; CAROL0="$(wei "$CAROL_ETH")"
 rel() { # label expected -- args
   local label="$1" expect="$2"; shift 3
   local out
-  out="$(python3 scripts/anvil_release.py --anvil "$ANVIL" --lez "$RPC" --deployment "$DEP" --out "$OUT" --label "$label" --expect "$expect" "$@" 2>&1 | tail -1)"
+  out="$(python3 scripts/anvil_release.py --anvil "$ANVIL" --lez "$RPC" --deployment "$DEP" --out "$OUT" --label "$label" --expect "$expect" ${REL[@]+"${REL[@]}"} "$@" 2>&1 | tail -1)"
   echo "$out" | cut -c1-400
   if [ "$(jget "$out" ok)" = True ]; then echo "  ok  $label: $(jget "$out" verdict) ($(jget "$out" precheck)), block $(jget "$out" block), gas $(jget "$out" gas_used)"
   else echo "  FAIL $label: $out"; fail=1; fi
 }
-rel release-carol-not-final NotFinal -- --proof "$RUN/proof-carol.json" --sender relayer
-rel release-alice applied -- --proof "$RUN/proof-alice.json" --wait-final
-rel release-alice-replay AlreadyReleased -- --proof "$RUN/proof-alice.json" --wait-final
-rel release-carol-redirected-to-relayer RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --recipient-as-sender --wait-final
-rel release-carol-another-amount RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --amount 100000000000000000 --wait-final
-rel release-forged-burn-committee RootNotAttested -- --proof "$RUN/proof-carol.json" --sender outsider --forge --wait-final
-rel release-forged-burn-outsiders RootNotAttested -- --proof "$RUN/proof-carol.json" --sender outsider --forge --outsiders --wait-final
-rel release-carol-one-member RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --members 1 --wait-final
-rel release-carol applied -- --proof "$RUN/proof-carol.json" --sender relayer --wait-final
+if [ "$RELEASE_VERIFIER" = zk ]; then
+  rel release-carol-not-final NotFinal -- --proof "$RUN/proof-carol.json" --sender relayer
+  rel release-alice applied -- --proof "$RUN/proof-alice.json" --wait-final
+  rel release-alice-replay AlreadyReleased -- --proof "$RUN/proof-alice.json" --wait-final
+  rel release-carol-redirected-to-relayer NotThisRelease -- --proof "$RUN/proof-carol.json" --sender relayer --recipient-as-sender --wait-final
+  rel release-carol-another-amount NotThisRelease -- --proof "$RUN/proof-carol.json" --sender relayer --amount 100000000000000000 --wait-final
+  rel release-carol-front-run NotThisRelease -- --proof "$RUN/proof-carol.json" --sender outsider --wait-final
+  rel release-carol-tampered-journal VerificationFailed -- --proof "$RUN/proof-carol.json" --sender relayer --tamper-journal --wait-final
+  rel release-forged-burn-committee RootNotAttested -- --proof "$RUN/proof-carol.json" --forged "$RUN/proof-forged.json" --sender outsider --wait-final
+  rel release-forged-burn-outsiders RootNotAttested -- --proof "$RUN/proof-carol.json" --forged "$RUN/proof-forged.json" --sender outsider --outsiders --wait-final
+  rel release-carol-one-member RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --members 1 --wait-final
+  rel release-carol applied -- --proof "$RUN/proof-carol.json" --sender relayer --wait-final
+  check "no zero-knowledge release sent its leaf, secret, Ethereum commitment or path" \
+    "$(awk '/^# eth-zk / {n++; if ($7=="True" && $9=="True" && $11=="True") { split($13, p, "/"); if (p[1]==p[2]) ok++ } } END {print ok+0 "/" n+0}' "$OUT")" "9/9"
+else
+  rel release-carol-not-final NotFinal -- --proof "$RUN/proof-carol.json" --sender relayer
+  rel release-alice applied -- --proof "$RUN/proof-alice.json" --wait-final
+  rel release-alice-replay AlreadyReleased -- --proof "$RUN/proof-alice.json" --wait-final
+  rel release-carol-redirected-to-relayer RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --recipient-as-sender --wait-final
+  rel release-carol-another-amount RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --amount 100000000000000000 --wait-final
+  rel release-forged-burn-committee RootNotAttested -- --proof "$RUN/proof-carol.json" --sender outsider --forge --wait-final
+  rel release-forged-burn-outsiders RootNotAttested -- --proof "$RUN/proof-carol.json" --sender outsider --forge --outsiders --wait-final
+  rel release-carol-one-member RootNotAttested -- --proof "$RUN/proof-carol.json" --sender relayer --members 1 --wait-final
+  rel release-carol applied -- --proof "$RUN/proof-carol.json" --sender relayer --wait-final
+fi
 VAULT1="$(wei "$VAULT")"; CAROL1="$(wei "$CAROL_ETH")"
 check "the vault paid out exactly the two releases (2 ETH)" "$(python3 -c "print($VAULT0 - $VAULT1)")" 2000000000000000000
 check "carol received 1 ETH less the 0.01 ETH fee her burn fixed" "$(python3 -c "print($CAROL1 - $CAROL0)")" 990000000000000000
