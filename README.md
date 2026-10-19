@@ -13,15 +13,26 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   nothing (USDT, F.17); fee-on-transfer tokens and `false` returns are refused.
   Per-token caps per window, per-token and global freezes for each direction,
   releases paid on a proof checked by a verifier fixed at construction
-  (Security #8), each nullifier once. `CommitteeBurnVerifier.sol` is that
-  verifier today. It checks the LEZ burn leaf's opening on Ethereum: the
-  recipient, amount and relayer fee bound by the burn, the root and
-  nullifier derived. It checks the burn tree's root against a fixed k-of-n
-  committee's attestation that the root is final. **That committee is a trust
-  assumption, so F.7 is not met** ([docs/OUTBOUND.md](docs/OUTBOUND.md)).
+  (Security #8), each nullifier once. There are two verifiers.
+  `ZkBurnVerifier.sol` checks a Groth16 proof that the burn is in the LEZ
+  burn tree, without the leaf, its index or its path. RISC Zero's own
+  `RiscZeroGroth16Verifier` (risc0-ethereum v3.0.1, vendored) checks the proof
+  against the pinned guest ImageID, and the guest's journal must hash to the
+  vault's release digest. `CommitteeBurnVerifier.sol` checks the burn leaf's
+  opening in public instead. Both check the burn tree's root against a fixed
+  k-of-n committee's attestation that the root is final
+  (`BurnRootCommittee.sol`). **That committee is a trust assumption, so F.7
+  is not met** ([docs/OUTBOUND.md](docs/OUTBOUND.md)).
+- `zk/burn_membership/`: the RISC Zero guest of the zero-knowledge release. It
+  proves knowledge of a burn (token, amount, recipient, fee, secret, index,
+  path) under the root its path leads to, and commits the vault's release
+  preimage of that root and the burn's nullifier. It is built reproducibly in
+  RISC Zero's pinned builder into `artifacts/zk/burn_membership.bin` (ImageID
+  `855dfc80…`).
 - `core/`: `wrap-core`, every hash both halves must agree on (leaf, tree,
   commitments, nullifiers, the `knownRoot` slot, the burn tree, the release
-  digest), with shared test vectors asserted on both sides.
+  digest), with shared test vectors asserted on both sides; feature `zk`, the
+  release guest's statement (`src/zk.rs`).
 - `programs/wrap_bridge/`: the LEZ v0.3 program (plan/apply on `lee_core` at
   v0.3.0, `db66590ab`). `Claim` checks the deposit's Merkle path to `root`,
   calls Sextant's `Attest` as a chained call to prove `knownRoot[root] == 1`
@@ -47,7 +58,9 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   initialises Sextant and the bridge, sends public claims and burns with an
   explicit gas limit after a local pre-check, proves the private claim into
   a wallet-held shielded account and the private burn out of it, and builds
-  a release's opening (`release-proof`). `scripts/e2e-local.sh` drives the
+  a release's opening (`release-proof`). With `release-proof --zk` (and
+  `zk-prove`) it proves the release through r0vm and RISC Zero's Groth16
+  prover image (`src/zk.rs`). `scripts/e2e-local.sh` drives the
   round trip against a local v0.3.1 sequencer and anvil
   ([docs/LOCAL-E2E.md](docs/LOCAL-E2E.md)). `scripts/anvil_release.py` is
   the committee and the release on anvil.
@@ -65,9 +78,11 @@ deposit's path, the nullifier, the mint.
 ## Run
 
 ```console
-forge test --root vault                                            # 39 tests
-scripts/mutation-test-vault.sh         # each check of the release path removed must fail them (13)
-cargo test --release --manifest-path core/Cargo.toml               # 8 tests
+forge test --root vault                                            # 66 tests (27 on a real Groth16 seal)
+scripts/mutation-test-vault.sh         # each check of the release path removed must fail them (22)
+cargo test --release --manifest-path core/Cargo.toml --features zk # 9 tests
+scripts/build-zk-guest.sh              # rebuild artifacts/zk/burn_membership.bin (reproducible, Docker)
+scripts/zk-fixture.sh                  # re-prove the Foundry fixture (x86_64 Docker image; ~75 s emulated)
 cargo test --release --manifest-path executor-tests/Cargo.toml     # 13 tests (r0vm 3.0.5)
 RISC0_DEV_MODE=1 cargo test --release --manifest-path executor-tests/Cargo.toml --test private -- --ignored   # 3 tests
 scripts/measure-private-claim.sh       # the private claim with real proving (~7 GB, minutes)
@@ -76,14 +91,14 @@ DOCKER=1 scripts/build-guest.sh        # rebuild artifacts/programs/v0.3/wrap_br
 scripts/mutation-test.sh               # each guard removed in turn must fail the tests (21)
 python3 scripts/anvil_vectors.py       # regenerate vectors/anvil (local anvil, nothing spent)
 cargo build --release --manifest-path cli/Cargo.toml
-SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh    # local v0.3.1 sequencer + anvil, end to end (docs/LOCAL-E2E.md)
+SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh    # local v0.3.1 sequencer + anvil, end to end, zero-knowledge releases (docs/LOCAL-E2E.md)
 # the run ends with both against its own sequencer; with KEEP=1 it stays up to re-run them:
 scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
 scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
 ```
 
 `artifacts/programs/v0.3/wrap_bridge.bin` is the `DOCKER=1` build, in RISC
-Zero's pinned builder (`risczero/risc0-guest-builder:r0.1.91.1`): 434,496
+Zero's pinned builder (`risczero/risc0-guest-builder:r0.1.91.1`): 446,832
 bytes, sha256 `6975794938335ab3715a9acdc783bc1e6eb5203e9fe411c5e7efd9f78cca1903`,
 ImageID `073f046ce2a6fffd6adec655f0e65e91fd1ab7e47774e2685c40f2d51ea1c670`
 (two builds from scratch, identical).
@@ -100,7 +115,16 @@ is for iterating and for the mutation test; its bytes differ.
 | LEZ `Burn` (burn-tree append, chained ATA `Burn`) | 228,728 |
 | LEZ `Register` (entry, chained `NewFungibleDefinition`) | 90,577 |
 | Ethereum `deposit` (median, max) | 257,854, 336,694 |
+| Ethereum `release`, `ZkBurnVerifier` (Groth16 + 2 signatures, local run, gas used) | 334,215 (fee 0), 343,550 (paying a relayer) |
+| of which RISC Zero's Groth16 `verify` (Foundry, execution) | 253,318 |
 | Ethereum `release`, `CommitteeBurnVerifier`, 2 signatures (local run, gas used) | 143,096 (fee 0), 152,400 (paying a relayer) |
+
+The zero-knowledge release proof, for each release
+([docs/OUTBOUND.md](docs/OUTBOUND.md), section 3). The STARK takes 19 to 21 s
+(165,109 user cycles). The Groth16 wrap takes 52 to 56 s, in RISC Zero's
+x86_64 image under emulation on Apple Silicon. Peak memory is 2.5 GB on the
+host and about 7.6 GiB in the Groth16 container. The seal is 260 bytes, and
+the release calldata about 1,540 bytes.
 
 The private claim, as a privacy-preserving transaction to a private account
 with real proving ([docs/PRIVATE-CLAIM-MEASURED.md](docs/PRIVATE-CLAIM-MEASURED.md)):
@@ -135,10 +159,12 @@ a public network.
 k-of-n committee, because nothing on Ethereum can check LEZ state today: LEZ
 v0.3 block headers carry no state root, and there is no Bedrock light client
 for Ethereum. In the local run, "final" is the standalone sequencer's tip.
-The release also opens its burn leaf, so it is linkable to the LEZ burn
-transaction. Not built: the zero-knowledge membership proof (RISC Zero +
-Groth16) and the Cryptarchia light client that would replace the committee
-([docs/OUTBOUND.md](docs/OUTBOUND.md)). No protocol fee, no rolling-window cap on LEZ (an outstanding-
+The zero-knowledge release hides which burn it pays out. Its journal (token,
+amount, recipient, relayer, fee, root, nullifier) is public, so it hides only
+among the burns of the same token and denomination under its root. Not built:
+the Cryptarchia light client that would replace the committee for the root
+([docs/OUTBOUND.md](docs/OUTBOUND.md)). The Groth16 wrap was measured
+emulated, not on native x86_64. No protocol fee, no rolling-window cap on LEZ (an outstanding-
 supply cap instead), no relayer, no Logos modules, no SPEL IDL (SPEL does not
 build v0.3 programs), no deployment on a public network (the local run's
 Sextant instance is initialised from a beacon header built around the anvil

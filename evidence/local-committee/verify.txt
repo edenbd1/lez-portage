@@ -1,0 +1,75 @@
+wrap_bridge run against http://127.0.0.1:3051, from evidence/local-committee/e2e.tsv
+  ok   program sextant_lc: header 98v4E19MAocM… names ImageID fa229eddbae15b2a…
+  ok   deploy sextant_lc-segment6: 50cfa4621b54cc75… resolves (block 2)
+  ok   deploy sextant_lc-segment5: 16233e583c3ea28a… resolves (block 3)
+  ok   deploy sextant_lc-segment4: 498c2df33206ba72… resolves (block 4)
+  ok   deploy sextant_lc-segment3: 5ce2e9995bbf4f59… resolves (block 5)
+  ok   deploy sextant_lc-segment2: 6ee93e5df65983a4… resolves (block 6)
+  ok   deploy sextant_lc-segment1: da73154a6314fd32… resolves (block 7)
+  ok   deploy sextant_lc-segment0: 89f677db0f406922… resolves (block 8)
+  ok   deploy sextant_lc-header: cbf1f790a9488936… resolves (block 9)
+  ok   program token: header 13BGmMZGRK24… names ImageID 912d412c6e82c5a5…
+  ok   deploy token-segment4: e521ef0b72a10835… resolves (block 10)
+  ok   deploy token-segment3: 6d3fe2e03f60b34d… resolves (block 11)
+  ok   deploy token-segment2: 5fd80cd4d06329fe… resolves (block 12)
+  ok   deploy token-segment1: 520d9ad3ddb89300… resolves (block 13)
+  ok   deploy token-segment0: 9252e536fbab23f0… resolves (block 14)
+  ok   deploy token-header: 2000ad5c36b583ad… resolves (block 15)
+  ok   program associated_token_account: header ouTsfDsuUxV7… names ImageID 2b1d5580b54895db…
+  ok   deploy associated_token_account-segment3: 3018d05c3587069f… resolves (block 16)
+  ok   deploy associated_token_account-segment2: e184c5ff65365912… resolves (block 17)
+  ok   deploy associated_token_account-segment1: 9ad46c3f6711b959… resolves (block 18)
+  ok   deploy associated_token_account-segment0: 0b02049b337850f7… resolves (block 19)
+  ok   deploy associated_token_account-header: fd235119b55b1e80… resolves (block 20)
+  ok   program wrap_bridge: header HmLyQ5vS9qEb… names ImageID 073f046ce2a6fffd…
+  ok   deploy wrap_bridge-segment4: ccd9d8310ca92de6… resolves (block 21)
+  ok   deploy wrap_bridge-segment3: 1f2888d75f6fa938… resolves (block 22)
+  ok   deploy wrap_bridge-segment2: 303d9f7849c59751… resolves (block 23)
+  ok   deploy wrap_bridge-segment1: 70e79bba446fc572… resolves (block 24)
+  ok   deploy wrap_bridge-segment0: 8aa6ef09d113ea96… resolves (block 25)
+  ok   deploy wrap_bridge-header: 4bed5c3f0464985c… resolves (block 26)
+  ok   init-sextant: applied, a4a17d3a55351432… in block 27, charged 1831160 gas = the pre-checked gas, below its limit 1859471
+  ok   init-bridge: applied, 34a44d2bc0ef76b8… in block 28, charged 27049 gas = the pre-checked gas, below its limit 37319
+  ok   register-eth: applied, 6a9d17e76f0059a5… in block 29, charged 90958 gas = the pre-checked gas, below its limit 101867
+  ok   register-usdt: applied, 215e383d3125b08e… in block 30, charged 90316 gas = the pre-checked gas, below its limit 101219
+  ok   claim-alice-eth: applied, 4b72634cc6c015d0… in block 31, charged 290305 gas = the pre-checked gas, below its limit 303208
+  ok   claim-alice-eth-replay: refused (E7402), 8e9f3937871d1d38… in block 32, charged its whole limit 330000
+  ok   claim-alice-eth-replay-old-root: refused (E7402), 682b69fbf4736681… in block 33, charged its whole limit 330000
+  ok   claim-alice-usdt: applied, e64adc76cb14c868… in block 34, charged 290377 gas = the pre-checked gas, below its limit 303280
+  ok   claim-bob-redirected-to-alice: refused (E7403), 12a49be54dc45500… in block 35, charged its whole limit 330000
+  ok   claim-phantom-unknown-root: refused (E7208), f4ff523b9c1f896a… in block 36, charged its whole limit 330000
+  ok   claim-carol-private: privacy-preserving, 3045a9c763936567… in block 87, 251463 bytes, Private/GpXu6v2T48Jz… absent from its bytes
+  ok   burn-alice-eth-not-a-denomination: refused (E7408), 4b53ecf49773c7fe… in block 88, charged its whole limit 255000
+  ok   burn-alice-eth: applied, e8d8d95f1019ebc0… in block 89, charged 228729 gas = the pre-checked gas, below its limit 241016
+  ok   burn-carol-private: privacy-preserving, 792d84ff8520143c… in block 129, 248358 bytes, Private/GpXu6v2T48Jz… absent from its bytes
+  ok   final state of sextant_instance (9iTyPFXBYoJR…): 307 bytes as the run left them
+  ok   final state of sextant_header (65X9RBiRfRvR…): 120 bytes as the run left them
+  ok   final state of config (HDYiFCZiKcDE…): 2 bytes as the run left them
+  ok   final state of eth_entry (3wFpTMoNExPz…): 150 bytes as the run left them
+  ok   final state of usdt_entry (9TpEN2Wepr34…): 150 bytes as the run left them
+  ok   final state of burns (BQQq6ubtFjoA…): 812 bytes as the run left them
+  ok   final state of nullifier_0 (9CFJohFvwz4y…): 1 bytes as the run left them
+  ok   final state of nullifier_1 (13UgmFJRbTQT…): 1 bytes as the run left them
+  ok   final state of nullifier_2 (B87AfW4FgfVt…): 0 bytes as the run left them
+  ok   final state of nullifier_3 (4JiLgSXwtPV7…): 1 bytes as the run left them
+  ok   final state of eth_definition (HfA9oHwScMqT…): 43 bytes as the run left them
+  ok   final state of usdt_definition (m5uyUggCAiex…): 42 bytes as the run left them
+  ok   final state of alice_eth_ata (91VmkToNNZ8d…): 49 bytes as the run left them
+  ok   final state of alice_usdt_ata (4eCVvN39hiSc…): 49 bytes as the run left them
+  ok   control: a random hash (4f9160c5d2d1…) does not resolve, and the endpoint answers
+  ok   release-root 0x3e3c17dab876c5ea… is the LEZ burn tree's root on the sequencer now (BQQq6ubtFjoA…)
+  ok   eth release-carol-not-final: refused NotFinal (0xd7c25c79), 0x5eab37594b2d04… in block 16, replayed: the same revert
+  ok   eth release-alice: applied, 0x6599563d2e68a6… in block 17, 143044 gas, Release of nullifier 0xb30e4ba4ca34… under the LEZ burn root
+  ok   eth release-alice-replay: refused AlreadyReleased (0x63b4904e), 0xb53c45471080b9… in block 18, replayed: the same revert
+  ok   eth release-carol-redirected-to-relayer: refused RootNotAttested (0xfb0612b1), 0xea56534592f08c… in block 19, replayed: the same revert
+  ok   eth release-carol-another-amount: refused RootNotAttested (0xfb0612b1), 0xf62cedd2bda607… in block 20, replayed: the same revert
+  ok   eth release-forged-burn-committee: refused RootNotAttested (0xfb0612b1), 0x5837c28bb9aa04… in block 21, replayed: the same revert
+  ok   eth release-forged-burn-outsiders: refused RootNotAttested (0xfb0612b1), 0xd3f895bf4bf242… in block 22, replayed: the same revert
+  ok   eth release-carol-one-member: refused RootNotAttested (0xfb0612b1), 0x5f4a8a6d4f824d… in block 23, replayed: the same revert
+  ok   eth release-carol: applied, 0x680f4c56ff458f… in block 24, 152420 gas, Release of nullifier 0x251a83c13980… under the LEZ burn root
+  ok   eth final: nullifierSpent(0xb30e4ba4ca34…) = true (release-alice)
+  ok   eth final: nullifierSpent(0x251a83c13980…) = true (release-carol)
+  ok   eth final: nullifierSpent(0x71fe1e0041dd…) = false (control)
+  ok   eth final: vault holds 100000000000000000 wei
+  ok   control: a random transaction hash (0x3a0998cd70…) does not resolve on anvil, and the endpoint answers
+73 checks pass, 0 fail (7 applied and 5 refused public transactions, 2 privacy-preserving, 2 applied and 7 refused releases, in the manifest)
