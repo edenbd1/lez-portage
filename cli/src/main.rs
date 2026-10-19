@@ -47,6 +47,7 @@ use wrap_bridge::{burns_account, config_account, definition_account, entry_accou
 use wrap_core::H256;
 use wrap_executor_tests as et;
 
+mod chain;
 mod zk;
 
 const LOCAL_RPC: &str = "http://127.0.0.1:3051";
@@ -201,6 +202,15 @@ enum Cmd {
         /// The committed guest.
         #[arg(long, env = "WRAP_ZK_GUEST", default_value = "artifacts/zk/burn_membership.bin")]
         guest: PathBuf,
+        /// With `--zk`: prove against the tree a chain-prove record rebuilt from
+        /// LEZ blocks (its receipt resolved inside), with `zk/burn_release`.
+        #[arg(long, requires = "zk")]
+        chain: Option<PathBuf>,
+        #[arg(long, env = "WRAP_RELEASE_GUEST", default_value = "artifacts/zk/burn_release.bin")]
+        release_guest: PathBuf,
+        /// The vault the release is for, if not the run's (another vault of the same pairing).
+        #[arg(long, requires = "zk")]
+        vault: Option<String>,
     },
     /// Prove a `ZkReleaseInput` (JSON: chain_id, vault, pairing, relayer, token,
     /// amount, recipient, fee, secret, index, path) with the zero-knowledge
@@ -210,7 +220,63 @@ enum Cmd {
         input: PathBuf,
         #[arg(long, env = "WRAP_ZK_GUEST", default_value = "artifacts/zk/burn_membership.bin")]
         guest: PathBuf,
+        /// Prove against a chain-prove record's tree instead, with `zk/burn_release`.
+        #[arg(long)]
+        chain: Option<PathBuf>,
+        #[arg(long, env = "WRAP_RELEASE_GUEST", default_value = "artifacts/zk/burn_release.bin")]
+        release_guest: PathBuf,
     },
+    /// Prove the LEZ chain guest (`zk/lez_chain`) over the sequencer's blocks:
+    /// from the block after `--anchor` (the vault's pinned starting block), or
+    /// after the tip of `--prior` (an earlier chain-prove record, whose
+    /// receipt is verified inside), to `--to` (default: the latest block).
+    /// Writes the record to `--out` and the succinct receipt next to it.
+    ChainProve {
+        #[arg(long, conflicts_with = "prior")]
+        anchor: Option<u64>,
+        #[arg(long)]
+        prior: Option<PathBuf>,
+        #[arg(long)]
+        to: Option<u64>,
+        #[arg(long)]
+        out: PathBuf,
+        /// Also write each block's bytes to this directory (`<id>.borsh`).
+        #[arg(long)]
+        save_blocks: Option<PathBuf>,
+        /// Read the blocks from this directory (`<id>.borsh`) instead of the sequencer.
+        #[arg(long, conflicts_with = "save_blocks", requires = "to")]
+        blocks_dir: Option<PathBuf>,
+        /// The anchor's hash, when the blocks are not read from the sequencer.
+        #[arg(long, requires = "anchor")]
+        anchor_hash: Option<String>,
+        #[arg(long, env = "WRAP_CHAIN_GUEST", default_value = "artifacts/zk/lez_chain.bin")]
+        guest: PathBuf,
+    },
+    /// The deployment's chain parameters (the bridge program, its burn-tree
+    /// account) and a block's id and hash (default: the latest), the anchor a
+    /// ZkChainBurnVerifier is deployed with.
+    ChainParams {
+        #[arg(long)]
+        at: Option<u64>,
+    },
+    /// Make up a LEZ block after an anchor: one privacy-preserving transaction
+    /// whose only effect is the bridge's `Append(leaf)` on its burn tree. A
+    /// well-formed block that no sequencer produced: the chain guest proves a
+    /// tree over it as over any other, which is what the finality attestation
+    /// is there to refuse. Writes `<anchor+1>.borsh` to `--out-dir`.
+    ChainForge {
+        #[arg(long)]
+        anchor: u64,
+        #[arg(long)]
+        anchor_hash: String,
+        #[arg(long)]
+        leaf: String,
+        #[arg(long)]
+        out_dir: PathBuf,
+    },
+    /// Check that LEZ's `Block` and the guest's mirror decode, re-encode and
+    /// hash saved blocks (`<id>.borsh`) identically.
+    ChainLayout { dir: PathBuf },
     /// Sync the wallet and decrypt carol's private account.
     ShowPrivate,
     /// A public owner's wrapped balance and a token's supply, as the chain holds them.
@@ -606,7 +672,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let rpc = SequencerClientBuilder::default().build(&cli.rpc).with_context(|| format!("not a sequencer URL: {}", cli.rpc))?;
     let ctx = Ctx { rpc, run: cli.run, artifacts: cli.artifacts, payer: cli.payer, force: cli.force, wait: cli.wait, label: cli.label };
-    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. } | Cmd::ZkProve { .. });
+    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. } | Cmd::ZkProve { .. } | Cmd::ChainProve { .. } | Cmd::ChainLayout { .. } | Cmd::ChainParams { .. } | Cmd::ChainForge { .. });
     let mut wallet = if opens_wallet {
         Some(WalletCore::from_env().await.context("this command needs a v0.3 wallet home (LEE_WALLET_HOME_DIR)")?)
     } else {
@@ -622,6 +688,12 @@ async fn main() -> Result<()> {
             let g = PathBuf::from(std::env::var("WRAP_ZK_GUEST").unwrap_or_else(|_| "artifacts/zk/burn_membership.bin".into()));
             if let Ok(b) = std::fs::read(&g) {
                 out.insert("burn_membership".into(), json!({"image_id": hex::encode(zk::image_id(&b)?), "bytes": b.len(), "sha256": hex::encode(Sha256::digest(&b))}));
+            }
+            for (k, var) in [("lez_chain", "WRAP_CHAIN_GUEST"), ("burn_release", "WRAP_RELEASE_GUEST")] {
+                let g = PathBuf::from(std::env::var(var).unwrap_or_else(|_| format!("artifacts/zk/{k}.bin")));
+                if let Ok(b) = std::fs::read(&g) {
+                    out.insert(k.into(), json!({"image_id": hex::encode(zk::image_id(&b)?), "bytes": b.len(), "sha256": hex::encode(Sha256::digest(&b))}));
+                }
             }
             println!("{}", Value::Object(out));
         }
@@ -1017,14 +1089,22 @@ async fn main() -> Result<()> {
                 println!("{line}");
             }
         }
-        Cmd::ZkProve { input, guest } => {
-            let elf = std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?;
+        Cmd::ZkProve { input, guest, chain: chain_rec, release_guest } => {
             let i = zk::input_from_json(&read_json(&input)?)?;
-            let mut out = zk::prove(&elf, &i)?;
+            let mut out = match &chain_rec {
+                None => zk::prove(&std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?, &i)?,
+                Some(cp) => {
+                    let rec = read_json(cp)?;
+                    let journal = hex::decode(rec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
+                    let receipt = chain::load_receipt(&chain::receipt_path(cp))?;
+                    let elf = std::fs::read(&release_guest).with_context(|| format!("reading {}", release_guest.display()))?;
+                    chain::prove_release(&elf, &i, &journal, receipt)?
+                }
+            };
             out["op"] = "zk-prove".into();
             println!("{out}");
         }
-        Cmd::ReleaseProof { owner, zk, relayer, guest } => {
+        Cmd::ReleaseProof { owner, zk, relayer, guest, chain: chain_rec, release_guest, vault: vault_override } => {
             let p = ctx.programs()?;
             let a = ctx.accounts()?;
             let an = ctx.anvil();
@@ -1053,19 +1133,191 @@ async fn main() -> Result<()> {
                     hex::decode(s.trim_start_matches("0x"))?.try_into().map_err(|_| anyhow!("not 20 bytes: {s}"))
                 };
                 let num = |v: &Value| -> Result<u128> { v.as_str().ok_or_else(|| anyhow!("not a decimal: {v}"))?.parse().map_err(|e| anyhow!("{e}")) };
+                let release_vault = match &vault_override {
+                    Some(v) => a20(&json!(v))?,
+                    None => an.vault,
+                };
                 let input = wrap_core::zk::ZkReleaseInput {
-                    chain_id: et::ANVIL_CHAIN_ID, vault: an.vault, pairing: pair, relayer: a20(&json!(relayer))?,
+                    chain_id: et::ANVIL_CHAIN_ID, vault: release_vault, pairing: pair, relayer: a20(&json!(relayer))?,
                     token: a20(&b["token"])?, amount: num(&b["amount"])?, recipient: a20(&b["recipient"])?, fee: num(&b["fee"])?,
                     secret, index: i as u64, path: path.clone(),
                 };
-                let elf = std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?;
-                let z = zk::prove(&elf, &input)?;
-                ensure!(z["fields"]["root"] == out["root"] && z["fields"]["nullifier"] == out["nullifier"],
-                        "the guest proved another root or nullifier than the chain's");
-                out["relayer"] = relayer.into();
-                out["zk"] = z;
+                if let Some(cp) = &chain_rec {
+                    // The chain-derived tree: the private burns the chain guest rebuilt from LEZ blocks.
+                    let rec = read_json(cp)?;
+                    let derived: Vec<H256> = rec["leaves"].as_array().cloned().unwrap_or_default().iter().map(|l| h32(&l["leaf"])).collect::<Result<_>>()?;
+                    let leaf = h32(&b["leaf"])?;
+                    let j = derived.iter().position(|l| *l == leaf).ok_or_else(|| {
+                        anyhow!("{me}'s burn is not in the chain-derived tree (only privacy-preserving burns are; a public burn may have reverted and still be in its block)")
+                    })?;
+                    let dpath = wrap_core::path(&derived, j);
+                    let droot = chain::h(&rec["root"])?;
+                    ensure!(wrap_core::root_from_path(&leaf, j as u64, &dpath) == Some(droot), "the chain record's leaves do not rebuild its root");
+                    let input = wrap_core::zk::ZkReleaseInput { index: j as u64, path: dpath.clone(), ..input };
+                    let journal = hex::decode(rec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
+                    let receipt = chain::load_receipt(&chain::receipt_path(cp))?;
+                    let elf = std::fs::read(&release_guest).with_context(|| format!("reading {}", release_guest.display()))?;
+                    let z = chain::prove_release(&elf, &input, &journal, receipt)?;
+                    ensure!(z["fields"]["root"] == rec["root"], "the guest proved another root than the chain record's");
+                    out["chain_derived"] = json!({"index": j, "root": rec["root"], "leaves": derived.len(), "tip": rec["tip"], "anchor": rec["anchor"],
+                                                  "nullifier": format!("0x{}", hex::encode(wrap_core::burn_nullifier(&pair, &secret, j as u64)))});
+                    out["chain_path"] = json!(dpath.iter().map(|x| format!("0x{}", hex::encode(x))).collect::<Vec<_>>());
+                    out["relayer"] = relayer.into();
+                    out["zk"] = z;
+                } else {
+                    let elf = std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?;
+                    let z = zk::prove(&elf, &input)?;
+                    ensure!(z["fields"]["root"] == out["root"] && z["fields"]["nullifier"] == out["nullifier"],
+                            "the guest proved another root or nullifier than the chain's");
+                    out["relayer"] = relayer.into();
+                    out["zk"] = z;
+                }
             }
             println!("{out}");
+        }
+        Cmd::ChainProve { anchor, prior, to, out, save_blocks, blocks_dir, anchor_hash, guest } => {
+            let p = ctx.programs()?;
+            let a = ctx.accounts()?;
+            let an = ctx.anvil();
+            let cfg = ctx.config(&p, &a, an.vault);
+            let params = lez_chain::Params { program_id: *p.br.value(), burns_account: *burns_account(&p.br, &config_account(&p.br, &cfg)).value() };
+            let elf = std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?;
+            let me = zk::image_id(&elf)?;
+            let (prior_journal, prior_receipt, state, mut leaves) = match &prior {
+                Some(pj) => {
+                    let rec = read_json(pj)?;
+                    let journal = hex::decode(rec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
+                    let (_, _, s) = lez_chain::parse_journal(&journal).ok_or_else(|| anyhow!("{} is not a chain record", pj.display()))?;
+                    (Some(journal), Some(chain::load_receipt(&chain::receipt_path(pj))?), s, rec["leaves"].as_array().cloned().unwrap_or_default())
+                }
+                None => {
+                    let aid = anchor.ok_or_else(|| anyhow!("name the anchor block (--anchor) or a prior record (--prior)"))?;
+                    let ah = match &anchor_hash {
+                        Some(h) => chain::h(&json!(h))?,
+                        None => retry(|| ctx.rpc.get_block(aid)).await.map_err(|e| anyhow!("getBlock {aid}: {e}"))?.ok_or_else(|| anyhow!("no block {aid}"))?.header.hash.0,
+                    };
+                    (None, None, lez_chain::ChainState::at_anchor(aid, ah), vec![])
+                }
+            };
+            let to = match to {
+                Some(t) => t,
+                None => retry(|| ctx.rpc.get_last_block_id()).await.map_err(|e| anyhow!("getLastBlockId: {e}"))?,
+            };
+            ensure!(to > state.tip_id, "nothing to prove: the tip is {} and --to {to}", state.tip_id);
+            let mut blocks = Vec::new();
+            for id in state.tip_id + 1..=to {
+                let raw = match &blocks_dir {
+                    Some(d) => std::fs::read(d.join(format!("{id}.borsh"))).with_context(|| format!("block {id} in {}", d.display()))?,
+                    None => {
+                        let blk = retry(|| ctx.rpc.get_block(id)).await.map_err(|e| anyhow!("getBlock {id}: {e}"))?.ok_or_else(|| anyhow!("no block {id}"))?;
+                        chain::raw_block(&blk, &params)?
+                    }
+                };
+                if let Some(d) = &save_blocks {
+                    std::fs::create_dir_all(d)?;
+                    std::fs::write(d.join(format!("{id}.borsh")), &raw)?;
+                }
+                blocks.push(raw);
+            }
+            let mut replayed = state.clone();
+            leaves.extend(chain::replay(&mut replayed, &params, &blocks)?);
+            let input = lez_chain::ChainInput {
+                self_image_id: me, params, anchor_id: state.anchor_id, anchor_hash: state.anchor_hash, prior: prior_journal, blocks,
+            };
+            let (receipt, mut rec) = chain::prove_chain(&elf, &input, prior_receipt)?;
+            ensure!(rec["root"] == json!(format!("0x{}", hex::encode(replayed.tree.root))), "the guest's tree is not the host's replay");
+            rec["op"] = "chain-prove".into();
+            rec["params"] = json!({"program_id": format!("0x{}", hex::encode(params.program_id)), "burns_account": format!("0x{}", hex::encode(params.burns_account)),
+                                   "program": p.br.to_string(), "burns": burns_account(&p.br, &config_account(&p.br, &cfg)).to_string()});
+            rec["from"] = (state.tip_id + 1).into();
+            rec["leaves"] = Value::Array(leaves);
+            std::fs::write(&out, serde_json::to_vec_pretty(&rec)?)?;
+            chain::save_receipt(&chain::receipt_path(&out), &receipt)?;
+            rec["journal"] = Value::Null;
+            println!("{rec}");
+        }
+        Cmd::ChainParams { at } => {
+            let p = ctx.programs()?;
+            let a = ctx.accounts()?;
+            let an = ctx.anvil();
+            let cfg = ctx.config(&p, &a, an.vault);
+            let burns = burns_account(&p.br, &config_account(&p.br, &cfg));
+            let id = match at {
+                Some(b) => b,
+                None => retry(|| ctx.rpc.get_last_block_id()).await.map_err(|e| anyhow!("getLastBlockId: {e}"))?,
+            };
+            let blk = retry(|| ctx.rpc.get_block(id)).await.map_err(|e| anyhow!("getBlock {id}: {e}"))?.ok_or_else(|| anyhow!("no block {id}"))?;
+            println!("{}", json!({"op": "chain-params", "program_id": format!("0x{}", hex::encode(p.br.value())), "burns_account": format!("0x{}", hex::encode(burns.value())),
+                                  "program": p.br.to_string(), "burns": burns.to_string(), "pairing": format!("0x{}", hex::encode(wrap_bridge::pairing(&p.br, &cfg))),
+                                  "block_id": id, "block_hash": format!("0x{}", hex::encode(blk.header.hash.0))}));
+        }
+        Cmd::ChainForge { anchor, anchor_hash, leaf, out_dir } => {
+            use lez_chain::block::*;
+            let p = ctx.programs()?;
+            let a = ctx.accounts()?;
+            let an = ctx.anvil();
+            let cfg = ctx.config(&p, &a, an.vault);
+            let program = *p.br.value();
+            let burns = *burns_account(&p.br, &config_account(&p.br, &cfg)).value();
+            let leaf = chain::h(&json!(leaf))?;
+            let tx = LeeTransaction::PrivacyPreserving(PrivacyPreservingTransaction {
+                message: PrivacyMessage {
+                    public_actions: vec![PublicActionWithId {
+                        account_id: burns,
+                        effects: vec![DeferredPublicEffect {
+                            program_account_id: program,
+                            shard_program_account_id: program,
+                            data: [&[lez_chain::APPEND_VARIANT][..], &leaf].concat(),
+                        }],
+                    }],
+                    nonces: vec![],
+                    private_actions: vec![],
+                    block_validity_window: ValidityWindow { from: None, to: None },
+                    timestamp_validity_window: ValidityWindow { from: None, to: None },
+                    program_image_claims: vec![],
+                },
+                witness_set: PrivacyWitnessSet { signatures_and_public_keys: vec![], proof: vec![] },
+            });
+            let mut b = Block {
+                header: BlockHeader { block_id: anchor + 1, prev_block_hash: chain::h(&json!(anchor_hash))?, hash: [0; 32], timestamp: 0 },
+                body: BlockBody { transactions: vec![tx] },
+                bedrock_status: BedrockStatus::Pending,
+            };
+            b.header.hash = lez_chain::content_hash(&borsh::to_vec(&b)?);
+            let raw = borsh::to_vec(&b)?;
+            std::fs::create_dir_all(&out_dir)?;
+            std::fs::write(out_dir.join(format!("{}.borsh", anchor + 1)), &raw)?;
+            println!("{}", json!({"op": "chain-forge", "block_id": anchor + 1, "block_hash": format!("0x{}", hex::encode(b.header.hash)), "bytes": raw.len()}));
+        }
+        Cmd::ChainLayout { dir } => {
+            let p = ctx.programs()?;
+            let a = ctx.accounts()?;
+            let an = ctx.anvil();
+            let cfg = ctx.config(&p, &a, an.vault);
+            let params = lez_chain::Params { program_id: *p.br.value(), burns_account: *burns_account(&p.br, &config_account(&p.br, &cfg)).value() };
+            let mut leaves = 0usize;
+            let mut n = 0usize;
+            let mut bytes = 0usize;
+            let mut kinds = (0usize, 0usize);
+            for e in std::fs::read_dir(&dir)? {
+                let path = e?.path();
+                if path.extension().and_then(|x| x.to_str()) != Some("borsh") {
+                    continue;
+                }
+                let raw = std::fs::read(&path)?;
+                chain::check_layout(&raw, &params).with_context(|| format!("{}", path.display()))?;
+                let b: lez_chain::block::Block = borsh::from_slice(&raw)?;
+                leaves += lez_chain::private_burn_leaves(&b, &params).len();
+                for t in &b.body.transactions {
+                    match t {
+                        lez_chain::block::LeeTransaction::Public(_) => kinds.0 += 1,
+                        lez_chain::block::LeeTransaction::PrivacyPreserving(_) => kinds.1 += 1,
+                    }
+                }
+                n += 1;
+                bytes += raw.len();
+            }
+            println!("{}", json!({"op": "chain-layout", "blocks": n, "bytes": bytes, "public_txs": kinds.0, "private_txs": kinds.1, "burn_leaves": leaves, "identical": true}));
         }
         Cmd::ShowPrivate => {
             let p = ctx.programs()?;

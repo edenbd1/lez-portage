@@ -44,6 +44,19 @@ changed in the journal too, so that the vault's digest matches it: the seal
 then proves nothing), and `--forged PROOF` (a real proof of a burn that never
 happened: a made-up leaf in a made-up tree, proven by the same guest).
 
+**Chain-derived releases** (`--zkchain`, the vault's verifier is
+ZkChainBurnVerifier): `proof.json` is `wrap release-proof <owner> --zk
+--chain CHAIN.json --relayer <sender>`, whose journal is the release
+preimage followed by the chain receipt's image id, the program, the burn-tree
+account, the anchor and the LEZ tip the root is as of. The committee attests a
+LEZ *block*: each member reads the block at the journal's tip height from the
+sequencer (getBlock) and signs `blockAttestationDigest` of the hash *it read*.
+Tampering: as for `--zk`, plus `--tamper-anchor` (the journal names another
+anchor), `--membership-proof PROOF` (a release of the earlier guest, whose
+journal is the bare preimage), and `--forged PROOF` (a real proof over a
+made-up LEZ block: the members sign the real block at that height, outsiders
+sign the made-up one).
+
 One line per attempt is appended to the manifest:
     # eth <label> <expected> <verdict> <block> <tx> <error-selector|-> <gas_used> <nullifier> <root>
 Uses anvil's unlocked development accounts only; the chain is local.
@@ -56,7 +69,7 @@ import sys
 import time
 import urllib.request
 
-ERRORS = ["SelectorMismatch(bytes4,bytes4)", "NotThisRelease()", "BadOpening()", "NotFinal()", "RootNotAttested()", "AlreadyReleased()", "VerificationFailed()",
+ERRORS = ["SelectorMismatch(bytes4,bytes4)", "NotThisRelease()", "NotThisChain()", "BlockNotAttested()", "BadOpening()", "NotFinal()", "RootNotAttested()", "AlreadyReleased()", "VerificationFailed()",
           "IsFrozen()", "InvalidAmount()", "UnsupportedToken()", "CapExceeded()", "TransferFailed()"]
 RELEASE_T = "(address,uint256,address,address,uint256,bytes32,uint64,bytes32[24],uint64,uint64,bytes[])"
 
@@ -121,7 +134,12 @@ def main():
     ap.add_argument("--zk", action="store_true", help="a zero-knowledge release (ZkBurnVerifier)")
     ap.add_argument("--tamper-journal", action="store_true")
     ap.add_argument("--forged", help="a zk proof of a burn that never happened (wrap zk-prove output)")
+    ap.add_argument("--zkchain", action="store_true", help="a chain-derived release (ZkChainBurnVerifier)")
+    ap.add_argument("--tamper-anchor", action="store_true")
+    ap.add_argument("--membership-proof", help="a burn_membership release proof (wrap release-proof --zk) sent to the chain verifier")
     a = ap.parse_args()
+    if a.zkchain:
+        return zkchain_release(a)
     if a.zk:
         return zk_release(a)
     dep = json.load(open(a.deployment))
@@ -295,6 +313,106 @@ def zk_release(a):
     print(json.dumps({"label": a.label, "expect": a.expect, "precheck": pre, "verdict": verdict, "tx": h, "block": int(rc["blockNumber"], 16),
                       "gas_used": int(rc["gasUsed"], 16), "lez_block": lez_block, "lez_final_block": final, "root_seen": root_seen,
                       "root": root, "nullifier": nullifier, "hidden": hidden, "ok": good}))
+    sys.exit(0 if good else 1)
+
+
+def lez_block_hash(lez, block_id):
+    """The hash of LEZ block `block_id` as the sequencer returns it (borsh header: id, prev, hash, timestamp)."""
+    import base64
+    res = ok(lez, "getBlock", [block_id])
+    if not res:
+        sys.exit(f"no LEZ block {block_id}")
+    raw = base64.b64decode(res)
+    return "0x" + raw[40:72].hex()
+
+
+def zkchain_release(a):
+    dep = json.load(open(a.deployment))
+    pr = json.load(open(a.proof))
+    vault, verifier, depth = dep["vault"], dep["verifier"], int(dep["finality_depth"])
+    z = json.load(open(a.forged)) if a.forged else (json.load(open(a.membership_proof))["zk"] if a.membership_proof else pr["zk"])
+    j = bytes.fromhex(z["journal"][2:])
+    w = lambda k: j[32 * k:32 * (k + 1)]
+    addr = lambda k: "0x" + w(k)[12:].hex()
+    token, amount, recipient, relayer, fee = addr(4), str(int.from_bytes(w(5), "big")), addr(6), addr(7), str(int.from_bytes(w(8), "big"))
+    root, nullifier = "0x" + w(9).hex(), "0x" + w(10).hex()
+    sender = {"recipient": recipient, "relayer": dep["relayer"], "outsider": dep["outsiders"][0]}[a.sender]
+    # The LEZ tip the root is as of (the chain proof's), or for a bare membership proof the latest block.
+    tip_id = int.from_bytes(w(16), "big") if len(j) == 576 else lez_tip(a.lez)
+    tip_hash_journal = "0x" + w(17).hex() if len(j) == 576 else None
+    hash_seen = lez_block_hash(a.lez, tip_id)
+    final = tip_id
+    if a.wait_final:
+        while lez_tip(a.lez) < tip_id + depth:
+            time.sleep(1)
+        final = lez_tip(a.lez)
+
+    relayer = sender
+    if a.recipient_as_sender:
+        recipient = sender
+    if a.amount:
+        amount = a.amount
+    if a.tamper_journal:
+        recipient = sender
+        j = j[:6 * 32] + bytes.fromhex(sender[2:]).rjust(32, b"\0") + j[7 * 32:]
+    if a.tamper_anchor:
+        j = j[:15 * 32] + bytes(31) + b"\x01" + j[16 * 32:]
+
+    pairing = "0x" + w(3).hex()
+    signers = dep["outsiders"] if a.outsiders else [dep["committee"][int(i)] for i in a.members.split(",") if i != ""]
+    sigs = []
+    for s_ in signers:
+        hsh = (tip_hash_journal or hash_seen) if a.outsiders else hash_seen  # members sign what they read; outsiders what they are told
+        d = cast("call", verifier, "blockAttestationDigest(address,bytes32,bytes32,uint64,uint64)(bytes32)", vault, pairing, hsh,
+                 str(tip_id), str(final), "--rpc-url", a.anvil)
+        sigs.append(ok(a.anvil, "eth_sign", [s_, d]))
+    proof = cast("abi-encode", "f((bytes,bytes,uint64,bytes[]))", f"({z['seal']},0x{j.hex()},{final},[{','.join(sigs)}])")
+    data = cast("calldata", "release(address,uint256,address,address,uint256,bytes32,bytes32,bytes)",
+                token, amount, recipient, relayer, fee, root, nullifier, proof)
+
+    hidden = {}
+    if not a.forged and not a.membership_proof:
+        sec = bytes.fromhex(pr["secret"][2:])
+        ec = hashlib.sha256(b"rfp022/eth-commit/v1".ljust(32, b"\0") + bytes.fromhex(pr["recipient"][2:]).rjust(32, b"\0")
+                            + int(pr["fee"]).to_bytes(32, "big") + sec).hexdigest()
+        zeros, zz = set(), bytes(32)
+        for _ in range(25):
+            zeros.add(zz.hex()); zz = hashlib.sha256(zz + zz).digest()
+        nodes = [p[2:] for p in pr.get("chain_path", []) if p[2:] not in zeros]
+        hidden = {"leaf": pr["leaf"][2:] not in data, "secret": sec.hex() not in data, "eth_commitment": ec not in data,
+                  "path_nodes": f"{sum(n not in data for n in nodes)}/{len(nodes)}"}
+
+    call = {"from": sender, "to": vault, "data": data, "gas": hex(int(a.gas_limit))}
+    sim = rpc(a.anvil, "eth_call", [call, "latest"])
+    selectors = {cast("sig", e): e.split("(")[0] for e in ERRORS}
+    if "error" in sim:
+        err_data = (sim["error"].get("data") or "")[:10]
+        pre = selectors.get(err_data, f"unknown:{err_data or sim['error'].get('message')}")
+    else:
+        pre = "applied"
+    h = ok(a.anvil, "eth_sendTransaction", [call])
+    rc = None
+    for _ in range(60):
+        rc = ok(a.anvil, "eth_getTransactionReceipt", [h])
+        if rc:
+            break
+        time.sleep(0.5)
+    status = int(rc["status"], 16)
+    verdict = "applied" if status == 1 else "reverted"
+    sel = "-" if status == 1 else next((k for k, v in selectors.items() if v == pre), "-")
+    with open(a.out, "a") as f:
+        f.write(f"# eth {a.label} {a.expect} {verdict} {int(rc['blockNumber'], 16)} {h} {sel} {int(rc['gasUsed'], 16)} {nullifier} {root}\n")
+        f.write(f"# eth-block-attestation {a.label} lez_block {tip_id} lez_final_block {final} hash_seen {hash_seen} hash_journal {tip_hash_journal or '-'} "
+                f"signers {','.join(signers)} sender {sender}\n")
+        if hidden:
+            f.write(f"# eth-zk {a.label} {h} hides leaf {hidden['leaf']} secret {hidden['secret']} eth_commitment {hidden['eth_commitment']} "
+                    f"path_nodes {hidden['path_nodes']} calldata_bytes {(len(data) - 2) // 2} seal_bytes {(len(z['seal']) - 2) // 2}\n")
+    good = (a.expect == "applied" and verdict == "applied" and pre == "applied") or (a.expect != "applied" and verdict == "reverted" and pre == a.expect)
+    if hidden and not (hidden["leaf"] and hidden["secret"] and hidden["eth_commitment"] and hidden["path_nodes"].split("/")[0] == hidden["path_nodes"].split("/")[1]):
+        good = False
+    print(json.dumps({"label": a.label, "expect": a.expect, "precheck": pre, "verdict": verdict, "tx": h, "block": int(rc["blockNumber"], 16),
+                      "gas_used": int(rc["gasUsed"], 16), "lez_block": tip_id, "lez_final_block": final, "hash_seen": hash_seen,
+                      "hash_journal": tip_hash_journal, "root": root, "nullifier": nullifier, "hidden": hidden, "ok": good}))
     sys.exit(0 if good else 1)
 
 

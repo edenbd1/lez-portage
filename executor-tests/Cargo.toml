@@ -42,3 +42,7 @@ path = "src/bin/measure.rs"
 [[bin]]
 name = "measure_private"
 path = "src/bin/measure_private.rs"
+
+[dev-dependencies]
+# tests/chain.rs: the chain guest's block mirror against LEE's own types and wrap_bridge's effect.
+lez-chain = { path = "../chain" }

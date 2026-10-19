@@ -1,0 +1,26 @@
+# lez-chain: the LEZ side of the chain-derived release (F.7). Pure functions
+# over LEZ v0.3.1 blocks as the sequencer returns them (borsh), shared by the
+# RISC Zero guests zk/lez_chain and zk/burn_release and by the client:
+# decode a block strictly, recompute its hash, check it extends the previous
+# one, and append to a burn tree the wrap_bridge burn leaves that private
+# (privacy-preserving) transactions settled. No LEZ dependency: the block and
+# transaction layout is mirrored here and checked byte for byte against LEZ's
+# own types on real blocks (cli/tests).
+[package]
+name = "lez-chain"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+wrap-core = { path = "../core" }
+borsh = { version = "1.5", features = ["derive"] }
+
+[dev-dependencies]
+hex = "0.4"
+
+[features]
+# The release guest's statement (`release_journal`): the zero-knowledge
+# release of wrap-core over this crate's chain journal.
+release = ["wrap-core/zk"]
