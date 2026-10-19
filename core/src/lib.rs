@@ -272,6 +272,10 @@ pub fn root(leaves: &[H256]) -> H256 {
     f.root
 }
 
+/// The zero-knowledge release guest's statement (`zk/burn_membership`).
+#[cfg(feature = "zk")]
+pub mod zk;
+
 #[cfg(test)]
 mod tests {
     use super::*;

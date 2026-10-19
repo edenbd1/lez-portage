@@ -15,5 +15,10 @@ sha2 = { version = "0.10", default-features = false }
 tiny-keccak = { version = "2.0", features = ["keccak"] }
 borsh = { version = "1.5", features = ["derive"] }
 
+[features]
+# The zero-knowledge release (src/zk.rs): the guest and the client enable it;
+# wrap_bridge does not, and its committed binary does not change with it.
+zk = []
+
 [dev-dependencies]
 hex = "0.4"
