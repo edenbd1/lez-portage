@@ -1,0 +1,54 @@
+Compiling 2 files with Solc 0.8.28
+Solc 0.8.28 finished in 822.31ms
+Compiler run successful!
+
+Ran 26 tests for test/ZkBurnVerifier.t.sol:ZkBurnVerifierTest
+[PASS] test_a_higher_fee_is_refused() (gas: 132802)
+[PASS] test_a_journal_tampered_to_another_amount_is_refused() (gas: 372735)
+[PASS] test_a_journal_tampered_to_another_fee_is_refused() (gas: 372767)
+[PASS] test_a_journal_tampered_to_another_nullifier_is_refused() (gas: 372786)
+[PASS] test_a_journal_tampered_to_another_recipient_is_refused() (gas: 384956)
+[PASS] test_a_journal_tampered_to_another_root_is_refused() (gas: 376252)
+[PASS] test_a_proven_attested_burn_releases_once_to_its_committed_recipient() (gas: 463904)
+Logs:
+  release gas (call, excl. 21000 and calldata): 450231
+
+[PASS] test_a_root_not_yet_final_is_refused() (gas: 364033)
+[PASS] test_a_root_the_committee_did_not_sign_is_refused() (gas: 375926)
+[PASS] test_a_seal_for_another_verifier_version_is_refused() (gas: 149952)
+[PASS] test_a_tampered_seal_is_refused() (gas: 992447490)
+[PASS] test_a_verifier_needs_a_risc0_verifier_and_an_image_id() (gas: 806077)
+[PASS] test_an_attestation_for_another_pairing_is_refused() (gas: 375819)
+[PASS] test_another_amount_is_refused() (gas: 132807)
+[PASS] test_another_chain_is_refused() (gas: 133099)
+[PASS] test_another_image_id_is_refused() (gas: 1585172)
+[PASS] test_another_nullifier_is_refused() (gas: 132826)
+[PASS] test_another_recipient_is_refused() (gas: 134966)
+[PASS] test_another_relayer_is_refused() (gas: 134930)
+[PASS] test_another_root_is_refused() (gas: 136353)
+[PASS] test_another_vault_is_refused() (gas: 3535034)
+[PASS] test_one_member_alone_is_refused() (gas: 376387)
+[PASS] test_outsiders_are_refused() (gas: 380064)
+[PASS] test_replay_is_refused() (gas: 546097)
+[PASS] test_the_fixture_is_the_test_trees_release() (gas: 168111)
+[PASS] test_the_release_calldata_omits_the_opening() (gas: 9116981)
+Suite result: ok. 26 passed; 0 failed; 0 skipped; finished in 20.96ms (51.80ms CPU time)
+
+╭--------------------------------------+-----------------+-------+--------+-------+---------╮
+| src/WrapVault.sol:WrapVault Contract |                 |       |        |       |         |
++===========================================================================================+
+| Deployment Cost                      | Deployment Size |       |        |       |         |
+|--------------------------------------+-----------------+-------+--------+-------+---------|
+| 3272001                              | 10442           |       |        |       |         |
+|--------------------------------------+-----------------+-------+--------+-------+---------|
+|                                      |                 |       |        |       |         |
+|--------------------------------------+-----------------+-------+--------+-------+---------|
+| Function Name                        | Min             | Avg   | Median | Max   | # Calls |
+|--------------------------------------+-----------------+-------+--------+-------+---------|
+| registerToken                        | 95125           | 95125 | 95125  | 95125 | 1       |
+|--------------------------------------+-----------------+-------+--------+-------+---------|
+| release                              | 57315           | 57315 | 57315  | 57315 | 1       |
+╰--------------------------------------+-----------------+-------+--------+-------+---------╯
+
+
+Ran 1 test suite in 23.34ms (20.96ms CPU time): 26 tests passed, 0 failed, 0 skipped (26 total tests)

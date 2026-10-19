@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {WrapVault} from "../src/WrapVault.sol";
 import {CommitteeBurnVerifier} from "../src/CommitteeBurnVerifier.sol";
+import {BurnRootCommittee} from "../src/BurnRootCommittee.sol";
 import {IBurnVerifier} from "../src/IBurnVerifier.sol";
 
 /// F.7 as built: a release opens a LEZ burn leaf, checked here against a burn-tree root that a
@@ -192,7 +193,7 @@ contract CommitteeBurnVerifierTest is Test {
         CommitteeBurnVerifier.Release memory r = _carol();
         r.recipient = mallory;
         // Its opening leads to another root, which no member signed.
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         // Or the true root named with mallory as the recipient: not this release.
         r = _carol();
         (bytes32 root, bytes32 nf, bytes memory proof) = (_root(), _nullifier(r), abi.encode(r));
@@ -203,7 +204,7 @@ contract CommitteeBurnVerifierTest is Test {
     function test_another_amount_is_refused() public {
         CommitteeBurnVerifier.Release memory r = _carol();
         r.amount = 0.1 ether;
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         r = _carol();
         (bytes32 root, bytes32 nf, bytes memory proof) = (_root(), _nullifier(r), abi.encode(r));
         vm.expectRevert(CommitteeBurnVerifier.NotThisRelease.selector);
@@ -213,7 +214,7 @@ contract CommitteeBurnVerifierTest is Test {
     function test_a_higher_fee_is_refused_and_a_front_runner_earns_only_the_committed_fee() public {
         CommitteeBurnVerifier.Release memory r = _carol();
         r.fee = 0.5 ether;
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         // Another relayer may submit the same opening: it earns the fee carol fixed, no more.
         r = _carol();
         r.relayer = mallory;
@@ -233,10 +234,10 @@ contract CommitteeBurnVerifierTest is Test {
     function test_another_index_or_path_is_refused() public {
         CommitteeBurnVerifier.Release memory r = _carol();
         r.index = 0;
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         r = _carol();
         r.path[3] = keccak256("not a node");
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         r = _carol();
         r.index = uint64(1 << 24);
         _refused(r, CommitteeBurnVerifier.BadOpening.selector);
@@ -248,11 +249,11 @@ contract CommitteeBurnVerifierTest is Test {
         CommitteeBurnVerifier.Release memory r = _carol();
         r.lezFinalBlock = r.lezBlock + DEPTH_BLOCKS - 1;
         r.signatures = _sigs(_two(), _root(), r.lezBlock, r.lezFinalBlock);
-        _refused(r, CommitteeBurnVerifier.NotFinal.selector);
+        _refused(r, BurnRootCommittee.NotFinal.selector);
         // Signed as final, then presented with a later final block: the signatures no longer match.
         r = _carol();
         r.lezFinalBlock += 10;
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
     }
 
     // ---- forged burns and forged attestations ----
@@ -273,17 +274,17 @@ contract CommitteeBurnVerifierTest is Test {
         bytes32 root = _rootOf(fake[0], 0, r.path);
         r.signatures = new bytes[](3);
         for (uint256 i; i < 3; ++i) r.signatures[i] = _sign(0xBADBAD + i, root, r.lezBlock, r.lezFinalBlock, address(v));
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         // One member alone is below the threshold.
         uint256[] memory one = new uint256[](1);
         one[0] = pks[1];
         r.signatures = _sigs(one, root, r.lezBlock, r.lezFinalBlock);
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         // One member and one outsider: still one member.
         r.signatures = new bytes[](2);
         r.signatures[0] = _sign(pks[1], root, r.lezBlock, r.lezFinalBlock, address(v));
         r.signatures[1] = _sign(0xBADBAD, root, r.lezBlock, r.lezFinalBlock, address(v));
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         assertEq(mallory.balance, 0);
     }
 
@@ -294,7 +295,7 @@ contract CommitteeBurnVerifierTest is Test {
         r.signatures[0] = s;
         r.signatures[1] = s;
         r.signatures[2] = s;
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
     }
 
     function test_a_malleated_signature_does_not_count() public {
@@ -312,17 +313,17 @@ contract CommitteeBurnVerifierTest is Test {
         // remaining member is below the threshold.
         uint256 n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
         r.signatures[1] = abi.encodePacked(rr, bytes32(n - uint256(ss)), vv == 27 ? uint8(28) : uint8(27));
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
     }
 
     function test_an_attestation_for_another_vault_or_chain_is_refused() public {
         CommitteeBurnVerifier.Release memory r = _carol();
         r.signatures[0] = _sign(pks[0], _root(), r.lezBlock, r.lezFinalBlock, address(0xD1FF));
         r.signatures[1] = _sign(pks[2], _root(), r.lezBlock, r.lezFinalBlock, address(0xD1FF));
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
         r = _carol();
         vm.chainId(1);
-        _refused(r, CommitteeBurnVerifier.RootNotAttested.selector);
+        _refused(r, BurnRootCommittee.RootNotAttested.selector);
     }
 
     function test_another_pairing_is_refused() public {
@@ -353,15 +354,15 @@ contract CommitteeBurnVerifierTest is Test {
         address[] memory m = new address[](2);
         m[0] = address(1);
         m[1] = address(1);
-        vm.expectRevert(CommitteeBurnVerifier.BadConfig.selector);
+        vm.expectRevert(BurnRootCommittee.BadConfig.selector);
         new CommitteeBurnVerifier(m, 1, 3);
         m[1] = address(0);
-        vm.expectRevert(CommitteeBurnVerifier.BadConfig.selector);
+        vm.expectRevert(BurnRootCommittee.BadConfig.selector);
         new CommitteeBurnVerifier(m, 1, 3);
         m[1] = address(2);
-        vm.expectRevert(CommitteeBurnVerifier.BadConfig.selector);
+        vm.expectRevert(BurnRootCommittee.BadConfig.selector);
         new CommitteeBurnVerifier(m, 0, 3);
-        vm.expectRevert(CommitteeBurnVerifier.BadConfig.selector);
+        vm.expectRevert(BurnRootCommittee.BadConfig.selector);
         new CommitteeBurnVerifier(m, 3, 3);
         assertEq(cv.members().length, 3);
         assertEq(cv.THRESHOLD(), 2);

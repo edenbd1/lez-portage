@@ -1,0 +1,24 @@
+baseline    the unmutated sources pass (65 tests passed)
+caught      release digest not compared: test_a_relayer_other_than_the_proofs_is_refused
+caught      finality depth not checked: test_a_root_not_yet_final_is_refused
+caught      threshold not checked: test_a_burn_not_yet_final_by_the_configured_depth_is_refused
+caught      a non-member's signature counts: test_a_burn_that_never_happened_is_refused
+caught      a member counted twice: test_one_member_signing_twice_counts_once
+caught      high-s signatures accepted: test_a_malleated_signature_does_not_count
+caught      attestation not bound to chain and vault: test_a_final_attested_burn_releases_once_to_its_committed_recipient
+caught      pairing not read from the vault: test_another_pairing_is_refused
+caught      fee not bound by the burn: test_a_burn_not_yet_final_by_the_configured_depth_is_refused
+caught      index range not checked: test_another_index_or_path_is_refused
+caught      burn nullifier ignores the leaf index: test_a_burn_not_yet_final_by_the_configured_depth_is_refused
+caught      zk: the journal not compared with the vault's digest: test_a_higher_fee_is_refused
+caught      zk: the seal not verified: test_a_journal_tampered_to_another_amount_is_refused
+caught      zk: the seal checked against a fixed digest, not the vault's: test_a_journal_tampered_to_another_amount_is_refused
+caught      zk: the committee not consulted: test_a_root_not_yet_final_is_refused
+caught      zk: the attested root is not the journal's: test_a_proven_attested_burn_releases_once_to_its_committed_recipient
+caught      zk: the attestation not bound to the journal's pairing: test_a_proven_attested_burn_releases_once_to_its_committed_recipient
+caught      vault: release digest not bound to the chain: test_another_chain_is_refused
+caught      vault: release digest not bound to the vault: test_release_digest_constant_is_shared_with_rust
+caught      vault: release digest omits the relayer: test_a_relayer_other_than_the_proofs_is_refused
+caught      vault: a spent nullifier not refused: test_replay_is_refused
+caught      vault: the nullifier not recorded: test_a_proven_attested_burn_releases_once_to_its_committed_recipient
+22 caught, 0 missed

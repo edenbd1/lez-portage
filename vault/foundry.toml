@@ -8,7 +8,13 @@ evm_version = "cancun"
 optimizer = true
 optimizer_runs = 10000
 offline = true
-remappings = ["forge-std/=lib/forge-std/src/"]
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "risc0/=lib/risc0-ethereum/contracts/src/",
+  "openzeppelin/=lib/openzeppelin-contracts/",
+]
+# The Groth16 fixture the prover made (scripts/zk-fixture.sh).
+fs_permissions = [{ access = "read", path = "./test/fixtures" }]
 gas_reports = ["WrapVault"]
 
 [fmt]
