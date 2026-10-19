@@ -57,6 +57,21 @@ journal is the bare preimage), and `--forged PROOF` (a real proof over a
 made-up LEZ block: the members sign the real block at that height, outsiders
 sign the made-up one).
 
+**Bedrock-anchored releases** (`--zkbedrock`, the vault's verifier is
+ZkBedrockBurnVerifier): `proof.json` is `wrap release-proof <owner> --zk
+--chain CHAIN.json --bedrock ANCHOR.json --relayer <sender>`, whose journal
+adds to the chain release's the anchor guest's image id, the channel, the
+sequencer key, the inscription's Bedrock block, the top header and the depth.
+The committee attests a *Bedrock header* canonical: each member looks the
+journal's top header up on its Bedrock node (`--bedrock-node`, walking parent
+links back from the node's tip) and signs `headerAttestationDigest` of it only
+if it is there; otherwise it signs the header it does see as canonical (the
+node's tip), which the verifier refuses. Tampering: as for `--zkchain`, plus
+`--tamper-channel` (the journal names another channel), `--chain-proof PROOF`
+(a chain-derived release, whose journal has no Bedrock words), and `--forged
+PROOF` (a real proof over a made-up LEZ block in a made-up Bedrock block,
+signed by the sequencer's key: the members find no such header, outsiders sign it).
+
 One line per attempt is appended to the manifest:
     # eth <label> <expected> <verdict> <block> <tx> <error-selector|-> <gas_used> <nullifier> <root>
 Uses anvil's unlocked development accounts only; the chain is local.
@@ -67,9 +82,10 @@ import json
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
-ERRORS = ["SelectorMismatch(bytes4,bytes4)", "NotThisRelease()", "NotThisChain()", "BlockNotAttested()", "BadOpening()", "NotFinal()", "RootNotAttested()", "AlreadyReleased()", "VerificationFailed()",
+ERRORS = ["HeaderNotAttested()", "NotThisChannel()", "NotDeepEnough()", "SelectorMismatch(bytes4,bytes4)", "NotThisRelease()", "NotThisChain()", "BlockNotAttested()", "BadOpening()", "NotFinal()", "RootNotAttested()", "AlreadyReleased()", "VerificationFailed()",
           "IsFrozen()", "InvalidAmount()", "UnsupportedToken()", "CapExceeded()", "TransferFailed()"]
 RELEASE_T = "(address,uint256,address,address,uint256,bytes32,uint64,bytes32[24],uint64,uint64,bytes[])"
 
@@ -137,7 +153,13 @@ def main():
     ap.add_argument("--zkchain", action="store_true", help="a chain-derived release (ZkChainBurnVerifier)")
     ap.add_argument("--tamper-anchor", action="store_true")
     ap.add_argument("--membership-proof", help="a burn_membership release proof (wrap release-proof --zk) sent to the chain verifier")
+    ap.add_argument("--zkbedrock", action="store_true", help="a Bedrock-anchored release (ZkBedrockBurnVerifier)")
+    ap.add_argument("--bedrock-node", help="the Bedrock node the committee members read")
+    ap.add_argument("--tamper-channel", action="store_true")
+    ap.add_argument("--chain-proof", help="a chain-derived release proof (release-proof --zk --chain) sent to the Bedrock verifier")
     a = ap.parse_args()
+    if a.zkbedrock:
+        return zkbedrock_release(a)
     if a.zkchain:
         return zkchain_release(a)
     if a.zk:
@@ -413,6 +435,118 @@ def zkchain_release(a):
     print(json.dumps({"label": a.label, "expect": a.expect, "precheck": pre, "verdict": verdict, "tx": h, "block": int(rc["blockNumber"], 16),
                       "gas_used": int(rc["gasUsed"], 16), "lez_block": tip_id, "lez_final_block": final, "hash_seen": hash_seen,
                       "hash_journal": tip_hash_journal, "root": root, "nullifier": nullifier, "hidden": hidden, "ok": good}))
+    sys.exit(0 if good else 1)
+
+
+def bedrock_canonical(node, header_id):
+    """Whether `header_id` is on the node's canonical chain: the node has the
+    block, and walking parent links back from its tip down to that block's slot
+    meets it. Returns (verdict, the node's tip)."""
+    def get(path):
+        try:
+            with urllib.request.urlopen(node.rstrip("/") + path, timeout=30) as r:
+                return json.load(r)
+        except urllib.error.HTTPError:
+            return None
+    tip = get("/cryptarchia/info")["cryptarchia_info"]["tip"]
+    target = get(f"/cryptarchia/blocks/{header_id}") if header_id else None
+    if not target or target["header"]["id"] != header_id:
+        return False, tip
+    slot, h = target["header"]["slot"], tip
+    while True:
+        if h == header_id:
+            return True, tip
+        b = get(f"/cryptarchia/blocks/{h}")
+        if not b or b["header"]["slot"] <= slot:
+            return False, tip
+        h = b["header"]["parent_block"]
+
+
+def zkbedrock_release(a):
+    dep = json.load(open(a.deployment))
+    pr = json.load(open(a.proof))
+    vault, verifier = dep["vault"], dep["verifier"]
+    z = json.load(open(a.forged)) if a.forged else (json.load(open(a.chain_proof))["zk"] if a.chain_proof else pr["zk"])
+    j = bytes.fromhex(z["journal"][2:])
+    w = lambda k: j[32 * k:32 * (k + 1)]
+    addr = lambda k: "0x" + w(k)[12:].hex()
+    token, amount, recipient, relayer, fee = addr(4), str(int.from_bytes(w(5), "big")), addr(6), addr(7), str(int.from_bytes(w(8), "big"))
+    root, nullifier = "0x" + w(9).hex(), "0x" + w(10).hex()
+    sender = {"recipient": recipient, "relayer": dep["relayer"], "outsider": dep["outsiders"][0]}[a.sender]
+    # The top Bedrock header the journal names (a chain-derived journal has none: the members look at their tip).
+    top = w(22).hex() if len(j) == 800 else None
+    canonical, node_tip = bedrock_canonical(a.bedrock_node, top) if top else (False, None)
+    if not top:
+        node_tip = bedrock_canonical(a.bedrock_node, None)[1]
+    seen = top if canonical else node_tip  # what a member signs: the journal's top only if its node has it
+
+    relayer = sender
+    if a.recipient_as_sender:
+        recipient = sender
+    if a.amount:
+        amount = a.amount
+    if a.tamper_journal:
+        recipient = sender
+        j = j[:6 * 32] + bytes.fromhex(sender[2:]).rjust(32, b"\0") + j[7 * 32:]
+    if a.tamper_anchor:
+        j = j[:15 * 32] + bytes(31) + b"\x01" + j[16 * 32:]
+    if a.tamper_channel:
+        j = j[:19 * 32] + bytes(31) + b"\x01" + j[20 * 32:]
+
+    pairing = "0x" + w(3).hex()
+    signers = dep["outsiders"] if a.outsiders else [dep["committee"][int(i)] for i in a.members.split(",") if i != ""]
+    sigs = []
+    for s_ in signers:
+        hd = (top or seen) if a.outsiders else seen  # members sign what their node has; outsiders what they are told
+        d = cast("call", verifier, "headerAttestationDigest(address,bytes32,bytes32)(bytes32)", vault, pairing, "0x" + hd, "--rpc-url", a.anvil)
+        sigs.append(ok(a.anvil, "eth_sign", [s_, d]))
+    proof = cast("abi-encode", "f((bytes,bytes,bytes[]))", f"({z['seal']},0x{j.hex()},[{','.join(sigs)}])")
+    data = cast("calldata", "release(address,uint256,address,address,uint256,bytes32,bytes32,bytes)",
+                token, amount, recipient, relayer, fee, root, nullifier, proof)
+
+    hidden = {}
+    if not a.forged and not a.chain_proof:
+        sec = bytes.fromhex(pr["secret"][2:])
+        ec = hashlib.sha256(b"rfp022/eth-commit/v1".ljust(32, b"\0") + bytes.fromhex(pr["recipient"][2:]).rjust(32, b"\0")
+                            + int(pr["fee"]).to_bytes(32, "big") + sec).hexdigest()
+        zeros, zz = set(), bytes(32)
+        for _ in range(25):
+            zeros.add(zz.hex()); zz = hashlib.sha256(zz + zz).digest()
+        nodes = [p[2:] for p in pr.get("chain_path", []) if p[2:] not in zeros]
+        hidden = {"leaf": pr["leaf"][2:] not in data, "secret": sec.hex() not in data, "eth_commitment": ec not in data,
+                  "path_nodes": f"{sum(n not in data for n in nodes)}/{len(nodes)}"}
+
+    call = {"from": sender, "to": vault, "data": data, "gas": hex(int(a.gas_limit))}
+    sim = rpc(a.anvil, "eth_call", [call, "latest"])
+    selectors = {cast("sig", e): e.split("(")[0] for e in ERRORS}
+    if "error" in sim:
+        err_data = (sim["error"].get("data") or "")[:10]
+        pre = selectors.get(err_data, f"unknown:{err_data or sim['error'].get('message')}")
+    else:
+        pre = "applied"
+    h = ok(a.anvil, "eth_sendTransaction", [call])
+    rc = None
+    for _ in range(60):
+        rc = ok(a.anvil, "eth_getTransactionReceipt", [h])
+        if rc:
+            break
+        time.sleep(0.5)
+    status = int(rc["status"], 16)
+    verdict = "applied" if status == 1 else "reverted"
+    sel = "-" if status == 1 else next((k for k, v in selectors.items() if v == pre), "-")
+    with open(a.out, "a") as f:
+        f.write(f"# eth {a.label} {a.expect} {verdict} {int(rc['blockNumber'], 16)} {h} {sel} {int(rc['gasUsed'], 16)} {nullifier} {root}\n")
+        f.write(f"# eth-header-attestation {a.label} top_journal {top or '-'} on_members_node {canonical} signed {seen if not a.outsiders else (top or seen)} "
+                f"node_tip {node_tip} signers {','.join(signers)} sender {sender}\n")
+        if hidden:
+            f.write(f"# eth-zk {a.label} {h} hides leaf {hidden['leaf']} secret {hidden['secret']} eth_commitment {hidden['eth_commitment']} "
+                    f"path_nodes {hidden['path_nodes']} calldata_bytes {(len(data) - 2) // 2} seal_bytes {(len(z['seal']) - 2) // 2}\n")
+    good = (a.expect == "applied" and verdict == "applied" and pre == "applied") or (a.expect != "applied" and verdict == "reverted" and pre == a.expect)
+    if hidden and not (hidden["leaf"] and hidden["secret"] and hidden["eth_commitment"] and hidden["path_nodes"].split("/")[0] == hidden["path_nodes"].split("/")[1]):
+        good = False
+    print(json.dumps({"label": a.label, "expect": a.expect, "precheck": pre, "verdict": verdict, "tx": h, "block": int(rc["blockNumber"], 16),
+                      "gas_used": int(rc["gasUsed"], 16), "top": top, "on_members_node": canonical, "root": root, "nullifier": nullifier,
+                      "hidden": hidden, "ok": good}))
     sys.exit(0 if good else 1)
 
 

@@ -1,0 +1,33 @@
+# bedrock-tools: the host side of the Bedrock anchor. Reads blocks as the
+# Bedrock node's API returns them (JSON, saved by scripts/bedrock_fetch.py),
+# decodes them with the node's own types (logos-blockchain-core at 3926a532,
+# the revision LEZ v0.3.1 pins), and checks that lez-bedrock computes the same
+# header ids, body roots, transaction hashes, inscriptions and signature
+# verdicts. `anchor` then builds the guest's AnchorBlock for one LEZ block.
+# Cargo.lock started as LEZ v0.3.1's, so the node crates resolve as LEZ's do.
+[workspace]
+
+[package]
+name = "bedrock-tools"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "bedrock-tools"
+path = "src/main.rs"
+
+[dependencies]
+lez-bedrock = { path = "..", features = ["chain"] }
+lez-chain = { path = "../../chain" }
+lb-core = { package = "logos-blockchain-core", git = "https://github.com/logos-blockchain/logos-blockchain.git", rev = "3926a532b9d96d62747da064161a115a7c0c5a3e" }
+lb-kms-keys = { package = "logos-blockchain-key-management-system-keys", git = "https://github.com/logos-blockchain/logos-blockchain.git", rev = "3926a532b9d96d62747da064161a115a7c0c5a3e" }
+lb-binary-codec = { package = "logos-blockchain-binary-codec", git = "https://github.com/logos-blockchain/logos-blockchain.git", rev = "3926a532b9d96d62747da064161a115a7c0c5a3e" }
+lb-cryptarchia-engine = { package = "logos-blockchain-cryptarchia-engine", git = "https://github.com/logos-blockchain/logos-blockchain.git", rev = "3926a532b9d96d62747da064161a115a7c0c5a3e" }
+lb-utils = { package = "logos-blockchain-utils", git = "https://github.com/logos-blockchain/logos-blockchain.git", rev = "3926a532b9d96d62747da064161a115a7c0c5a3e" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+anyhow = "1"
+borsh = "1.5"

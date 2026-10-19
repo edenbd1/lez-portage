@@ -44,7 +44,8 @@
 # anvil running). Nothing here reaches a public network.
 #
 # Needs:
-#   SEQUENCER  a v0.3.1 `sequencer_service` built with --features standalone (1a003bfb)
+#   SEQUENCER  a v0.3.1 `sequencer_service` built with --features standalone (1a003bfb),
+#              or without it and BEDROCK_NODE set (it then inscribes on Bedrock)
 #   WALLET     the v0.3.0 `wallet` binary (db66590a), whose config and storage the CLI reads
 #   LEZ_SRC    a LEZ checkout at 1a003bfb (its debug sequencer config, and the
 #              public genesis test key of the debug configuration's first account)
@@ -97,9 +98,17 @@ cleanup() {
 trap cleanup EXIT
 
 echo "== 0. a local v0.3.1 sequencer on $PORT (blocks every $BLOCK_TIME) and anvil on $ANVIL_PORT"
-python3 - "$LEZ_SRC/lez/sequencer/service/configs/debug/sequencer_config.json" "$RUN/seq/sequencer_config.json" "$BLOCK_TIME" <<'PY'
+SEQ_MODE=standalone; [ -n "${BEDROCK_NODE:-}" ] && SEQ_MODE="Bedrock-backed (node $BEDROCK_NODE, channel ${BEDROCK_CHANNEL:-of the debug config})"
+# BEDROCK_NODE (and BEDROCK_CHANNEL): a sequencer built without `standalone`
+# publishes each block to that Bedrock node, as a channel inscription
+# (scripts/bedrock-devnet.sh runs a separate local devnet node for it).
+python3 - "$LEZ_SRC/lez/sequencer/service/configs/debug/sequencer_config.json" "$RUN/seq/sequencer_config.json" "$BLOCK_TIME" "${BEDROCK_NODE:-}" "${BEDROCK_CHANNEL:-}" <<'PY'
 import json, sys
 c = json.load(open(sys.argv[1])); c["block_create_timeout"] = sys.argv[3]
+if sys.argv[4]:
+    c["bedrock_config"]["node_url"] = sys.argv[4]
+if sys.argv[5]:
+    c["bedrock_config"]["channel_id"] = sys.argv[5]
 json.dump(c, open(sys.argv[2], "w"), indent=2)
 PY
 (cd "$RUN/seq" && exec "$SEQUENCER" sequencer_config.json --listen-address 127.0.0.1 --port "$PORT" \
@@ -145,7 +154,7 @@ echo "  payer $PAYER holds $PB"
 grep -q "Public/$PAYER" "$RUN/wallet-accounts.txt" || { echo "the wallet does not hold the payer's key"; exit 1; }
 
 {
-  echo "# wrap_bridge e2e against a local LEZ v0.3.1 standalone sequencer ($RPC) and anvil (chain 31337), $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "# wrap_bridge e2e against a local LEZ v0.3.1 $SEQ_MODE sequencer ($RPC) and anvil (chain 31337), $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "# commit $(git rev-parse --short HEAD)$(git diff --quiet -- . ':!evidence' || echo ' (uncommitted changes)')"
   echo "# payer $PAYER"
 } > "$OUT"

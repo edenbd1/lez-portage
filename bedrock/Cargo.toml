@@ -1,0 +1,41 @@
+# lez-bedrock: what the Bedrock-anchored release proves about Bedrock, as plain
+# functions (no_std + alloc), shared by the RISC Zero guest zk/bedrock_anchor,
+# the release guest zk/bedrock_release and the client. Read from the Bedrock
+# node at 3926a532 (the revision LEZ v0.3.1 pins) and checked byte for byte
+# against that node's own types on real blocks (bedrock/tools):
+#
+# - a header's canonical encoding and its HeaderId (Blake2b-256),
+# - a block's body root over its uncle headers and its transaction Merkle root,
+# - a Mantle transaction's hash and a Merkle path from it to that root,
+# - the ChannelInscribe operation it opens with, its channel, its signer, and
+#   the signer's Ed25519 signature over the transaction hash (verify_strict),
+# - a chain of descendant headers, each the parent of the next.
+#
+# Feature `chain` (std) composes this with lez-chain: the inscription is the
+# LEZ block a chain journal ends at. Feature `release` adds the release guest's
+# statement on top.
+[package]
+name = "lez-bedrock"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+blake2 = { version = "0.10", default-features = false }
+ed25519-dalek = { version = "2", default-features = false }
+lez-chain = { path = "../chain", optional = true }
+wrap-core = { path = "../core", optional = true }
+borsh = { version = "1.5", features = ["derive"], optional = true }
+
+[features]
+chain = ["dep:lez-chain", "dep:wrap-core", "dep:borsh"]
+release = ["chain", "lez-chain/release", "wrap-core/zk"]
+
+[dev-dependencies]
+hex = "0.4"
+serde_json = "1"
+# A signature `verify` accepts and `verify_strict` refuses (tests.rs).
+ed25519-dalek = { version = "2", default-features = false, features = ["hazmat"] }
+curve25519-dalek = { version = "4", default-features = false }
+sha2 = { version = "0.10", default-features = false }

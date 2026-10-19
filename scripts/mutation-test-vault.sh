@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # The release path's checks, each removed in turn, must fail the Foundry tests
-# (vault/test/CommitteeBurnVerifier.t.sol, ZkBurnVerifier.t.sol and
-# ZkChainBurnVerifier.t.sol, whose seals are real Groth16 proofs, and
-# WrapVault.t.sol). The sources are restored at the end.
+# (vault/test/CommitteeBurnVerifier.t.sol, ZkBurnVerifier.t.sol,
+# ZkChainBurnVerifier.t.sol and ZkBedrockBurnVerifier.t.sol, whose seals are
+# real Groth16 proofs, and WrapVault.t.sol). The sources are restored at the end.
 #   scripts/mutation-test-vault.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -12,9 +12,11 @@ Z=vault/src/ZkBurnVerifier.sol
 W=vault/src/WrapVault.sol
 ZC=vault/src/ZkChainBurnVerifier.sol
 LB=vault/src/LezBlockCommittee.sol
+ZB=vault/src/ZkBedrockBurnVerifier.sol
+BH=vault/src/BedrockHeaderCommittee.sol
 SAVE="$(mktemp -d /tmp/rfp022-mut-vault.XXXXXX)"
-for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB"; do cp "$f" "$SAVE/"; done
-restore() { for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB"; do cp "$SAVE/$(basename "$f")" "$f"; done; }
+for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB" "$ZB" "$BH"; do cp "$f" "$SAVE/"; done
+restore() { for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB" "$ZB" "$BH"; do cp "$SAVE/$(basename "$f")" "$f"; done; }
 trap restore EXIT
 
 # name @@ file @@ literal text @@ replacement
@@ -56,6 +58,30 @@ MUTATIONS=(
   "block committee: high-s signatures accepted@@$LB@@if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0 || (v != 27 \&\& v != 28)) {@@if (v != 27 \&\& v != 28) {"
   "block committee: attestation not bound to the vault@@$LB@@abi.encode(BLOCK_ATTEST_TAG, block.chainid, vault,@@abi.encode(BLOCK_ATTEST_TAG, block.chainid, address(0),"
   "block committee: attestation not bound to the pairing@@$LB@@block.chainid, vault, pairing, blockHash,@@block.chainid, vault, bytes32(0), blockHash,"
+  "bedrock: the journal's length not checked@@$ZB@@if (j.length != JOURNAL_LEN) revert NotThisRelease();@@"
+  "bedrock: the release preimage not compared with the vault's digest@@$ZB@@if (_sha256Prefix(j, 352) != publicInputs) revert NotThisRelease();@@"
+  "bedrock: the chain guest's image id not checked@@$ZB@@_word(j, 11) != CHAIN_IMAGE_ID || @@"
+  "bedrock: the program not checked@@$ZB@@_word(j, 12) != PROGRAM_ID || @@"
+  "bedrock: the burn-tree account not checked@@$ZB@@_word(j, 13) != BURNS_ACCOUNT@@false"
+  "bedrock: the LEZ anchor's height not checked@@$ZB@@_word(j, 14) != bytes32(uint256(ANCHOR_ID)) || @@"
+  "bedrock: the LEZ anchor's hash not checked@@$ZB@@ || _word(j, 15) != ANCHOR_HASH@@"
+  "bedrock: the anchor guest's image id not checked@@$ZB@@_word(j, 18) != ANCHOR_IMAGE_ID || @@"
+  "bedrock: the channel not checked@@$ZB@@_word(j, 19) != CHANNEL_ID || @@"
+  "bedrock: the sequencer key not checked@@$ZB@@ || _word(j, 20) != SEQUENCER_KEY@@"
+  "bedrock: the depth not checked@@$ZB@@if (uint256(_word(j, 24)) < MIN_DEPTH) revert NotDeepEnough();@@"
+  "bedrock: the depth checked one short@@$ZB@@uint256(_word(j, 24)) < MIN_DEPTH@@uint256(_word(j, 24)) + 1 < MIN_DEPTH"
+  "bedrock: the seal not verified@@$ZB@@RISC0.verify(r.seal, IMAGE_ID, sha256(j));@@"
+  "bedrock: the seal checked against the preimage's digest only@@$ZB@@RISC0.verify(r.seal, IMAGE_ID, sha256(j));@@RISC0.verify(r.seal, IMAGE_ID, publicInputs);"
+  "bedrock: the top header not attested@@$ZB@@_requireCanonicalHeader(msg.sender, _word(j, 3), _word(j, 22), r.signatures);@@"
+  "bedrock: the attested header is the inscription's block, not the top@@$ZB@@_word(j, 3), _word(j, 22), r.signatures@@_word(j, 3), _word(j, 21), r.signatures"
+  "bedrock: the attestation not bound to the journal's pairing@@$ZB@@_requireCanonicalHeader(msg.sender, _word(j, 3),@@_requireCanonicalHeader(msg.sender, bytes32(0),"
+  "bedrock: a zero minimum depth accepted@@$ZB@@ || c.sequencerKey == bytes32(0) || c.minDepth == 0@@ || c.sequencerKey == bytes32(0)"
+  "header committee: threshold not checked@@$BH@@if (count < THRESHOLD) revert HeaderNotAttested();@@"
+  "header committee: a non-member's signature counts@@$BH@@uint256 m = memberIndex[_recover(signed, signatures[i])];@@uint256 m = memberIndex[_recover(signed, signatures[i])]; if (m == 0) m = 1;"
+  "header committee: a member counted twice@@$BH@@ || seen \& (1 << (m - 1)) != 0) continue;@@) continue;"
+  "header committee: high-s signatures accepted@@$BH@@if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0 || (v != 27 \&\& v != 28)) {@@if (v != 27 \&\& v != 28) {"
+  "header committee: attestation not bound to the vault@@$BH@@abi.encode(HEADER_ATTEST_TAG, block.chainid, vault,@@abi.encode(HEADER_ATTEST_TAG, block.chainid, address(0),"
+  "header committee: attestation not bound to the header@@$BH@@vault, pairing, headerId));@@vault, pairing, bytes32(0)));"
   "vault: release digest not bound to the chain@@$W@@abi.encode(RELEASE_TAG, block.chainid, address(this),@@abi.encode(RELEASE_TAG, uint256(31337), address(this),"
   "vault: release digest not bound to the vault@@$W@@abi.encode(RELEASE_TAG, block.chainid, address(this),@@abi.encode(RELEASE_TAG, block.chainid, address(0xfa22),"
   "vault: release digest omits the relayer@@$W@@token, amount, recipient, relayer, fee, lezBurnRoot, nullifier)@@token, amount, recipient, address(0), fee, lezBurnRoot, nullifier)"

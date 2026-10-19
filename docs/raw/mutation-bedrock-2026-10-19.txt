@@ -1,0 +1,32 @@
+baseline    the unmutated sources pass (14 passed)
+caught      header id: the slot not hashed: tests::compose_tests::the_real_testnet_block_anchors_a_chain_journal_ending_at_it
+caught      header id: the proof not hashed: tests::compose_tests::the_real_testnet_block_anchors_a_chain_journal_ending_at_it
+caught      header id: fields in canonical order, not the hashed one: tests::compose_tests::the_real_testnet_block_anchors_a_chain_journal_ending_at_it
+caught      genesis slot accepted: tests::every_check_of_the_real_anchor_fires
+caught      uncles: count not checked against the bytes: tests::every_check_of_the_real_anchor_fires
+caught      uncles: more than MAX_UNCLES accepted: tests::uncles_are_in_the_body_root_and_bounded
+caught      body root: compared with nothing: tests::every_check_of_the_real_anchor_fires
+caught      body root: the uncles left out: tests::uncles_are_in_the_body_root_and_bounded
+caught      tx hash: no domain prefix: tests::compose_tests::the_real_testnet_block_anchors_a_chain_journal_ending_at_it
+caught      merkle: path length not bounded: tests::the_merkle_path_bounds
+caught      merkle: index range not checked: tests::the_merkle_path_bounds
+caught      merkle: left and right swapped: tests::compose_tests::the_real_testnet_block_anchors_a_chain_journal_ending_at_it
+caught      inscription: any first opcode: tests::only_a_first_operation_inscription_is_read
+caught      inscription: a zero op count accepted: tests::only_a_first_operation_inscription_is_read
+caught      inscription: length cap not checked: tests::the_inscription_length_cap
+caught      inscription: trailing bytes accepted when alone: tests::only_a_first_operation_inscription_is_read
+caught      channel not checked: tests::every_check_of_the_real_anchor_fires
+caught      signer not checked: tests::every_check_of_the_real_anchor_fires
+caught      signature not verified: tests::a_signature_by_another_key_or_over_another_hash_is_refused
+caught      signature verified non-strictly: tests::a_signature_only_non_strict_verification_accepts_is_refused
+caught      weak keys accepted and verified non-strictly: tests::a_signature_only_non_strict_verification_accepts_is_refused
+caught      descendant parent not checked: tests::every_check_of_the_real_anchor_fires
+caught      descendant slot not checked: tests::a_descendant_must_be_at_a_later_slot
+caught      depth not checked: tests::every_check_of_the_real_anchor_fires
+caught      compose: inscribed block's hash not recomputed: tests::compose_tests::the_inscription_must_be_the_chains_tip_and_a_lez_block
+caught      compose: the inscription is not checked to be the tip: tests::compose_tests::the_inscription_must_be_the_chains_tip_and_a_lez_block
+caught      compose: only the tip's id compared: tests::compose_tests::the_inscription_must_be_the_chains_tip_and_a_lez_block
+caught      compose: the anchor journal's tag not checked: tests::compose_tests::the_anchor_journal_binds_the_chain_tip_to_its_inscription
+caught      compose: the depth committed as the minimum: tests::compose_tests::the_release_journal_is_lez_chains_then_the_bedrock_tail
+caught      compose: the release tail names the inscription block for the top: tests::compose_tests::the_release_journal_is_lez_chains_then_the_bedrock_tail
+30 caught, 0 missed

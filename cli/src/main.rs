@@ -47,6 +47,7 @@ use wrap_bridge::{burns_account, config_account, definition_account, entry_accou
 use wrap_core::H256;
 use wrap_executor_tests as et;
 
+mod bedrock;
 mod chain;
 mod zk;
 
@@ -208,6 +209,12 @@ enum Cmd {
         chain: Option<PathBuf>,
         #[arg(long, env = "WRAP_RELEASE_GUEST", default_value = "artifacts/zk/burn_release.bin")]
         release_guest: PathBuf,
+        /// With `--chain`: prove against an anchor-prove record of that chain
+        /// (its receipt resolved inside), with `zk/bedrock_release`.
+        #[arg(long, requires = "chain")]
+        bedrock: Option<PathBuf>,
+        #[arg(long, env = "WRAP_BEDROCK_RELEASE_GUEST", default_value = "artifacts/zk/bedrock_release.bin")]
+        bedrock_release_guest: PathBuf,
         /// The vault the release is for, if not the run's (another vault of the same pairing).
         #[arg(long, requires = "zk")]
         vault: Option<String>,
@@ -221,10 +228,30 @@ enum Cmd {
         #[arg(long, env = "WRAP_ZK_GUEST", default_value = "artifacts/zk/burn_membership.bin")]
         guest: PathBuf,
         /// Prove against a chain-prove record's tree instead, with `zk/burn_release`.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "bedrock")]
         chain: Option<PathBuf>,
         #[arg(long, env = "WRAP_RELEASE_GUEST", default_value = "artifacts/zk/burn_release.bin")]
         release_guest: PathBuf,
+        /// Prove against an anchor-prove record's tree instead, with `zk/bedrock_release`.
+        #[arg(long)]
+        bedrock: Option<PathBuf>,
+        #[arg(long, env = "WRAP_BEDROCK_RELEASE_GUEST", default_value = "artifacts/zk/bedrock_release.bin")]
+        bedrock_release_guest: PathBuf,
+    },
+    /// Prove the Bedrock anchor guest (`zk/bedrock_anchor`): the tip of a
+    /// chain-prove record (its receipt verified inside) is the LEZ block a
+    /// Bedrock block inscribes, with the headers above it (`--block`, a
+    /// `bedrock-tools anchor` record). Writes the record to `--out` and the
+    /// succinct receipt next to it. Needs no sequencer.
+    AnchorProve {
+        #[arg(long)]
+        chain: PathBuf,
+        #[arg(long)]
+        block: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, env = "WRAP_ANCHOR_GUEST", default_value = "artifacts/zk/bedrock_anchor.bin")]
+        guest: PathBuf,
     },
     /// Prove the LEZ chain guest (`zk/lez_chain`) over the sequencer's blocks:
     /// from the block after `--anchor` (the vault's pinned starting block), or
@@ -672,7 +699,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let rpc = SequencerClientBuilder::default().build(&cli.rpc).with_context(|| format!("not a sequencer URL: {}", cli.rpc))?;
     let ctx = Ctx { rpc, run: cli.run, artifacts: cli.artifacts, payer: cli.payer, force: cli.force, wait: cli.wait, label: cli.label };
-    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. } | Cmd::ZkProve { .. } | Cmd::ChainProve { .. } | Cmd::ChainLayout { .. } | Cmd::ChainParams { .. } | Cmd::ChainForge { .. });
+    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. } | Cmd::ZkProve { .. } | Cmd::ChainProve { .. } | Cmd::ChainLayout { .. } | Cmd::ChainParams { .. } | Cmd::ChainForge { .. } | Cmd::AnchorProve { .. });
     let mut wallet = if opens_wallet {
         Some(WalletCore::from_env().await.context("this command needs a v0.3 wallet home (LEE_WALLET_HOME_DIR)")?)
     } else {
@@ -689,7 +716,7 @@ async fn main() -> Result<()> {
             if let Ok(b) = std::fs::read(&g) {
                 out.insert("burn_membership".into(), json!({"image_id": hex::encode(zk::image_id(&b)?), "bytes": b.len(), "sha256": hex::encode(Sha256::digest(&b))}));
             }
-            for (k, var) in [("lez_chain", "WRAP_CHAIN_GUEST"), ("burn_release", "WRAP_RELEASE_GUEST")] {
+            for (k, var) in [("lez_chain", "WRAP_CHAIN_GUEST"), ("burn_release", "WRAP_RELEASE_GUEST"), ("bedrock_anchor", "WRAP_ANCHOR_GUEST"), ("bedrock_release", "WRAP_BEDROCK_RELEASE_GUEST")] {
                 let g = PathBuf::from(std::env::var(var).unwrap_or_else(|_| format!("artifacts/zk/{k}.bin")));
                 if let Ok(b) = std::fs::read(&g) {
                     out.insert(k.into(), json!({"image_id": hex::encode(zk::image_id(&b)?), "bytes": b.len(), "sha256": hex::encode(Sha256::digest(&b))}));
@@ -1089,11 +1116,18 @@ async fn main() -> Result<()> {
                 println!("{line}");
             }
         }
-        Cmd::ZkProve { input, guest, chain: chain_rec, release_guest } => {
+        Cmd::ZkProve { input, guest, chain: chain_rec, release_guest, bedrock: bedrock_rec, bedrock_release_guest } => {
             let i = zk::input_from_json(&read_json(&input)?)?;
-            let mut out = match &chain_rec {
-                None => zk::prove(&std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?, &i)?,
-                Some(cp) => {
+            let mut out = match (&chain_rec, &bedrock_rec) {
+                (_, Some(bp)) => {
+                    let rec = read_json(bp)?;
+                    let journal = hex::decode(rec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
+                    let receipt = chain::load_receipt(&chain::receipt_path(bp))?;
+                    let elf = std::fs::read(&bedrock_release_guest).with_context(|| format!("reading {}", bedrock_release_guest.display()))?;
+                    bedrock::prove_release(&elf, &i, &journal, receipt)?
+                }
+                (None, None) => zk::prove(&std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?, &i)?,
+                (Some(cp), None) => {
                     let rec = read_json(cp)?;
                     let journal = hex::decode(rec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
                     let receipt = chain::load_receipt(&chain::receipt_path(cp))?;
@@ -1104,7 +1138,7 @@ async fn main() -> Result<()> {
             out["op"] = "zk-prove".into();
             println!("{out}");
         }
-        Cmd::ReleaseProof { owner, zk, relayer, guest, chain: chain_rec, release_guest, vault: vault_override } => {
+        Cmd::ReleaseProof { owner, zk, relayer, guest, chain: chain_rec, release_guest, bedrock: bedrock_rec, bedrock_release_guest, vault: vault_override } => {
             let p = ctx.programs()?;
             let a = ctx.accounts()?;
             let an = ctx.anvil();
@@ -1155,9 +1189,25 @@ async fn main() -> Result<()> {
                     ensure!(wrap_core::root_from_path(&leaf, j as u64, &dpath) == Some(droot), "the chain record's leaves do not rebuild its root");
                     let input = wrap_core::zk::ZkReleaseInput { index: j as u64, path: dpath.clone(), ..input };
                     let journal = hex::decode(rec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
-                    let receipt = chain::load_receipt(&chain::receipt_path(cp))?;
-                    let elf = std::fs::read(&release_guest).with_context(|| format!("reading {}", release_guest.display()))?;
-                    let z = chain::prove_release(&elf, &input, &journal, receipt)?;
+                    let z = match &bedrock_rec {
+                        None => {
+                            let receipt = chain::load_receipt(&chain::receipt_path(cp))?;
+                            let elf = std::fs::read(&release_guest).with_context(|| format!("reading {}", release_guest.display()))?;
+                            chain::prove_release(&elf, &input, &journal, receipt)?
+                        }
+                        Some(bp) => {
+                            // The anchor record must carry this very chain journal.
+                            let brec = read_json(bp)?;
+                            let aj = hex::decode(brec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
+                            let (_, cj) = lez_bedrock::compose::parse_anchor_journal(&aj).ok_or_else(|| anyhow!("{} is not an anchor record", bp.display()))?;
+                            ensure!(cj == &journal[..], "the anchor record is of another chain proof than {}", cp.display());
+                            let receipt = chain::load_receipt(&chain::receipt_path(bp))?;
+                            let elf = std::fs::read(&bedrock_release_guest).with_context(|| format!("reading {}", bedrock_release_guest.display()))?;
+                            let z = bedrock::prove_release(&elf, &input, &aj, receipt)?;
+                            out["bedrock"] = json!({"bedrock_block": brec["bedrock_block"], "top": brec["top"], "channel_id": brec["channel_id"], "signer": brec["signer"]});
+                            z
+                        }
+                    };
                     ensure!(z["fields"]["root"] == rec["root"], "the guest proved another root than the chain record's");
                     out["chain_derived"] = json!({"index": j, "root": rec["root"], "leaves": derived.len(), "tip": rec["tip"], "anchor": rec["anchor"],
                                                   "nullifier": format!("0x{}", hex::encode(wrap_core::burn_nullifier(&pair, &secret, j as u64)))});
@@ -1235,6 +1285,19 @@ async fn main() -> Result<()> {
             chain::save_receipt(&chain::receipt_path(&out), &receipt)?;
             rec["journal"] = Value::Null;
             println!("{rec}");
+        }
+        Cmd::AnchorProve { chain: cp, block, out, guest } => {
+            let rec = read_json(&cp)?;
+            let chain_journal = hex::decode(rec["journal"].as_str().unwrap_or("").trim_start_matches("0x"))?;
+            let chain_receipt = chain::load_receipt(&chain::receipt_path(&cp))?;
+            let (channel_id, signer, b) = bedrock::anchor_block(&read_json(&block)?)?;
+            let elf = std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?;
+            let input = lez_bedrock::compose::AnchorInput { self_image_id: zk::image_id(&elf)?, channel_id, signer, chain_journal, block: b };
+            let (receipt, mut r) = bedrock::prove_anchor(&elf, &input, chain_receipt)?;
+            r["chain"] = json!(cp);
+            std::fs::write(&out, serde_json::to_string_pretty(&r)?)?;
+            chain::save_receipt(&chain::receipt_path(&out), &receipt)?;
+            println!("{r}");
         }
         Cmd::ChainParams { at } => {
             let p = ctx.programs()?;

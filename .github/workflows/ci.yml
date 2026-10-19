@@ -26,6 +26,11 @@ jobs:
       - run: cargo test --release --manifest-path core/Cargo.toml --features zk
       # The chain-derived release's statement (chain/: LEZ blocks, the burn tree, both journals).
       - run: cargo test --release --manifest-path chain/Cargo.toml --features release
+      # The Bedrock anchor's statement (bedrock/: headers, body root, Merkle path, the inscription
+      # and its signature, the header chain, on a real public-testnet anchor in vectors/bedrock),
+      # and each of its checks removed in turn.
+      - run: cargo test --release --manifest-path bedrock/Cargo.toml --features release
+      - run: scripts/mutation-test-bedrock.sh
   executor:
     name: The committed binaries through lee::V03State
     runs-on: ubuntu-latest
@@ -96,6 +101,13 @@ jobs:
           scripts/build-chain-guests.sh
           cmp /tmp/committed-chain.bin artifacts/zk/lez_chain.bin
           cmp /tmp/committed-release.bin artifacts/zk/burn_release.bin
+      # The Bedrock-anchored release's two guests, pinned in ZkBedrockBurnVerifier.
+      - run: |
+          cp artifacts/zk/bedrock_anchor.bin /tmp/committed-anchor.bin
+          cp artifacts/zk/bedrock_release.bin /tmp/committed-bedrock-release.bin
+          scripts/build-bedrock-guests.sh
+          cmp /tmp/committed-anchor.bin artifacts/zk/bedrock_anchor.bin
+          cmp /tmp/committed-bedrock-release.bin artifacts/zk/bedrock_release.bin
   mutation:
     name: Each guard of wrap_bridge, removed, fails the tests
     runs-on: ubuntu-latest
