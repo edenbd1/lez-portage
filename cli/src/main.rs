@@ -47,6 +47,8 @@ use wrap_bridge::{burns_account, config_account, definition_account, entry_accou
 use wrap_core::H256;
 use wrap_executor_tests as et;
 
+mod zk;
+
 const LOCAL_RPC: &str = "http://127.0.0.1:3051";
 /// `MAX_GAS_EXEC`: the most execution gas one transaction may declare.
 const GAS_CAP: u64 = 10_000_000;
@@ -182,9 +184,32 @@ enum Cmd {
     /// The opening a release needs for `owner`'s burn (run/burns.json): its
     /// leaf, index and path in the burn tree, which must lead to the root the
     /// chain's burn tree holds now, and its nullifier.
+    ///
+    /// With `--zk`, also the zero-knowledge release proof: the guest
+    /// `zk/burn_membership` proves the opening in RISC Zero (the vault's
+    /// address and chain, the pairing and `--relayer` are its public context),
+    /// and its receipt is compressed to Groth16 for `ZkBurnVerifier`. The
+    /// opening then stays here: the release carries the journal and the seal.
     ReleaseProof {
         #[arg(value_enum)]
         owner: Who,
+        #[arg(long)]
+        zk: bool,
+        /// The address that will submit the release (and earn its fee): the journal binds it.
+        #[arg(long, required_if_eq("zk", "true"))]
+        relayer: Option<String>,
+        /// The committed guest.
+        #[arg(long, env = "WRAP_ZK_GUEST", default_value = "artifacts/zk/burn_membership.bin")]
+        guest: PathBuf,
+    },
+    /// Prove a `ZkReleaseInput` (JSON: chain_id, vault, pairing, relayer, token,
+    /// amount, recipient, fee, secret, index, path) with the zero-knowledge
+    /// release guest, to Groth16; print the journal, the seal and the timings.
+    /// Needs no sequencer: the Foundry fixture is made with it.
+    ZkProve {
+        input: PathBuf,
+        #[arg(long, env = "WRAP_ZK_GUEST", default_value = "artifacts/zk/burn_membership.bin")]
+        guest: PathBuf,
     },
     /// Sync the wallet and decrypt carol's private account.
     ShowPrivate,
@@ -581,7 +606,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let rpc = SequencerClientBuilder::default().build(&cli.rpc).with_context(|| format!("not a sequencer URL: {}", cli.rpc))?;
     let ctx = Ctx { rpc, run: cli.run, artifacts: cli.artifacts, payer: cli.payer, force: cli.force, wait: cli.wait, label: cli.label };
-    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. });
+    let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. } | Cmd::ZkProve { .. });
     let mut wallet = if opens_wallet {
         Some(WalletCore::from_env().await.context("this command needs a v0.3 wallet home (LEE_WALLET_HOME_DIR)")?)
     } else {
@@ -593,6 +618,10 @@ async fn main() -> Result<()> {
             for n in ["sextant_lc", "token", "associated_token_account", "wrap_bridge"] {
                 let b = ctx.bin(n)?;
                 out.insert(n.into(), json!({"image_id": image_hex(&b)?, "bytes": b.len(), "sha256": hex::encode(Sha256::digest(&b))}));
+            }
+            let g = PathBuf::from(std::env::var("WRAP_ZK_GUEST").unwrap_or_else(|_| "artifacts/zk/burn_membership.bin".into()));
+            if let Ok(b) = std::fs::read(&g) {
+                out.insert("burn_membership".into(), json!({"image_id": hex::encode(zk::image_id(&b)?), "bytes": b.len(), "sha256": hex::encode(Sha256::digest(&b))}));
             }
             println!("{}", Value::Object(out));
         }
@@ -988,7 +1017,14 @@ async fn main() -> Result<()> {
                 println!("{line}");
             }
         }
-        Cmd::ReleaseProof { owner } => {
+        Cmd::ZkProve { input, guest } => {
+            let elf = std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?;
+            let i = zk::input_from_json(&read_json(&input)?)?;
+            let mut out = zk::prove(&elf, &i)?;
+            out["op"] = "zk-prove".into();
+            println!("{out}");
+        }
+        Cmd::ReleaseProof { owner, zk, relayer, guest } => {
             let p = ctx.programs()?;
             let a = ctx.accounts()?;
             let an = ctx.anvil();
@@ -1005,14 +1041,31 @@ async fn main() -> Result<()> {
             let pair = wrap_bridge::pairing(&p.br, &cfg);
             let path = wrap_core::path(&leaves, i);
             ensure!(wrap_core::root_from_path(&leaves[i], i as u64, &path) == Some(chain.root));
-            println!(
-                "{}",
-                json!({"op": "release-proof", "owner": me, "token": b["token"], "amount": b["amount"], "recipient": b["recipient"], "fee": b["fee"],
+            let mut out = json!({"op": "release-proof", "owner": me, "token": b["token"], "amount": b["amount"], "recipient": b["recipient"], "fee": b["fee"],
                        "secret": b["secret"], "index": i, "leaf": b["leaf"], "path": path.iter().map(|x| format!("0x{}", hex::encode(x))).collect::<Vec<_>>(),
                        "root": format!("0x{}", hex::encode(chain.root)), "nullifier": format!("0x{}", hex::encode(wrap_core::burn_nullifier(&pair, &secret, i as u64))),
                        "burn_tx": b["tx"], "burn_block": b["block"], "private": b["private"],
-                       "burns_account": burns_account(&p.br, &config_account(&p.br, &cfg)).to_string(), "bridge_program": p.br.to_string()})
-            );
+                       "burns_account": burns_account(&p.br, &config_account(&p.br, &cfg)).to_string(), "bridge_program": p.br.to_string()});
+            if zk {
+                let relayer = relayer.as_deref().ok_or_else(|| anyhow!("--zk needs --relayer"))?;
+                let a20 = |v: &Value| -> Result<[u8; 20]> {
+                    let s = v.as_str().ok_or_else(|| anyhow!("not an address: {v}"))?;
+                    hex::decode(s.trim_start_matches("0x"))?.try_into().map_err(|_| anyhow!("not 20 bytes: {s}"))
+                };
+                let num = |v: &Value| -> Result<u128> { v.as_str().ok_or_else(|| anyhow!("not a decimal: {v}"))?.parse().map_err(|e| anyhow!("{e}")) };
+                let input = wrap_core::zk::ZkReleaseInput {
+                    chain_id: et::ANVIL_CHAIN_ID, vault: an.vault, pairing: pair, relayer: a20(&json!(relayer))?,
+                    token: a20(&b["token"])?, amount: num(&b["amount"])?, recipient: a20(&b["recipient"])?, fee: num(&b["fee"])?,
+                    secret, index: i as u64, path: path.clone(),
+                };
+                let elf = std::fs::read(&guest).with_context(|| format!("reading {}", guest.display()))?;
+                let z = zk::prove(&elf, &input)?;
+                ensure!(z["fields"]["root"] == out["root"] && z["fields"]["nullifier"] == out["nullifier"],
+                        "the guest proved another root or nullifier than the chain's");
+                out["relayer"] = relayer.into();
+                out["zk"] = z;
+            }
+            println!("{out}");
         }
         Cmd::ShowPrivate => {
             let p = ctx.programs()?;

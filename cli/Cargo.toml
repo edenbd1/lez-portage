@@ -22,7 +22,7 @@ path = "src/main.rs"
 
 [dependencies]
 wrap-bridge = { path = "../programs/wrap_bridge" }
-wrap-core = { path = "../core" }
+wrap-core = { path = "../core", features = ["zk"] }
 wrap-executor-tests = { path = "../executor-tests" }
 sextant-program = { git = "https://github.com/edenbd1/lez-sextant", rev = "81532728a94be3faedb05229b118a6df7527d974" }
 sextant-core = { git = "https://github.com/edenbd1/lez-sextant", rev = "81532728a94be3faedb05229b118a6df7527d974", default-features = false }
@@ -33,6 +33,8 @@ common     = { git = "https://github.com/logos-blockchain/logos-execution-zone.g
 program_loader_core = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", rev = "db66590ab821a4e142c211017a3866d007f6fa77" }
 sequencer_service_rpc = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", rev = "db66590ab821a4e142c211017a3866d007f6fa77", features = ["client"] }
 risc0-binfmt = "3.0"
+# The zero-knowledge release proof (src/zk.rs), through r0vm.
+risc0-zkvm = { version = "=3.0.5", features = ["client"] }
 tokio  = { version = "1", features = ["macros", "rt-multi-thread"] }
 clap   = { version = "4.5", features = ["derive", "env"] }
 anyhow = "1"
