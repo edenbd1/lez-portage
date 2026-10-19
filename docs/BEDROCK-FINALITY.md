@@ -5,7 +5,10 @@ burn tree (docs/OUTBOUND.md, section 3). The root of that tree came from a
 2-of-3 committee. This document asks what would have to replace the
 committee: a proof that the root belongs to final LEZ state, which means a
 proof about Bedrock, LEZ's base layer and its consensus (Cryptarchia). It
-then ranks the options and states what was built (section 6).
+then ranks the options and states what was built: the chain-derived release
+(section 6) and, on top of it, the Bedrock anchor (section 8), which moves
+the committee from "this LEZ block is final" to "this Bedrock header is
+canonical".
 
 Everything below was read from source, at the revisions LEZ v0.3.1 builds
 against:
@@ -291,7 +294,7 @@ only vouch for a block hash.
 Ranking for this RFP:
 
 1. (b) as built, the committee over block hashes.
-2. Bedrock inclusion added to (b).
+2. Bedrock inclusion added to (b): built, section 8.
 3. Equivocation slashing and a challenge window, as (c).
 4. (a), the end state, if Logos ships a checkpoint format or a ledger
    commitment that makes the note roots provable.
@@ -475,3 +478,228 @@ That is 3,700 gas more than the same release through `ZkBurnVerifier`
   vault is deployed, and predicts the vault's address before deploying the
   verifier.
 - **Groth16.** It was measured under emulation only.
+
+## 8. What was built next: the Bedrock anchor (option b with inclusion)
+
+The committee of section 6 signs a LEZ block hash and says it is final. This
+step proves, inside the same Groth16 seal, where that block is on Bedrock,
+so the committee only has to say that one Bedrock header is canonical.
+
+### What the formats are (read from the node at `3926a532`, checked on real blocks)
+
+- **Header.** Its canonical encoding is 296 bytes: `slot` (u64 LE),
+  `parent_block`, `body_root`, then the leader proof's `proof` (128 bytes),
+  `entropy`, `leader_key`, `voucher_cm`. Its id hashes the same fields in
+  another order: `blake2b256("BLOCK_ID_V1" ‖ parent ‖ slot ‖ body_root ‖
+  voucher_cm ‖ entropy ‖ proof ‖ leader_key)` (`Header::update_hasher`).
+- **Body.** `body_root = blake2b256("BODY_ROOT_V1" ‖ canonical(uncles) ‖
+  tx_root)`. The uncle list is a one-byte count and at most 4 signed headers
+  (`MAX_UNCLES = 4`). `tx_root` is a binary Blake2b tree of transaction
+  hashes, padded with zero leaves to a power of two, with no domain tag on
+  nodes (`utils/merkle.rs`). A block holds at most 1,024 transactions, so a
+  path has at most 10 nodes.
+- **Transaction.** `tx_hash = blake2b256("MANTLE_TXHASH_V1" ‖ canonical(ops))`,
+  `canonical(ops)` being a one-byte count, then `opcode ‖ payload` for each
+  operation. Proofs are encoded after the operations and are not hashed.
+- **Inscription.** LEZ's sequencer publishes a block as a transaction whose
+  first operation is `ChannelInscribe` (`0x11`): `channel_id ‖ u32 LE length
+  ‖ borsh(Block) ‖ parent MsgId ‖ signer`, followed by the fee transfer the
+  node's wallet appends (`PublishBlock`). The signer's Ed25519 signature
+  over the transaction hash is that operation's proof; Bedrock checks it
+  with `verify_strict` after refusing a weak key (`preverify`).
+- **API.** `GET /cryptarchia/blocks/:id` returns the block as JSON without
+  the leader's block signature (`ApiBlock`, "the server omits the signature
+  field").
+
+### What was built
+
+- **`bedrock/` (crate `lez-bedrock`, `no_std` + `alloc`).** Plain functions:
+  `Header` (parse, id), `body_root`, `tx_hash`, `merkle_root` (index bounded
+  by the path, path at most 10), `check_uncles`, `first_inscription` (strict
+  for the first operation; the later ones are covered by the hash and not
+  read), `verify_signature` (ed25519-dalek `verify_strict`, weak key refused),
+  and `anchor`: the header's id, the uncles, the transaction's hash and path
+  to the header's body root, the inscription's channel and signer against the
+  pinned ones, the signature, and the descendant headers (each the parent of
+  the next, at a later slot), returning the top header and the depth. The
+  `chain` feature composes it with `lez-chain`: the inscription must be a
+  strict `borsh(Block)` of LEZ v0.3.1 whose hash is its contents' and which is
+  the chain journal's tip (id and hash).
+- **`bedrock/tools` (`bedrock-tools`).** Host-only. It decodes API blocks with
+  the node's own types (logos-blockchain-core at `3926a532`, Cargo.lock taken
+  from LEZ v0.3.1) and checks lez-bedrock against them on every block it
+  reads: header id, body root, every transaction hash, every inscription and
+  its signature verdict, every Merkle path. `anchor` builds the guest's input
+  for one LEZ block; `forge` makes up a Bedrock block around a LEZ block,
+  signed by a given key, for the refusal tests.
+- **`zk/bedrock_anchor`** (ImageID `cebe7a27…`, 431,932 bytes). It verifies a
+  `zk/lez_chain` receipt inside (an assumption) and proves the composition
+  above. Its journal is 9 words (its own image id, channel, signer, the
+  inscription's Bedrock block id and slot, the top header id and slot, the
+  depth), then the chain journal.
+- **`zk/bedrock_release`** (ImageID `a73cc984…`, 335,088 bytes). It verifies
+  an anchor receipt inside and proves the burn under the chain journal it
+  carries. Its journal is the 352-byte release preimage, lez-chain's 7 words,
+  then 7 Bedrock words (anchor image id, channel, signer, inscription block,
+  top header, top slot, depth): 800 bytes. Ethereum checks one Groth16 seal
+  for the three guests. Both guests are built in RISC Zero's pinned builder
+  (r0.1.91.1) with RISC Zero's accelerated SHA-256 and curve25519
+  (`curve25519-4.1.3-risczero.0`, with `crypto-bigint v0.5.5-risczero.0`);
+  rebuilt from scratch, identical. Blake2b has no accelerator.
+- **`ZkBedrockBurnVerifier` + `BedrockHeaderCommittee`.** The verifier checks
+  the preimage against the vault's digest; the chain words against the pinned
+  chain guest, program, burn-tree account and LEZ anchor; the Bedrock words
+  against the pinned anchor guest, channel and sequencer key; `depth >=
+  MIN_DEPTH`; the seal; then that 2 of 3 members signed (EIP-191)
+  `keccak256("rfp022/bedrock-header/v1", chainid, vault, pairing,
+  topHeaderId)`. A member signs only if the header is on its own node's
+  canonical chain (the e2e's members walk back from their node's tip to the
+  header's slot).
+
+`MIN_DEPTH` is Bedrock's security parameter k: 5 on LEZ's devnet
+configuration used here, 30 on the deployment the node compiles in. If the
+top header is canonical, the inscription's block is k blocks under a
+canonical block, so it is at or below the LIB of any node that has that
+block as its tip or below it, and Bedrock refuses forks deeper than k.
+
+### What it proves, and what is still trusted
+
+Proven, inside one seal (RISC Zero, Groth16 with RISC Zero's setup, SHA-256,
+Blake2b-256, Ed25519):
+
+- the burn tree is the private burns of the LEZ blocks from the pinned
+  anchor to a tip (section 6);
+- that tip, byte for byte, is the inscription opening a Mantle transaction on
+  the pinned channel, signed by the pinned sequencer key over the
+  transaction's hash;
+- that transaction is in the Bedrock block whose header commits to it
+  (Merkle path, body root, header id);
+- `depth` headers are built on that block, each the parent of the next, the
+  last being the top header the release names.
+
+Still trusted, stated plainly:
+
+1. **The top header is canonical.** The committee says so. A header chain can
+   be made up: nothing here checks a proof of leadership, which needs the
+   note-set roots no header commits to (section 3). The run shows it: a made-up
+   Bedrock block, signed by the real sequencer key, is proven like a real one
+   and refused only because the members' node does not have its top header.
+2. **The leader signatures and the accredited key.** The block's leader
+   signature is not in the API's block, and whether the pinned key was the
+   channel's accredited key at that slot is channel state. Bedrock checks
+   both; the proof does not. With one sequencer the channel's single
+   accredited key is the pinned one (the e2e reads it from `/channel`); a
+   rotation of the sequencer key needs a new verifier.
+3. **The LEZ blocks' validity** (section 6): an invalid block can be
+   inscribed and become final.
+4. **One block per height.** The channel is a linear chain of messages, but
+   nothing here proves that the inscribed block is the first LEZ block at its
+   height on the channel: a sequencer could inscribe two. Proving the channel
+   lineage (the `parent` MsgIds from the anchor's inscription) needs every
+   Bedrock block in between.
+
+What the committee can still do is narrower than in section 6: it can no
+longer name a LEZ block, a root or a depth. Forging a release for a burn
+that never happened needs the committee threshold **and** the sequencer's
+key (or the sequencer alone inscribing a block LEZ would refuse). The
+committee's claim, "header X is canonical", is checkable by anyone with a
+Bedrock node in one request. F.7 is still not met as the RFP words it.
+
+### Measured
+
+**The guests in RISC Zero's executor** (`cli/tests/bedrock_guests.rs`, the
+committed binaries):
+
+| input | user cycles |
+|---|---:|
+| `bedrock_anchor`, a real public-testnet anchor (LEZ testnet block 36401 on channel `0101…01`, Bedrock block `5c6d484f…` slot 852,908, tx 5 of 29, path 5, ops 891 bytes) with 30 headers above it | 1,803,715 |
+| the same, 0 headers above | 1,074,135 |
+| per header (Blake2b-256 over 296 bytes, a parent check) | 24,319 |
+| `bedrock_release` | 347,157 |
+
+So k = 30 costs about 0.73M cycles of headers on top of about 1.07M for the
+inscription (its transaction hash, path, body root, the LEZ block's hash
+and scan, and the Ed25519 check). The vector was fetched read-only from a
+node following the public testnet (`vectors/bedrock/testnet-lez-36401.json`).
+
+**The local run of 2026-10-19** (`evidence/local-bedrock/`): a separate
+single-node Bedrock devnet (LEZ v0.3.1's devnet configuration: one validator,
+k = 5, f = 1/2, 1 s slots, proofs of leadership in dev mode, run by the
+`logos-blockchain-node` 0.3.1 release binary on its own ports and directory,
+`scripts/bedrock-devnet.sh`), a LEZ v0.3.1 sequencer built without
+`standalone` and inscribing every block on channel `0202…02`, and anvil.
+
+- `e2e-local.sh` with `BEDROCK_NODE`: PASS, 14 LEZ transactions (9 applied, 5
+  refused), 11 zk releases (2 applied, 9 refused), verifier 32 of 32
+  mutations caught. `e2e-chain.sh` on it: PASS, 12 releases (1 applied).
+- `e2e-bedrock.sh` on it (`e2e-bedrock.tsv`): PASS, 15 releases through
+  `ZkBedrockBurnVerifier` (1 applied, 14 refused as expected), 22 checks. It
+  read 2,579 Bedrock blocks back from the devnet's tip to the one that
+  inscribes the chain proof's tip (LEZ block 259, Bedrock block `8cda9b82…`,
+  slot 6,922,429) and checked all of them against the node's types (533 LEZ
+  blocks inscribed, ids 259 to 791). The members (anvil accounts 5, 6, 7)
+  each found the top header on the devnet node's canonical chain before
+  signing it, and did not find the made-up one.
+
+| proof | user cycles | total, segments | STARK | Groth16 (emulated) | host peak |
+|---|---:|---:|---:|---:|---:|
+| anchor, depth 5 (the block's only transaction: path 0; ops 891 B) | 1,139,511 | 1,310,720, 2 | 111 s | | 5.9 GB |
+| anchor, depth 4 | 1,115,203 | 1,310,720, 2 | 121 s | | 5.8 GB |
+| anchor over a made-up block, depth 5 | 1,119,770 | 1,310,720, 2 | 123 s | | 6.8 GB |
+| release (carol), three guests in one seal | 347,157 | 524,288 | 52 s | 62 s | 5.3 GB, container 7.5 GiB |
+
+Load averages on the machine ranged from 4 to 90 from other work during the
+run. The chain proofs under it (e2e-chain.sh): blocks 28-143 and 144-259,
+1.05M user cycles each, 122 s and 139 s.
+
+Gas on anvil (gas used, with the 21,000 base and calldata):
+
+| release (ZkBedrockBurnVerifier) | expected | gas used |
+|---|---|---:|
+| `release-carol-outsiders` (two outsiders sign the real top) | `HeaderNotAttested` | 304,337 |
+| `release-carol-one-member` | `HeaderNotAttested` | 296,763 |
+| `release-carol-redirected-to-relayer`, `-another-amount`, `-front-run` | `NotThisRelease` | 63,635 |
+| `release-carol-tampered-journal` | `VerificationFailed` | 292,085 |
+| `release-carol-another-anchor` | `NotThisChain` | 63,467 |
+| `release-carol-another-channel` | `NotThisChannel` | 63,562 |
+| `release-carol-chain-proof-only` (a `ZkChainBurnVerifier` proof) | `NotThisRelease` | 60,294 |
+| `release-carol-too-shallow` (a real proof, 4 deep) | `NotDeepEnough` | 64,022 |
+| `release-forged-bedrock-committee` (a real proof over a made-up Bedrock block signed by the sequencer's key; the members do not find its top and sign their tip) | `HeaderNotAttested` | 304,181 |
+| `release-forged-bedrock-outsiders` (the same, its top signed by outsiders) | `HeaderNotAttested` | 304,165 |
+| `release-forged-bedrock-other-key` (made up and signed by another key) | `NotThisChannel` | 63,825 |
+| `release-carol` (by the relayer, fee 0.01 ETH; calldata 1,924 B, no leaf, secret or commitment in it) | applied | **349,997** |
+| `release-carol-replay` | `AlreadyReleased` | 56,000 |
+
+That is 2,747 gas more than through `ZkChainBurnVerifier` (347,250): the
+longer journal and the four more pinned words.
+
+**Tests.**
+
+- `bedrock/`: 14 unit tests (the real testnet anchor and every check of it,
+  synthetic blocks for uncles, slots, keys, the length cap, a signature only
+  cofactorless `verify` accepts, the composition with lez-chain).
+  `scripts/mutation-test-bedrock.sh`: 30 of 30 caught. The weak-key check
+  before `verify_strict` is redundant with it, as in Bedrock's own
+  `preverify`; it is mutated together with the strict check.
+- `bedrock-tools check`: 150 public-testnet blocks at the LIB (1,135
+  transactions, 16 uncle headers, 50 inscriptions) and 120 at the tip (1,434
+  transactions, 13 uncles, 430 inscriptions, 390 of them LEZ v0.3.1 blocks of
+  the testnet's channel `0101…01`, ids 36400 to 36789), and every devnet
+  block of the run: header ids, body roots, transaction hashes,
+  inscriptions and signature verdicts identical to the node's.
+- `cli/tests/bedrock_guests.rs`: 3 executor tests (journals equal the
+  library's; each of 8 tamperings and a missing assumption make the guest
+  panic).
+- `vault/test/ZkBedrockBurnVerifier.t.sol`: 19 Foundry tests on the run's
+  real seal; `scripts/mutation-test-vault.sh` now 66 mutations.
+
+**Caveats.** Proofs of leadership are in dev mode on the devnet, which does
+not matter to this proof (it checks none), but means the devnet is not a
+Cryptarchia network in the security sense. The first two `e2e-bedrock.sh`
+attempts failed on script bugs, kept as `*-attempt1/2`: in the first, the
+"another anchor" refusal did not tamper the journal, so carol's real release
+was applied under that label and every later release met `AlreadyReleased`;
+in the second, the members' canonical check walked back at most 2,000 blocks
+and no longer reached the top header, so they signed their tip and carol's
+release was refused. Both were fixed (the tampering, and a walk bounded by
+the header's slot) before the final run.

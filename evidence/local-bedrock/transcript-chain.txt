@@ -1,0 +1,59 @@
+== 0. the anchor: LEZ block 27 (the bridge's Init is in 28; carol's private burn in 144)
+  {"block_hash":"0xd7869d3a6fad9d0ce81dacee9ba129eb4edb72815edf3660f5fa9d3b701b5a6e","block_id":27,"burns":"Bq6SdvCqFLN1TErnS3SPEbWn5GyEntFrewLMFkNyv9h6","burns_account":"0xa0e6e6c204daf2946467449226e461f9de6a8a589cb3481911ea5e5f04114fdd","op":"chain-params","pairing":"0xdd9af2cec5ca5dff099de4c115b6f49d0f9b9e93632369e2d56b377dae3fa219","program":"82fLSztmSFzJjT65dMkuc6eGZDwdvfKHchSqZLSVMuS7","program_id":"0x686ebc3439a345247613c2f59f1743bf67a0e41eb8b4e5cd2efbe8b289edff40"}
+== 1. Ethereum (anvil): a vault with ZkChainBurnVerifier, the same pairing
+  ok  the LEZ deployment's pairing is the vault's: 0xdd9af2cec5ca5dff099de4c115b6f49d0f9b9e93632369e2d56b377dae3fa219
+  vault 0x610178dA211FEF7D417bC0e6FeD39F05609AD788, verifier 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
+  ok  ZkChainBurnVerifier.CHAIN_IMAGE_ID: 0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22
+  ok  ZkChainBurnVerifier.IMAGE_ID: 0xfd3b52ce15d97b688f2c297afd466f6fde49a55f8f9925f956a68548f4799721
+  ok  ZkChainBurnVerifier.PROGRAM_ID: 0x686ebc3439a345247613c2f59f1743bf67a0e41eb8b4e5cd2efbe8b289edff40
+  ok  ZkChainBurnVerifier.BURNS_ACCOUNT: 0xa0e6e6c204daf2946467449226e461f9de6a8a589cb3481911ea5e5f04114fdd
+  ok  ZkChainBurnVerifier.ANCHOR_HASH: 0xd7869d3a6fad9d0ce81dacee9ba129eb4edb72815edf3660f5fa9d3b701b5a6e
+  ok  ZkChainBurnVerifier.ANCHOR_ID: 27
+  ok  the vault's verifier: 0x8a791620dd6260079bf849dc5567adc3f2fdc318
+== 2. LEZ: the chain guest over the sequencer's blocks, in two steps
+  {"anchor":{"hash":"0xd7869d3a6fad9d0ce81dacee9ba129eb4edb72815edf3660f5fa9d3b701b5a6e","id":27},"block_bytes":358895,"blocks":116,"dev_mode":false,"from":28,"image_id":"0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22","journal":null,"leaves":[],"next_index":0,"op":"chain-prove","params":{"burns":"Bq6SdvCqFLN1TErnS3SPEbWn5GyEntFrewLMFkNyv9h6","burns_account":"0xa0e6e6c204daf29464
+  {"anchor":{"hash":"0xd7869d3a6fad9d0ce81dacee9ba129eb4edb72815edf3660f5fa9d3b701b5a6e","id":27},"block_bytes":331182,"blocks":116,"dev_mode":false,"from":144,"image_id":"0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22","journal":null,"leaves":[{"block":144,"index":0,"leaf":"0x3eaf40c20706a2403096281a9fd07805eb0b6246038a9be6cac820e7914c2798","tx_index":0}],"next_index":1,"op":"ch
+{"blocks":232,"burn_leaves":1,"bytes":690077,"identical":true,"op":"chain-layout","private_txs":2,"public_txs":475}
+  ok  LEZ's Block and the guest's mirror decode, re-encode and hash every block identically: True
+  ok  the second step continues the first (its prior): True
+  ok  both chain proofs are real (RISC0 dev mode off): False False
+  ok  the chain tip the proof ends at is the sequencer's block 259: 0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e
+  ok  the chain-derived tree holds carol's private burn, from its block: 0x3eaf40c20706a2403096281a9fd07805eb0b6246038a9be6cac820e7914c2798@144
+  ok  alice's public burn is not in it: 0
+== 3. the release proofs
+  ok  the client refuses to prove alice's public burn against the chain-derived tree: 1 1
+  forged: {"block_hash":"0x53f376f22c6d0cf23e1fe92352ec5df3cbc1685112dae218b0c5b1569864cb19","block_id":28,"bytes":251,"op":"chain-forge"}
+  ok  both release proofs are real (RISC0 dev mode off): 2
+  ok  carol's proof names the chain verifier's chain guest: 0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22
+  ok  and the chain's tip: 259 0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e
+  ok  the forged proof is over the made-up block: 0x53f376f22c6d0cf23e1fe92352ec5df3cbc1685112dae218b0c5b1569864cb19
+== 4. the releases (ZkChainBurnVerifier)
+{"label": "release-carol-not-final", "expect": "NotFinal", "precheck": "NotFinal", "verdict": "reverted", "tx": "0xdbc0f99614f9496d0b22e518064f0857675ffa8f62886130952853c338ad9a61", "block": 32, "gas_used": 289349, "lez_block": 259, "lez_final_block": 259, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2
+  ok  release-carol-not-final: reverted (NotFinal), block 32, gas 289349
+{"label": "release-carol-redirected-to-relayer", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0xaf3c9ef26316ed15f2ceb62ba1d91edf45ded6aea20be44c51f52668a4fc5227", "block": 33, "gas_used": 60935, "lez_block": 259, "lez_final_block": 331, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea7
+  ok  release-carol-redirected-to-relayer: reverted (NotThisRelease), block 33, gas 60935
+{"label": "release-carol-another-amount", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0xaa3e93cdf5b761d337a722e0ddaf3af78584067f0e7797e0ebe88b6aa07a25c2", "block": 34, "gas_used": 60935, "lez_block": 259, "lez_final_block": 331, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea788e16b8
+  ok  release-carol-another-amount: reverted (NotThisRelease), block 34, gas 60935
+{"label": "release-carol-front-run", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0x663af721bd15dd341377e0324cc960fba7172f2dcd9d6ec0af15fed21ddbba5b", "block": 35, "gas_used": 60935, "lez_block": 259, "lez_final_block": 331, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea788e16b8e0162
+  ok  release-carol-front-run: reverted (NotThisRelease), block 35, gas 60935
+{"label": "release-carol-tampered-journal", "expect": "VerificationFailed", "precheck": "VerificationFailed", "verdict": "reverted", "tx": "0x7e2556270e761d71d264cc5e2dcef3381e18bc61a01d59a682eac0f4ae86d855", "block": 36, "gas_used": 289097, "lez_block": 259, "lez_final_block": 331, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c60
+  ok  release-carol-tampered-journal: reverted (VerificationFailed), block 36, gas 289097
+{"label": "release-carol-another-anchor", "expect": "NotThisChain", "precheck": "NotThisChain", "verdict": "reverted", "tx": "0x05adff8c2af34cd0d799e88c8b6c1e36583869af3a13039aff608a579f4ee539", "block": 37, "gas_used": 60767, "lez_block": 259, "lez_final_block": 331, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea788e16b8e016
+  ok  release-carol-another-anchor: reverted (NotThisChain), block 37, gas 60767
+{"label": "release-carol-membership-proof-only", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0x409d0b8d6f6844590ce47e88e4e9cc062a3cb127904d98ab86d63f7b05387a0f", "block": 38, "gas_used": 57559, "lez_block": 331, "lez_final_block": 334, "hash_seen": "0xdecc344849950e821c6beb8bd1fb86345e1873a7c9ba81ff9b2063831f59ca28", "hash_journal": null, "root": "0x76df
+  ok  release-carol-membership-proof-only: reverted (NotThisRelease), block 38, gas 57559
+{"label": "release-forged-chain-committee", "expect": "BlockNotAttested", "precheck": "BlockNotAttested", "verdict": "reverted", "tx": "0xbed7146d91362fd9851392cd661000a402725c78ddd411d8a930a2c561b54f6d", "block": 39, "gas_used": 301396, "lez_block": 28, "lez_final_block": 334, "hash_seen": "0x3c231d8869885bd9b7ccc621f6c85ed05808aea970b29d3260ffb2810c7d6a72", "hash_journal": "0x53f376f22c6d0cf23e1
+  ok  release-forged-chain-committee: reverted (BlockNotAttested), block 39, gas 301396
+{"label": "release-forged-chain-outsiders", "expect": "BlockNotAttested", "precheck": "BlockNotAttested", "verdict": "reverted", "tx": "0xc0d5e9f284b6be6536e26771824437652e052608caabb89c971ea746bdba0f6e", "block": 40, "gas_used": 301404, "lez_block": 28, "lez_final_block": 334, "hash_seen": "0x3c231d8869885bd9b7ccc621f6c85ed05808aea970b29d3260ffb2810c7d6a72", "hash_journal": "0x53f376f22c6d0cf23e1
+  ok  release-forged-chain-outsiders: reverted (BlockNotAttested), block 40, gas 301404
+{"label": "release-carol-one-member", "expect": "BlockNotAttested", "precheck": "BlockNotAttested", "verdict": "reverted", "tx": "0xa16c3a592c096e4cb088b9144725be60eef144e6cb50fb716e99dcfe3090a9b9", "block": 41, "gas_used": 294011, "lez_block": 259, "lez_final_block": 334, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea788e16b
+  ok  release-carol-one-member: reverted (BlockNotAttested), block 41, gas 294011
+{"label": "release-carol", "expect": "applied", "precheck": "applied", "verdict": "applied", "tx": "0xefc0919e8e2dfeae9316799c66b661fe705a89623c7ac5a657821dd5fe347708", "block": 42, "gas_used": 347250, "lez_block": 259, "lez_final_block": 334, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd4
+  ok  release-carol: applied (applied), block 42, gas 347250
+{"label": "release-carol-replay", "expect": "AlreadyReleased", "precheck": "AlreadyReleased", "verdict": "reverted", "tx": "0x84d1f759aba3a5f835228ab4237ee0f4cf0147a139dfe09ce3f77da8ba973ed9", "block": 43, "gas_used": 53300, "lez_block": 259, "lez_final_block": 335, "hash_seen": "0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e", "hash_journal": "0xe08cec9f288c609ea788e16b8e01625
+  ok  release-carol-replay: reverted (AlreadyReleased), block 43, gas 53300
+  ok  the chain vault paid out exactly carol's release (1 ETH): 1000000000000000000
+  ok  carol received 1 ETH less the 0.01 ETH fee her burn fixed: 990000000000000000
+  ok  the vault recorded the release's nullifier: true
+  ok  the release sent no leaf, secret, Ethereum commitment or path node: hidden
+== PASS: 12 chain-derived releases (1 applied, 11 refused as expected), 23 checks ok

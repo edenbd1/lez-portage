@@ -1,0 +1,38 @@
+# 2026-10-19T13:02:49Z wrap release-proof carol --zk --relayer 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.4.0 linux/aarch64 cpus=14 mem=12600381440; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 68dcd33 (uncommitted changes); guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 37.97 57.68 43.51
+       96.66 real       549.35 user         5.85 sys
+          2533310464  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              281153  page reclaims
+                2219  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  18  messages sent
+                  55  messages received
+                  84  signals received
+                 124  voluntary context switches
+             1065339  involuntary context switches
+           559728142  instructions retired
+           199913564  cycles elapsed
+             5964160  peak memory footprint
+# docker 13:03:48 reverent_kare 2.054GiB / 11.74GiB 479.76%
+# docker 13:03:51 reverent_kare 3.235GiB / 11.74GiB 219.97%
+# docker 13:03:54 reverent_kare 4.115GiB / 11.74GiB 212.19%
+# docker 13:03:57 reverent_kare 4.713GiB / 11.74GiB 182.70%
+# docker 13:04:00 reverent_kare 5.021GiB / 11.74GiB 100.97%
+# docker 13:04:04 reverent_kare 5.628GiB / 11.74GiB 632.70%
+# docker 13:04:07 reverent_kare 5.628GiB / 11.74GiB 655.17%
+# docker 13:04:10 reverent_kare 6.845GiB / 11.74GiB 1143.13%
+# docker 13:04:14 reverent_kare 7.125GiB / 11.74GiB 1177.88%
+# docker 13:04:17 reverent_kare 7.215GiB / 11.74GiB 998.83%
+# docker 13:04:21 reverent_kare 7.227GiB / 11.74GiB 1162.98%
+# docker 13:04:24 reverent_kare 7.136GiB / 11.74GiB 782.52%
+# exit 0; load after: load averages: 40.89 55.18 44.22
+# groth16 container peak memory (docker stats samples) 7.23 GiB

@@ -1,0 +1,36 @@
+# 2026-10-19T13:04:26Z wrap zk-prove $RUN/forged-input.json, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.4.0 linux/aarch64 cpus=14 mem=12600381440; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 68dcd33 (uncommitted changes); guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 40.89 55.18 44.22
+      102.43 real       649.07 user         8.41 sys
+          2537996288  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              430551  page reclaims
+                1986  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  17  messages sent
+                  54  messages received
+                  91  signals received
+                  54  voluntary context switches
+             1419645  involuntary context switches
+           542945859  instructions retired
+           187139519  cycles elapsed
+             5751192  peak memory footprint
+# docker 13:05:40 exciting_tesla 2.345GiB / 11.74GiB 375.54%
+# docker 13:05:43 exciting_tesla 3.927GiB / 11.74GiB 212.21%
+# docker 13:05:46 exciting_tesla 4.84GiB / 11.74GiB 100.10%
+# docker 13:05:49 exciting_tesla 5.067GiB / 11.74GiB 449.11%
+# docker 13:05:53 exciting_tesla 5.433GiB / 11.74GiB 887.30%
+# docker 13:05:56 exciting_tesla 6.593GiB / 11.74GiB 1201.72%
+# docker 13:05:59 exciting_tesla 6.952GiB / 11.74GiB 1086.58%
+# docker 13:06:03 exciting_tesla 7.047GiB / 11.74GiB 1192.51%
+# docker 13:06:06 exciting_tesla 7.097GiB / 11.74GiB 783.18%
+# docker 13:06:09 exciting_tesla 7.012GiB / 11.74GiB 731.05%
+# exit 0; load after: load averages: 39.46 52.02 44.27
+# groth16 container peak memory (docker stats samples) 7.10 GiB

@@ -1,0 +1,63 @@
+== 0. Bedrock: the channel, its key, the blocks down to the chain tip's inscription
+  channel 0202020202020202020202020202020202020202020202020202020202020202, accredited key ec90e291c907e32f967975add36f6a0b9d2522e69151d92b98147c313c7498e8; the chain proof ends at LEZ block 259 0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e
+  {"blocks": 1351, "top": "f40abefb1ad95aa1e3bac3e443857e244c95c43433fe80869792abda641aa701", "bottom": "8cda9b82827f2b75f683f6720235b216a723a204bc4d1580648f8a09e1496585", "tip": "f40abefb1ad95aa1e3bac3e443857e244c95c43433fe80869792abda641aa701", "lib": "83a66cc2c92b8e5d8f0cc0acaf6b65ea160387ded4f3313bd85d664a70ea6d1c", "lib_slot": 6923815, "height": 2656, "found": "8cda9b82827f2b75f683f6720235b216a723a204bc4d1580648f8a09e1496585"}
+  {"blocks":1351,"identical":true,"inscriptions_by_channel":{"0202020202020202020202020202020202020202020202020202020202020202":279},"json_bytes":1819321,"lez_v031_blocks_by_channel":{"0202020202020202020202020202020202020202020202020202020202020202":{"blocks":279,"ids":[259,537]}},"slots":[6922429,6923820],"transactions":279,"uncle_headers":0}
+  ok  the node's types and lez-bedrock agree on every block fetched: True
+  {"bedrock_block":{"id":"8cda9b82827f2b75f683f6720235b216a723a204bc4d1580648f8a09e1496585","inscription_bytes":714,"ops_bytes":891,"path_len":0,"slot":6922429,"tx_hash":"4b4655c3c5683b89f4ff910ece17087fa9c13e903d87baeadbc9d70d74f83d9c","tx_index":0,"txs":1,"uncles":0},"lez_block_id":259,"out":"$RUN/bedrock/anchor-block.json","top":{"depth":5,"id":"4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f","slot":6922434}}
+  ok  the inscribed LEZ block is the chain proof's tip: 259
+== 1. Ethereum (anvil): a vault with ZkBedrockBurnVerifier, the same pairing
+  vault 0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1, verifier 0x0B306BF915C4d645ff596e518fAf3F9669b97016
+  ok  ZkBedrockBurnVerifier.IMAGE_ID: 0xa73cc9844b46381382ef408b54fffdf9efa2e831ff410e2498d84eacdfd9dc42
+  ok  ZkBedrockBurnVerifier.CHAIN_IMAGE_ID: 0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22
+  ok  ZkBedrockBurnVerifier.ANCHOR_IMAGE_ID: 0xcebe7a279169ea723ca8d1636f6f0d9a36198c51a21e6d182cfb73d9eac5b208
+  ok  ZkBedrockBurnVerifier.CHANNEL_ID: 0x0202020202020202020202020202020202020202020202020202020202020202
+  ok  ZkBedrockBurnVerifier.SEQUENCER_KEY: 0xec90e291c907e32f967975add36f6a0b9d2522e69151d92b98147c313c7498e8
+  ok  ZkBedrockBurnVerifier.ANCHOR_HASH: 0xd7869d3a6fad9d0ce81dacee9ba129eb4edb72815edf3660f5fa9d3b701b5a6e
+  ok  ZkBedrockBurnVerifier.MIN_DEPTH: 5
+== 2. the anchor proofs
+  ok  the made-up Bedrock block is signed by the channel's accredited key: ec90e291c907e32f967975add36f6a0b9d2522e69151d92b98147c313c7498e8
+  ok  the four anchor proofs are real (RISC0 dev mode off): 4
+  ok  the anchor proof's top is the anchor's: 4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f 5
+== 3. the release proofs
+  ok  the four release proofs are real (RISC0 dev mode off): 4
+  ok  carol's proof names the anchor guest, the channel, the key, the top header: 0xcebe7a279169ea723ca8d1636f6f0d9a36198c51a21e6d182cfb73d9eac5b208 0202020202020202020202020202020202020202020202020202020202020202 ec90e291c907e32f967975add36f6a0b9d2522e69151d92b98147c313c7498e8 4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f 5
+  ok  and the chain's tip: 259 0xe08cec9f288c609ea788e16b8e016258fd3458ec2c829591b63cd44f3968525e
+  ok  the forged proof is signed by the sequencer's key, over a Bedrock block no node has: ec90e291c907e32f967975add36f6a0b9d2522e69151d92b98147c313c7498e8
+== 4. the releases (ZkBedrockBurnVerifier)
+{"label": "release-carol-outsiders", "expect": "HeaderNotAttested", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0x72f3e7f8825c46563f78be94c2b00bba5eb83c940dfe19cd33bf221f89255c4c", "block": 67, "gas_used": 304369, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891
+  ok  release-carol-outsiders: reverted (HeaderNotAttested), block 67, gas 304369
+{"label": "release-carol-one-member", "expect": "HeaderNotAttested", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0xa5d29f57f465865a7bc1ca03bdbe744f348b6a2d061635c6ca215493eaf4e2fc", "block": 68, "gas_used": 296577, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c327389
+  ok  release-carol-one-member: reverted (HeaderNotAttested), block 68, gas 296577
+{"label": "release-carol-redirected-to-relayer", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0xbaae3fb02f0bd35f1f76fe09d9005a619a702cac3fd82a4cc2833a465cced4d8", "block": 69, "gas_used": 63659, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c32
+  ok  release-carol-redirected-to-relayer: reverted (NotThisRelease), block 69, gas 63659
+{"label": "release-carol-another-amount", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0xdc042d8cb36c3e126e5b41709efbd8330c7c68a08eb43a4872e814c8c9dcf71d", "block": 70, "gas_used": 63659, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f4
+  ok  release-carol-another-amount: reverted (NotThisRelease), block 70, gas 63659
+{"label": "release-carol-front-run", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0x5c0b38c081ed9453ce6713638e5d5e5f81c3151af0a3725361ae267e85367176", "block": 71, "gas_used": 63671, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f42538b
+  ok  release-carol-front-run: reverted (NotThisRelease), block 71, gas 63671
+{"label": "release-carol-tampered-journal", "expect": "VerificationFailed", "precheck": "VerificationFailed", "verdict": "reverted", "tx": "0x6157b35dd790c647a31fa352db81135236c147a44679103b5c1e5c82ea895c3a", "block": 72, "gas_used": 292121, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e4
+  ok  release-carol-tampered-journal: reverted (VerificationFailed), block 72, gas 292121
+{"label": "release-carol-another-anchor", "expect": "NotThisChain", "precheck": "NotThisChain", "verdict": "reverted", "tx": "0xd84caa15f375109af4783cb703cd1336099b3a2dad2ccdd9b71db6cd829d7d1f", "block": 73, "gas_used": 63503, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f42538
+  ok  release-carol-another-anchor: reverted (NotThisChain), block 73, gas 63503
+{"label": "release-carol-another-channel", "expect": "NotThisChannel", "precheck": "NotThisChannel", "verdict": "reverted", "tx": "0xe5de99714a14d1088fbb82a47b10b349a97b90696a5030dcbeb251d904302774", "block": 74, "gas_used": 63598, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f
+  ok  release-carol-another-channel: reverted (NotThisChannel), block 74, gas 63598
+{"label": "release-carol-chain-proof-only", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0xe6c3dfeb3b1ea38d368563977d2ff43fc6014ae4ae9876ff4ee9df87c1a6b073", "block": 75, "gas_used": 60270, "top": null, "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f42538b84", "nullifier": "0x611b964a57675b9a37252d02859ef84bb9
+  ok  release-carol-chain-proof-only: reverted (NotThisRelease), block 75, gas 60270
+{"label": "release-carol-too-shallow", "expect": "NotDeepEnough", "precheck": "NotDeepEnough", "verdict": "reverted", "tx": "0x2bf9df7b8970ee1f1c87cc74732e9ce0803d09f2c4bd50c0976655e8e7fa2332", "block": 76, "gas_used": 64022, "top": "4e4d60fd5f4339eb5128def01ec2821305cb4a5480216dbbe1e0b9df32ad5bd9", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f42538b
+  ok  release-carol-too-shallow: reverted (NotDeepEnough), block 76, gas 64022
+{"label": "release-forged-bedrock-committee", "expect": "HeaderNotAttested", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0xb43f265a5994f9b86d7b0958303bce46635a317430f978e81b94518a0c9d528f", "block": 77, "gas_used": 304137, "top": "a75444d166e5b516062041f12f762e33bcd388bd47f24dd5580ef76467b69ce1", "on_members_node": false, "root": "0x3fb2f8435431edc9d9413620d9ac2460e425b62090bcd8
+  ok  release-forged-bedrock-committee: reverted (HeaderNotAttested), block 77, gas 304137
+{"label": "release-forged-bedrock-outsiders", "expect": "HeaderNotAttested", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0x71329c3579a4a0f2a7da0c78a27daaa0f2d608f02bc06f217eb24c0d61521c22", "block": 78, "gas_used": 304189, "top": "a75444d166e5b516062041f12f762e33bcd388bd47f24dd5580ef76467b69ce1", "on_members_node": false, "root": "0x3fb2f8435431edc9d9413620d9ac2460e425b62090bcd8
+  ok  release-forged-bedrock-outsiders: reverted (HeaderNotAttested), block 78, gas 304189
+{"label": "release-forged-bedrock-other-key", "expect": "NotThisChannel", "precheck": "NotThisChannel", "verdict": "reverted", "tx": "0x957c95df19b934df8c3b32f741496a8b190a1dcbbf29bd6dd0e44779596c05cf", "block": 79, "gas_used": 63837, "top": "83f625a6d8789a704f5559c51b4f00784bde096a2abd2394fe163b0fdcb299e0", "on_members_node": false, "root": "0x3fb2f8435431edc9d9413620d9ac2460e425b62090bcd84d65fd4
+  ok  release-forged-bedrock-other-key: reverted (NotThisChannel), block 79, gas 63837
+{"label": "release-carol", "expect": "applied", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0xbe9e4bbc3406049ad7f98960c0e21584983e557a930ea775cb1cd70b085eb551", "block": 80, "gas_used": 304361, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f42538b84", "nullifi
+  FAIL release-carol: {"label": "release-carol", "expect": "applied", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0xbe9e4bbc3406049ad7f98960c0e21584983e557a930ea775cb1cd70b085eb551", "block": 80, "gas_used": 304361, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f42538b84", "nullifier": "0x611b964a57675b9a37252d02859ef84bb917a0c20a33ed275a3b8918feff40a7", "hidden": {"leaf": true, "secret": true, "eth_commitment": true, "path_nodes": "0/0"}, "ok": false}
+{"label": "release-carol-replay", "expect": "AlreadyReleased", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0xd5265ba628aced6fc2f8d22974e80bd6ac163fd4545fb715ab8b0f87750798bd", "block": 81, "gas_used": 304381, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f4253
+  FAIL release-carol-replay: {"label": "release-carol-replay", "expect": "AlreadyReleased", "precheck": "HeaderNotAttested", "verdict": "reverted", "tx": "0xd5265ba628aced6fc2f8d22974e80bd6ac163fd4545fb715ab8b0f87750798bd", "block": 81, "gas_used": 304381, "top": "4414e9e372d3684badcccadf5a6471427c91d17b71b846e1bfc612a868c17e7f", "on_members_node": false, "root": "0x5088384c614b86935280be4d18d108f9443afe533bb6e41c3273891f42538b84", "nullifier": "0x611b964a57675b9a37252d02859ef84bb917a0c20a33ed275a3b8918feff40a7", "hidden": {"leaf": true, "secret": true, "eth_commitment": true, "path_nodes": "0/0"}, "ok": false}
+  FAIL the Bedrock vault paid out exactly carol's release (1 ETH): got 0, want 1000000000000000000
+  FAIL carol received 1 ETH less the 0.01 ETH fee her burn fixed: got 0, want 990000000000000000
+  FAIL the vault recorded the release's nullifier: got false, want true
+  FAIL the members found carol's top header on their Bedrock node: got False, want True
+  ok  and did not find the made-up one: False
+  ok  the release sent no leaf, secret, Ethereum commitment or path node: hidden
+== FAIL: 14 Bedrock-anchored releases (0 applied, 14 refused as expected), 18 checks ok

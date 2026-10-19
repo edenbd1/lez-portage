@@ -24,7 +24,10 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   (`BurnRootCommittee.sol`). A third, `ZkChainBurnVerifier.sol`, takes no
   root from anyone. One Groth16 seal proves the burn under a tree rebuilt
   from LEZ blocks, and its committee (`LezBlockCommittee.sol`) only attests
-  that the last block is final. **That attestation is still a trust
+  that the last block is final. A fourth, `ZkBedrockBurnVerifier.sol`, also
+  proves that last block inscribed on Bedrock by the pinned sequencer key, k
+  headers deep, and its committee (`BedrockHeaderCommittee.sol`) only attests
+  one Bedrock header canonical. **That attestation is still a trust
   assumption, so F.7 is not met** ([docs/OUTBOUND.md](docs/OUTBOUND.md),
   [docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md)).
 - `zk/burn_membership/`: the RISC Zero guest of the zero-knowledge release. It
@@ -33,6 +36,14 @@ whose inbound leg is verified by Sextant, the Ethereum light client for LEZ
   preimage of that root and the burn's nullifier. It is built reproducibly in
   RISC Zero's pinned builder into `artifacts/zk/burn_membership.bin` (ImageID
   `855dfc80…`).
+- `bedrock/`, `bedrock/tools/`, `zk/bedrock_anchor/`, `zk/bedrock_release/`:
+  the Bedrock anchor. `lez-bedrock` (`no_std`) checks a Bedrock header's id,
+  its body root over a transaction's Merkle path, the LEZ block inscribed by
+  that transaction's first operation and its Ed25519 signature, and a chain
+  of headers above it; `bedrock-tools` checks it against the Bedrock node's
+  own types on real blocks. Run with `scripts/bedrock-devnet.sh` and
+  `scripts/e2e-bedrock.sh` (evidence/local-bedrock/; docs/BEDROCK-FINALITY.md
+  section 8).
 - `chain/`, `zk/lez_chain/`, `zk/burn_release/`: the chain-derived release.
   `lez-chain` decodes LEZ v0.3.1 blocks strictly and recomputes their hashes
   and links. It rebuilds the tree of the bridge's private burns: those of

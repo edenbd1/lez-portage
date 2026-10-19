@@ -437,3 +437,65 @@ The trust that remains, plainly:
 
 F.7 is still not met as the RFP words it.
 
+
+## 5. The Bedrock-anchored release: `ZkBedrockBurnVerifier`
+
+The committee of section 4 says a LEZ block is final. Here the proof shows
+where that block is on Bedrock, and the committee only says one Bedrock
+header is canonical. The full account is in
+[BEDROCK-FINALITY.md](BEDROCK-FINALITY.md), section 8. In short:
+
+- **The anchor guest.** `zk/bedrock_anchor`, with its statement in the
+  [`bedrock/`](../bedrock/) crate (`no_std`), verifies a chain receipt inside
+  and proves that the chain's tip block is, byte for byte, the inscription
+  opening a Mantle transaction on the pinned channel, signed by the pinned
+  sequencer key (Ed25519 `verify_strict` over the transaction hash), under the
+  Merkle root a Bedrock header's body root commits to, with `depth` headers
+  built on that block. Every format was read from the node's source and is
+  checked against the node's own types on real blocks (`bedrock/tools`),
+  public testnet included (read-only).
+- **The release guest.** `zk/bedrock_release` verifies the anchor receipt
+  inside and proves the burn under the chain's root. One Groth16 seal for
+  three guests; an 800-byte journal.
+- **What the vault's verifier checks.** `ZkBedrockBurnVerifier`: the
+  preimage, the chain words, the anchor guest, channel and sequencer key,
+  `depth >= MIN_DEPTH` (Bedrock's k), the seal, and 2 of 3 members of
+  `BedrockHeaderCommittee` attesting the top header canonical.
+- **The run.** A separate local Bedrock devnet, the sequencer inscribing
+  on it, `scripts/e2e-bedrock.sh` (`evidence/local-bedrock/`) passed: 15
+  releases, 1 applied (carol's, 349,997 gas), 14 refused as expected. The
+  anchor proof (5 headers deep) took 1.14M user cycles and 111 s of STARK;
+  the release 52 s of STARK and 62 s of emulated Groth16. Among the refusals: a
+  real proof over a made-up Bedrock block that inscribes a made-up LEZ block,
+  signed by the real sequencer key, refused only because the members' node
+  does not have its top header; the same signed by another key, refused by the
+  pinned key; an anchor one header short of `MIN_DEPTH`.
+
+The trust that remains, plainly:
+
+- **Canonicity.** The top header's place on Bedrock's canonical chain is the
+  committee's word (no proof of leadership is checked; that needs the note
+  ledger). It is a fact anyone with a Bedrock node can check in one request.
+- **Bedrock's own checks.** The leader's block signature and the pinned key
+  being the channel's accredited key at that slot are Bedrock's checks, not
+  the proof's.
+- **Validity, and one block per height.** LEZ blocks' validity rests on the
+  sequencer and LEZ nodes; nothing proves the inscribed block is the only
+  LEZ block the channel carries at its height.
+- **Public burns** still cannot release this way.
+
+Forging a release now needs the committee threshold and the sequencer's key
+together. F.7 is still not met as the RFP words it.
+
+Run it, after `e2e-local.sh` (KEEP=1, with `BEDROCK_NODE`) and `e2e-chain.sh`
+on the same run:
+
+```console
+BEDROCK_BIN=<logos-blockchain-node 0.3.1> LEZ_SRC=<lez@1a003bfb> DIR=<new dir> scripts/bedrock-devnet.sh
+cargo build --release -p sequencer_service                       # at 1a003bfb, without standalone
+cargo build --release --manifest-path bedrock/tools/Cargo.toml
+KEEP=1 BEDROCK_NODE=http://127.0.0.1:18480 BEDROCK_CHANNEL=<32 bytes hex> RUN=<dir> OUT=evidence/local-bedrock/e2e.tsv \
+  SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh
+RUN=<dir> BASE=evidence/local-bedrock/e2e.tsv OUT=evidence/local-bedrock/e2e-chain.tsv scripts/e2e-chain.sh
+RUN=<dir> BASE=evidence/local-bedrock/e2e.tsv BEDROCK_NODE=http://127.0.0.1:18480 scripts/e2e-bedrock.sh
+```

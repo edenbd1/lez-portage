@@ -1,0 +1,34 @@
+# 2026-10-19T13:15:17Z wrap zk-prove $RUN/chain/forged-input.json --chain $RUN/chain/chain-forged.json, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.4.0 linux/aarch64 cpus=14 mem=12600381440; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 68dcd33 (uncommitted changes); guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 47.82 56.53 49.10
+       96.89 real       779.50 user         3.47 sys
+          5370183680  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              433669  page reclaims
+                1441  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  19  messages sent
+                  67  messages received
+                  93  signals received
+                  72  voluntary context switches
+              494927  involuntary context switches
+           531803064  instructions retired
+           168368620  cycles elapsed
+             6963608  peak memory footprint
+# docker 13:16:30 jolly_kirch 2.472GiB / 11.74GiB 308.21%
+# docker 13:16:33 jolly_kirch 4.132GiB / 11.74GiB 208.19%
+# docker 13:16:36 jolly_kirch 4.804GiB / 11.74GiB 100.27%
+# docker 13:16:39 jolly_kirch 5.495GiB / 11.74GiB 516.01%
+# docker 13:16:42 jolly_kirch 5.575GiB / 11.74GiB 939.03%
+# docker 13:16:46 jolly_kirch 7.04GiB / 11.74GiB 1151.72%
+# docker 13:16:49 jolly_kirch 7.232GiB / 11.74GiB 1129.56%
+# docker 13:16:52 jolly_kirch 7.293GiB / 11.74GiB 801.08%
+# exit 0; load after: load averages: 40.39 53.10 48.63
+# groth16 container peak memory (docker stats samples) 7.29 GiB
