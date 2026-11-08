@@ -1,0 +1,1 @@
+{"run":{"execute_seconds":1.086291042},"segments":127,"steps":[["ark: deserialize vk",57631],["ark: prepare_verifying_key (once per run)",41958805],["ark: deserialize prepared vk",1816969],["ark: verify [fresh-valid]",79219826]],"total_cycles":133169152,"user_cycles":123183170,"verdicts":[["fresh-valid",true]]}
