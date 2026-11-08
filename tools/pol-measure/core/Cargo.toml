@@ -1,0 +1,33 @@
+# pol-measure-core: the two pieces of work a Cryptarchia light client repeats
+# for every Bedrock block, written twice so they can be timed in RISC Zero:
+#
+# - the Proof of Leadership check, a Groth16 verification over BN254 with the
+#   PoL circuit's verification key, done (1) exactly as the Bedrock node at
+#   3926a532 does it (arkworks 0.5, `lb_groth16::groth16_verify` over a
+#   `CompressedGroth16Proof`) and (2) with RISC Zero's accelerated BN254
+#   (`substrate-bn`, patched to risc0/paritytech-bn v0.6.0-risczero.0, which
+#   does its field arithmetic with the risc0-bigint2 precompiles);
+# - the note-set update, a Poseidon2 (BN254 Fr, width 3) Merkle path of depth
+#   32 checked against the old root and recomputed for the new one, with the
+#   node's own hasher (`logos-blockchain-poseidon2`, jf-poseidon2 over
+#   arkworks) and with the same permutation over substrate-bn's Fr.
+#
+# The host tests in tools/pol-measure/host check both against the node's own
+# code (`lb_pol::verify`, `lb_utxotree::UtxoTree`).
+[package]
+name = "pol-measure-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+ark-bn254     = { version = "0.5", default-features = false, features = ["curve"] }
+ark-ec        = { version = "0.5", default-features = false }
+ark-ff        = { version = "0.5", default-features = false }
+ark-groth16   = { version = "0.5", default-features = false }
+ark-serialize = { version = "0.5", default-features = false }
+substrate-bn  = { version = "0.6", default-features = false }
+lb-poseidon2  = { package = "logos-blockchain-poseidon2", git = "https://github.com/logos-blockchain/logos-blockchain.git", rev = "3926a532b9d96d62747da064161a115a7c0c5a3e" }
+jf-poseidon2  = { git = "https://github.com/EspressoSystems/jellyfish.git", rev = "8d80230358e900f8d63765a937f63f4978ca1daa", default-features = false, features = ["bn254"] }
+borsh         = { version = "1.5", features = ["derive"] }

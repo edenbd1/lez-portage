@@ -1,0 +1,1 @@
+{"run":{"image_id":"759d4de7d88beab1592320aa001986f0f11f2ad1af9b728b1930d4712070847f","prove_seconds":3498.713312292,"receipt":"succinct"},"segments":46,"steps":[["bn: load vk, -gamma, -delta, e(alpha,beta) (once per run)",11860431],["bn: verify [fresh-valid]",32413809]],"total_cycles":47710208,"user_cycles":44304884,"verdicts":[["fresh-valid",true]]}

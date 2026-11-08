@@ -153,7 +153,10 @@ On the release path, in the strongest verifier (`ZkBedrockBurnVerifier`):
    says so. A header chain can be made up: checking Cryptarchia's proof of
    leadership needs note-set roots that no header commits to, so a light client
    would have to replay the note ledger
-   ([docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md), section 3). The
+   ([docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md), section 3). Measured
+   in RISC Zero, that light client costs about 240-330 billion cycles per day
+   of testnet: 34.8M cycles per leadership proof and 4.6-5.0M per note update
+   ([docs/POL-MEASURED.md](docs/POL-MEASURED.md)). The
    committee's claim is checkable by anyone with a Bedrock node in one request.
 2. **Bedrock's own checks.** The leader's block signature, and the pinned key
    being the channel's accredited key at that slot, are checked by Bedrock,
