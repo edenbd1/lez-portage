@@ -7,8 +7,12 @@ program; they go back by a burn on LEZ and a release on Ethereum.
 
 - **Inbound (Ethereum to LEZ)** is verified on LEZ by Sextant, the Ethereum
   light client for LEZ (RFP-021,
-  [edenbd1/lez-sextant](https://github.com/edenbd1/lez-sextant), `main` at
-  `8153272`), and never by a signer or a federation.
+  [edenbd1/lez-sextant](https://github.com/edenbd1/lez-sextant)), and never
+  by a signer or a federation. Two Sextant builds are involved: the local runs
+  and executor tests use the committed `sextant_lc.bin`, Sextant at
+  `8153272` (ImageID `fa229edd…`); the public run used Sextant v2, program
+  `Ebe8rifvjyvwWUXnk7bsKeTwuyCAFSRMFuPMVHE8CbUB` (ImageID `ad6fbedb…`), the
+  binary of lez-sextant `main` at `0338eb3`.
 - **Outbound (LEZ to Ethereum)** is released on a RISC Zero proof, verified on
   Ethereum as one Groth16 seal, that the burn is in a burn tree rebuilt from
   LEZ blocks and that the last of those blocks is inscribed on Bedrock by the
@@ -142,8 +146,17 @@ each from a clean checkout and `cmp`s it with the committed bytes.
 | `artifacts/zk/bedrock_anchor.bin` | 431,932 | `cebe7a27…` |
 | `artifacts/zk/bedrock_release.bin` | 335,088 | `a73cc984…` |
 
-`sextant_lc.bin` is Sextant's; `token.bin` and `associated_token_account.bin`
-are LEZ v0.3.0's.
+`sextant_lc.bin` is Sextant's earlier build, lez-sextant at `8153272`
+(642,168 bytes, sha256 `d17de1ea1457c136…`, ImageID
+`fa229eddbae15b2a20126e37e03fa82a2b42c7c98f74001a7d49e93fafe205c8`), which
+the local runs and executor tests load. It is **not** the program the public
+run used: that is Sextant v2, `Ebe8rifvjyvwWUXnk7bsKeTwuyCAFSRMFuPMVHE8CbUB`
+(651,932 bytes, sha256 `58a600a4c9e1d608…`, ImageID
+`ad6fbedb983da6b6d75b287da354ce3041905d152d4e576ec318871eddfaa928`),
+`artifacts/programs/v0.3/sextant_lc.bin` of lez-sextant `main` (`0338eb3`),
+which `scripts/testnet-inbound.sh` takes from a lez-sextant checkout. Hash
+that file, not this one, against the testnet program. `token.bin` and
+`associated_token_account.bin` are LEZ v0.3.0's.
 
 ## What is still trusted
 

@@ -24,7 +24,13 @@ chain is discarded, so that run is not kept as evidence.
 Record of the run: [`evidence/testnet/`](../evidence/testnet/) (`run.tsv` the
 manifest, `transcript.txt`, `verify.txt`, `sepolia/` the vault's deployment,
 deposits, the checkpoint's execution block and the storage proofs,
-`sextant-run.tsv` Sextant's own manifest of its part).
+`sextant-run.tsv` Sextant's own manifest of its part). The manifest's header
+reads `commit 33250a0 (uncommitted changes)`: the run's own client and
+scripts (`cli/src/main.rs`, `scripts/testnet-inbound.sh`,
+`scripts/sepolia_vault.py` and the verifiers) were not yet committed, and
+went into `9774399` with this record; nothing under `programs/`, `core/`,
+`vault/` or `artifacts/` differs between the two commits, and the binaries
+that ran are pinned by size, sha256 and ImageID in the same header.
 
 ## What ran, in order
 
@@ -77,9 +83,9 @@ Sepolia (chain 11155111), deployer `0xf4e827cd18597f071FB8bca9A77319AD619927D7`:
 
 | step | transaction | block |
 |---|---|---:|
-| `CommitteeBurnVerifier` (release path, not exercised) | [`0x8e6b2b1610297ea0…`](https://sepolia.etherscan.io/tx/0x8e6b2b1610297ea0464d8a1bfd9fafcf1f324b77a7401f98abd59d0444dad38e) | |
-| `WrapVault` `0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a` | [`0x86521e22b33f49aa…`](https://sepolia.etherscan.io/tx/0x86521e22b33f49aa3a533d7e6a01251cd4c6d8265c77fe0b02b37ad42f84d288) | 12,092,946 |
-| `registerToken(ETH, 18, [0.001 ETH], …)` | [`0x1c8f710574e9a050…`](https://sepolia.etherscan.io/tx/0x1c8f710574e9a050497cb0b80af03c2d26b0565749b7d2b04cca1a4ff497df12) | |
+| `CommitteeBurnVerifier` (release path, not exercised) | [`0x8e6b2b1610297ea0…`](https://sepolia.etherscan.io/tx/0x8e6b2b1610297ea0464d8a1bfd9fafcf1f324b77a7401f98abd59d0444dad38e) | 12,092,946 |
+| `WrapVault` `0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a` | [`0x86521e22b33f49aa…`](https://sepolia.etherscan.io/tx/0x86521e22b33f49aa3a533d7e6a01251cd4c6d8265c77fe0b02b37ad42f84d288) | 12,092,947 |
+| `registerToken(ETH, 18, [0.001 ETH], …)` | [`0x1c8f710574e9a050…`](https://sepolia.etherscan.io/tx/0x1c8f710574e9a050497cb0b80af03c2d26b0565749b7d2b04cca1a4ff497df12) | 12,092,948 |
 | deposit 0, 0.001 ETH, committed to alice (public), 847,409 gas | [`0x8385eedf92b93fba…`](https://sepolia.etherscan.io/tx/0x8385eedf92b93fba39939376e17717da29a0ca77c329cba65e7b9f3e5ac8dbfb) | 12,092,949 |
 | deposit 1, 0.001 ETH, committed to carol (private), 531,046 gas | [`0x2508a66321461e38…`](https://sepolia.etherscan.io/tx/0x2508a66321461e382fe7c00fe5cff9ca9232ef089ecde500bebcb92934207fdd) | 12,092,950 |
 
