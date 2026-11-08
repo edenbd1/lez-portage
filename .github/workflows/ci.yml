@@ -6,6 +6,10 @@ jobs:
   vault:
     name: WrapVault (Foundry)
     runs-on: ubuntu-latest
+    # foundry.toml pins solc 0.8.28 and works offline once it is cached; a
+    # fresh runner has to download it first.
+    env:
+      FOUNDRY_OFFLINE: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
