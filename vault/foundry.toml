@@ -8,6 +8,10 @@ evm_version = "cancun"
 optimizer = true
 optimizer_runs = 10000
 offline = true
+# `new` in a test stays a CREATE: with dynamic linking (the default since Foundry 1.9) it becomes
+# a deployCode cheatcode, and a test expecting several constructors in a row to revert stops at
+# the first, so the later ones (and their mutations) are never run.
+dynamic_test_linking = false
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "risc0/=lib/risc0-ethereum/contracts/src/",

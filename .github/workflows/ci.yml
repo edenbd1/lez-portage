@@ -13,6 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.9.0
       - run: forge test --root vault -vv
       # ZkBurnVerifier.t.sol runs on a committed real Groth16 seal (vault/test/fixtures,
       # scripts/zk-fixture.sh); the Groth16 prover itself needs x86_64 Docker and is run locally.
