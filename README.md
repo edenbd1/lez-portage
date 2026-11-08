@@ -246,7 +246,7 @@ limits; [docs/OUTBOUND.md](docs/OUTBOUND.md), section 5, the Bedrock step.
 | [`vectors/`](vectors/) | anvil deposits and proofs, LEZ sequencer blocks, a public-testnet Bedrock anchor |
 | [`evidence/`](evidence/) | manifests, transcripts and raw measurements of each local run |
 | [`docs/`](docs/) | the design and measurement write-ups; [`docs/raw/`](docs/raw/) raw outputs |
-| [`v04/`](v04/) | the LEZ v0.4.0-rc1 spike: `wrap_bridge` and Sextant's Attest half on the actor model, their binaries and the token program's, executor tests, the sequencer driver ([docs/V04-PORT.md](docs/V04-PORT.md)); `chain/src/v04` and `zk/lez_chain_v04` decode v0.4 blocks |
+| [`v04/`](v04/) | the LEZ v0.4.0-rc1 spike: `wrap_bridge` and Sextant's Attest half on the actor model, their binaries and the token program's, executor tests, the sequencer driver ([docs/V04-PORT.md](docs/V04-PORT.md)); `chain/v04` and `zk/lez_chain_v04` decode v0.4 blocks |
 
 ## License
 

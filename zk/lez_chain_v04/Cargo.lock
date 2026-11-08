@@ -713,11 +713,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "lez_chain_v04"
+name = "lez-chain-v04"
 version = "0.1.0"
 dependencies = [
  "borsh",
  "lez-chain",
+ "wrap-core",
+]
+
+[[package]]
+name = "lez_chain_v04"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "lez-chain-v04",
  "risc0-zkvm",
 ]
 

@@ -1,4 +1,4 @@
-//! chain/src/v04 on real LEZ v0.4.0-rc1 blocks: blocks 18 to 28 of a local
+//! chain/v04 on real LEZ v0.4.0-rc1 blocks: blocks 18 to 28 of a local
 //! standalone v0.4.0-rc1 sequencer (v04/scripts/e2e-seq.sh), saved as the
 //! sequencer's `getBlock` returned them (vectors/lez-blocks-v04, run.json:
 //! what each transaction was and whether the sequencer reverted it).
@@ -12,7 +12,7 @@
 use std::str::FromStr;
 
 use lee::AccountId;
-use lez_chain::v04;
+use lez_chain_v04 as v04;
 use serde_json::Value;
 use wrap_executor_tests_v04::root_dir;
 

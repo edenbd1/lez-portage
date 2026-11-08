@@ -1,8 +1,8 @@
 //! A strict, allocation-light reading of a v0.4.0-rc1 `borsh(Block)` for the
-//! guest: it walks the layout of [`super::block`] field by field, refuses what
+//! guest: it walks the layout of [`crate::block`] field by field, refuses what
 //! borsh would refuse there (a short read, a tag out of range, a bool that is
 //! not 0 or 1, trailing bytes), and a set or map not strictly ascending (the
-//! encoding LEZ writes; borsh would normalize it, see `super::block`), skips
+//! encoding LEZ writes; borsh would normalize it, see `crate::block`), skips
 //! byte strings without copying them, and returns the header and the burn
 //! leaves the block's root calls carry, minus those of reverted transactions.
 //!
@@ -11,8 +11,8 @@
 //! valid block satisfies both (`chain_state::apply` builds the list in
 //! transaction order and refuses a block whose list differs).
 
-use super::Params;
-use crate::H256;
+use crate::Params;
+use wrap_core::H256;
 
 pub struct Header {
     pub block_id: u64,
@@ -167,7 +167,7 @@ fn burn_leaf(params: &Params, (account, program, message): (&[u8], &[u8], &[u8])
     if account != params.burns_account || program != params.program_id {
         return None;
     }
-    if message.len() < 1 + 20 + 16 + 32 || message[0] != super::BURN_VARIANT {
+    if message.len() < 1 + 20 + 16 + 32 || message[0] != crate::BURN_VARIANT {
         return None;
     }
     let eth_token: [u8; 20] = message[1..21].try_into().ok()?;

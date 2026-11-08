@@ -1,11 +1,11 @@
-# lez_chain_v04: the LEZ chain guest for LEZ v0.4.0-rc1 blocks (chain/src/v04).
+# lez_chain_v04: the LEZ chain guest for LEZ v0.4.0-rc1 blocks (chain/v04).
 #
 # It reads v0.4 blocks as the sequencer returns them (borsh), checks each
 # one's hash against its contents (the reverted list included) and its link to
 # the previous one from a fixed anchor, and rebuilds the tree of the burns
 # that the blocks' root calls made and that did not revert: public burns,
 # which v0.3.1 blocks could not tell from refused ones. Journal:
-# lez_chain::v04::journal. A spike: no recursion over a prior receipt yet
+# lez_chain_v04::journal. A spike: no recursion over a prior receipt yet
 # (zk/lez_chain has it for v0.3.1).
 [workspace]
 
@@ -17,7 +17,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-lez-chain = { path = "../../chain" }
+lez-chain-v04 = { path = "../../chain/v04" }
 risc0-zkvm = { version = "=3.0.5", default-features = false, features = ["std"] }
 borsh = { version = "1.5", features = ["derive"] }
 

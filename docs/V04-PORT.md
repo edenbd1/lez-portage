@@ -139,7 +139,7 @@ Ported in the spike (`v04/programs/wrap_bridge`, section 3). What changed:
 
 ### 2.2 chain/ (block decoding)
 
-Ported (`chain/src/v04`). The mirror gains `reverted`, the public message
+Ported (`chain/v04`, crate `lez-chain-v04`: a crate of its own, since a module inside `lez-chain` moved the bytes of the committed v0.3.1 guest `artifacts/zk/lez_chain.bin`, which CI rebuilds and compares). The mirror gains `reverted`, the public message
 (public context, root call, nonces map, admission evidence) and the whole
 `ProvenExecution`. The hash formula of `content_hash` is unchanged (the
 reverted list sits between the transactions and the unhashed Bedrock status
@@ -153,7 +153,7 @@ unsound on v0.4: a private transaction can now revert and stay in its block.
 
 ### 2.3 zk/lez_chain
 
-A v0.4 guest is added (`zk/lez_chain_v04`, ImageID `648cfea4…`, measured in
+A v0.4 guest is added (`zk/lez_chain_v04`, ImageID `23396bb9…`, measured in
 section 4). Its journal is 36 words (the pairing is word 4, since leaves are
 computed from root-call fields under it). Not yet ported: recursion over a
 prior receipt (zk/lez_chain has it).
@@ -162,7 +162,7 @@ prior receipt (zk/lez_chain has it).
 
 Not ported. `bedrock/src/compose.rs:71-76` decodes the inscribed LEZ block
 with the v0.3.1 scan and parses the v0.3.1 chain journal; both must move to
-`chain/src/v04` (the inscribed payload is a v0.4 `borsh(Block)`, and the
+`chain/v04` (the inscribed payload is a v0.4 `borsh(Block)`, and the
 content hash is the same formula). The Bedrock-side checks
 (`bedrock/`: header id, body root, tx hash, inscription, signature) need a
 re-run of `bedrock/tools` against lb-core `d480efc6`. The pinned sequencer
@@ -209,7 +209,7 @@ All on branch `v0.4-spike`, alongside the v0.3 tree:
   v0.4.0-rc1 (`ValidatedStateDiff::from_public_transaction_metered`, the
   call settlement makes), on the anvil deposits of vectors/anvil (the same
   vault pairing as the v0.3 tests: the program account id is the same).
-- `chain/src/v04` and `zk/lez_chain_v04`.
+- `chain/v04` and `zk/lez_chain_v04`.
 - `v04/scripts/e2e-seq.sh` + `seq_drive`: a local standalone v0.4.0-rc1
   sequencer (built from the tag with `--features standalone`), the three
   programs loaded through the program loader, a local anvil vault with this
@@ -244,7 +244,7 @@ they are not Docker-reproducible yet, so ImageIDs are recorded, not pinned
   rebuilt from the blocks alone holds the two applied ones, with the root of
   the program's own burn tree read back from the sequencer**
   (`0x40427808…`); un-listing a reverted burn breaks the block hash.
-- `chain`, `--features release`: **17 passed** (10 v0.3.1 as before, 7 v0.4:
+- `chain/v04` (crate `lez-chain-v04`): **7 passed**, and `chain` (v0.3.1, unchanged) 10 as before. The v0.4 tests:
   the hash covers the reverted list; public and private-root burns count
   unless reverted; other accounts, programs, variants and private roots do
   not; chaining; every truncation and every flipped byte borsh refuses, the
@@ -308,10 +308,9 @@ optimize (batching the frontier's upper levels per block).
 | Sextant's light client on v0.4 (the record writer stands in) | port `Init`/`Begin`/`Miller`/`Finish` to actors: the job account is already one actor; the instance and header become actors written by sync messages | 2-3 days |
 | ATA | wait for lez-programs' port, or keep minting to the account's own token actor (one wrapped token per account) | upstream; 0.5 day to adopt |
 | Private claim and private burn | hybrid transactions (public root, private holder or destination), the in-proof fee from a funded private payer; re-measure proving | 3-4 days |
-| zk/bedrock_anchor, burn_release, bedrock_release on v0.4 | move compose.rs to chain/src/v04 and the 36-word journal; re-verify bedrock/ against lb-core d480efc6; accept staked sequencer keys | 2 days |
+| zk/bedrock_anchor, burn_release, bedrock_release on v0.4 | move compose.rs to chain/v04 and the 36-word journal; re-verify bedrock/ against lb-core d480efc6; accept staked sequencer keys | 2 days |
 | Chain guest recursion and per-burn cost | prior-receipt recursion as in zk/lez_chain; batch frontier inserts | 1 day |
 | Vault verifiers | new ImageIDs and journal layout in ZkChainBurnVerifier / ZkBedrockBurnVerifier, Foundry tests and mutations | 1 day |
 | Reproducible builds | Docker builds of the v0.4 guests (RISC Zero's pinned builder) and a CI cmp | 0.5 day |
 | A private transaction in real v0.4 blocks | the scan's private path is tested on synthetic blocks in the exact layout only | with the private paths |
 | testnet 0.4 | deploy on the public 0.4 network when it exists (needs funds) | 1 day |
-| v0.3.1 guests untouched | `chain/src/lib.rs` gains `pub mod v04` after everything they use; the committed `artifacts/zk` binaries were not rebuilt (Docker) to confirm the bytes | 0.5 hour |

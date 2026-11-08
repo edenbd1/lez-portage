@@ -1,4 +1,3 @@
-warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
 | input | blocks | bytes | burns counted | user cycles | total cycles | segments | user cycles/byte |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | real v0.4.0-rc1 blocks 18-28 (sequencer) | 11 | 28186 | 2 | 283753 | 524288 | 1 | 10.07 |

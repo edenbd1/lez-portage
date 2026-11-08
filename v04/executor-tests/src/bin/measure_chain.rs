@@ -1,10 +1,10 @@
 //! Cycles of the v0.4 chain guest (v04/artifacts/lez_chain_v04.bin, zk/lez_chain_v04)
 //! in the RISC Zero executor (no proving): its journal is checked against
-//! `lez_chain::v04::chain_journal` on the host, then user and total cycles
+//! `lez_chain_v04::chain_journal` on the host, then user and total cycles
 //! (total = the segments' padded power-of-two sizes) are printed, for:
 //!
 //! 1. the real blocks of vectors/lez-blocks-v04 (a local v0.4.0-rc1 sequencer);
-//! 2. synthetic chains in the exact v0.4 layout (chain/src/v04/block), linked and
+//! 2. synthetic chains in the exact v0.4 layout (chain/v04/src/block.rs), linked and
 //!    hashed: blocks of 18 public burns (a full 20-transaction block), and blocks
 //!    of 4 private transactions with a 223,551-byte proof each (`PROOF_BYTES`, at
 //!    the per-block private cap set by `MAX_GAS_STOR / PRIVATE_GAS_STOR`).
@@ -14,7 +14,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
-use lez_chain::v04::{self, block::*};
+use lez_chain_v04::{self as v04, block::*};
 use risc0_zkvm::{default_executor, ExecutorEnv};
 use wrap_executor_tests_v04::{bin, root_dir};
 

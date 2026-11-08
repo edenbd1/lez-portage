@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::block::*;
+use crate::block::*;
 use super::*;
 
 const PROGRAM: H256 = [0xb1; 32];
@@ -91,7 +91,7 @@ fn make_block(id: u64, prev: H256, mut txs: Vec<LeeTransaction>, reverted: Vec<u
         bedrock_status: BedrockStatus::Pending,
     };
     let raw = borsh::to_vec(&b).unwrap();
-    b.header.hash = crate::content_hash(&raw);
+    b.header.hash = lez_chain::content_hash(&raw);
     borsh::to_vec(&b).unwrap()
 }
 
@@ -108,12 +108,12 @@ fn the_hash_is_over_the_hashable_data_including_the_reverted_list() {
     let raw = make_block(5, [9; 32], vec![public_tx(actor(BURNS, PROGRAM), burn_message([1; 20], 5, [2; 32]))], vec![0]);
     let b: Block = borsh::from_slice(&raw).unwrap();
     let h = Hashable { block_id: 5, prev: [9; 32], timestamp: 5_000, transactions: &b.body.transactions, reverted: &b.body.reverted };
-    let want = wrap_core::sha256(&[crate::BLOCK_PREFIX, &borsh::to_vec(&h).unwrap()]);
+    let want = wrap_core::sha256(&[lez_chain::BLOCK_PREFIX, &borsh::to_vec(&h).unwrap()]);
     assert_eq!(b.header.hash, want);
     // The list is hashed: un-reverting the burn changes the hash.
     let mut forged = b.clone();
     forged.body.reverted.clear();
-    assert_ne!(crate::content_hash(&borsh::to_vec(&forged).unwrap()), want);
+    assert_ne!(lez_chain::content_hash(&borsh::to_vec(&forged).unwrap()), want);
 }
 
 #[test]

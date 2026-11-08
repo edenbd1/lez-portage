@@ -2827,6 +2827,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lez-chain-v04"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "lez-chain",
+ "wrap-core",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7915,6 +7924,7 @@ dependencies = [
  "lee",
  "lee_core",
  "lez-chain",
+ "lez-chain-v04",
  "risc0-binfmt",
  "risc0-zkos-v1compat",
  "risc0-zkvm",

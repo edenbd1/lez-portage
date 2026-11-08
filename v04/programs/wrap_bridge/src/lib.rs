@@ -47,7 +47,7 @@
 //! Burn is accepted **only as a transaction's root call** (`from == None`): its
 //! leaf is then a function of the root message alone, which a block carries,
 //! and the block's `reverted` list says whether it took effect. That is what
-//! makes a public burn derivable from LEZ blocks on v0.4 (chain/src/v04).
+//! makes a public burn derivable from LEZ blocks on v0.4 (chain/v04).
 
 pub mod token;
 
@@ -145,7 +145,7 @@ pub enum Message {
     Claim(Box<Claim>),
     /// To the burn tree PDA, as the transaction's root call only. `holder`
     /// authorizes (signs); its token actor must hold the wrapped token. The
-    /// first three fields are the leaf's (chain/src/v04 reads them from the
+    /// first three fields are the leaf's (chain/v04 reads them from the
     /// block without decoding the rest; pinned by a test).
     Burn { eth_token: [u8; 20], amount: u128, eth_commitment: H256, salt: H256, holder: AccountId, config: Config },
 }

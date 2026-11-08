@@ -23,7 +23,7 @@ test cycles_per_transaction ... ok
 test a_burn_takes_the_wrapped_token_out_and_appends_its_leaf ... ok
 test a_burn_is_refused_unless_it_is_the_holders_wrapped_token_in_a_permitted_amount ... ok
 test freezes_and_the_cap_hold ... ok
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.73s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s
 test a_block_whose_reverted_list_is_tampered_does_not_hash ... ok
 test applied_public_burns_and_only_those_are_derived_from_the_blocks ... ok
 test the_reverted_list_is_what_the_sequencer_reverted ... ok

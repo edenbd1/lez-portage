@@ -1,13 +1,13 @@
-// The v0.4 LEZ chain guest. Input (stdin, lez_chain::v04::encode_stream): a
-// borsh `lez_chain::v04::ChainHead`, then the blocks one by one, each read
-// into the same buffer. Journal: lez_chain::v04::journal after the blocks. A
+// The v0.4 LEZ chain guest. Input (stdin, lez_chain_v04::encode_stream): a
+// borsh `lez_chain_v04::ChainHead`, then the blocks one by one, each read
+// into the same buffer. Journal: lez_chain_v04::journal after the blocks. A
 // block that does not decode, hash or link panics, and a panicking guest has
 // no receipt.
 #![no_main]
 
 use std::io::Read;
 
-use lez_chain::v04;
+use lez_chain_v04 as v04;
 use risc0_zkvm::guest::env;
 
 risc0_zkvm::guest::entry!(main);

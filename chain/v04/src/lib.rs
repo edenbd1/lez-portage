@@ -7,7 +7,7 @@
 //!   and the block hash covers it (`HashableBlockData` gains the same field,
 //!   still after `transactions`, so the hash is still
 //!   `sha256(PREFIX ‖ raw[0..40] ‖ raw[72..80] ‖ raw[80..len-1])`, the
-//!   formula of [`crate::content_hash`]). A node replaying the block refuses it
+//!   formula of [`lez_chain::content_hash`]). A node replaying the block refuses it
 //!   if the list differs from what settlement reverts
 //!   (`chain_state::apply`, `BlockIngestError::RevertMismatch`). So a
 //!   transaction in a valid block took effect exactly when its index is not
@@ -33,7 +33,7 @@ pub mod scan;
 use borsh::{BorshDeserialize, BorshSerialize};
 use wrap_core::{H256, DEPTH};
 
-use crate::ChainError;
+pub use lez_chain::ChainError;
 
 /// `wrap_bridge_v04::BURN_VARIANT`, the borsh index of `Message::Burn`
 /// (`Init, Register, SetPolicy, Freeze, Claim, Burn`). Pinned by a test
@@ -51,7 +51,7 @@ pub struct Params {
     pub pairing: H256,
 }
 
-pub use crate::ChainState;
+pub use lez_chain::ChainState;
 
 /// The burn leaves of a decoded block, the typed reference for [`scan::scan_block`].
 pub fn burn_leaves(b: &block::Block, params: &Params) -> Vec<H256> {
@@ -80,7 +80,7 @@ pub fn burn_leaves(b: &block::Block, params: &Params) -> Vec<H256> {
 /// the tip, append its burn leaves. On `Err` the state is unchanged.
 pub fn apply_block(state: &mut ChainState, params: &Params, raw: &[u8]) -> Result<Vec<H256>, ChainError> {
     let (h, leaves) = scan::scan_block(raw, params).map_err(|_| ChainError::Undecodable)?;
-    if crate::content_hash(raw) != h.hash {
+    if lez_chain::content_hash(raw) != h.hash {
         return Err(ChainError::HashMismatch { block_id: h.block_id });
     }
     let expected_id = state.tip_id.checked_add(1).ok_or(ChainError::NotNext { expected_id: u64::MAX, got_id: h.block_id })?;

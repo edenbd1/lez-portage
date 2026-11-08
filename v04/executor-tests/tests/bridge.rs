@@ -28,7 +28,7 @@ fn the_token_mirror_and_burn_layout_are_pinned() {
     let m = burn_message(&cfg, [1; 20], 7, [2; 32], AccountId::new([3; 32]));
     let b = borsh::to_vec(&m).unwrap();
     assert_eq!(b[0], BURN_VARIANT);
-    assert_eq!(b[0], lez_chain::v04::BURN_VARIANT);
+    assert_eq!(b[0], lez_chain_v04::BURN_VARIANT);
     assert_eq!(&b[1..21], &[1; 20]);
     assert_eq!(u128::from_le_bytes(b[21..37].try_into().unwrap()), 7);
     assert_eq!(&b[37..69], &[2; 32]);

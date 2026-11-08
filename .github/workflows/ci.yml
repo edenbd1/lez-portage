@@ -155,8 +155,9 @@ jobs:
           for i in 1 2 3; do rzup install r0vm 3.0.5 && exit 0; sleep $((i * 20)); done
           exit 1
       # The committed v0.4 binaries (v04/artifacts) through lee::V03State at
-      # v0.4.0-rc1, and chain/src/v04 on the blocks of a local v0.4.0-rc1
+      # v0.4.0-rc1, and chain/v04 on the blocks of a local v0.4.0-rc1
       # sequencer (vectors/lez-blocks-v04); docs/V04-PORT.md.
+      - run: cargo test --release --manifest-path chain/v04/Cargo.toml
       - run: cargo test --release --manifest-path v04/executor-tests/Cargo.toml -- --nocapture
       - name: The v0.4 chain guest's cycles
         run: cargo run --release --manifest-path v04/executor-tests/Cargo.toml --bin measure_chain

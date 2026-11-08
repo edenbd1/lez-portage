@@ -335,7 +335,3 @@ pub fn release_journal(input: &wrap_core::zk::ZkReleaseInput, chain_journal: &[u
 
 #[cfg(test)]
 mod tests;
-
-// LEZ v0.4.0-rc1 blocks (after everything the v0.3.1 guests use, so their
-// binaries do not move).
-pub mod v04;
