@@ -16,6 +16,11 @@ program; they go back by a burn on LEZ and a release on Ethereum.
   2-of-3 committee says that the top Bedrock header is canonical. **F.7 of
   the RFP is therefore not met**; see [What is still trusted](#what-is-still-trusted).
 
+**Branch `v0.4-spike`** ports the LEZ side to LEZ v0.4.0-rc1 (the actor
+model, the canonical token program, blocks that list reverted transactions,
+so public burns are derivable from blocks) and runs it on a local v0.4.0-rc1
+sequencer: [docs/V04-PORT.md](docs/V04-PORT.md), [`v04/`](v04/).
+
 Everything here ran locally: anvil, a LEZ v0.3.1 sequencer, the v0.3.0 wallet,
 and a single-node Bedrock devnet. Nothing is deployed on a public network.
 The one public-network input is read-only: real Bedrock testnet blocks used as
@@ -241,6 +246,7 @@ limits; [docs/OUTBOUND.md](docs/OUTBOUND.md), section 5, the Bedrock step.
 | [`vectors/`](vectors/) | anvil deposits and proofs, LEZ sequencer blocks, a public-testnet Bedrock anchor |
 | [`evidence/`](evidence/) | manifests, transcripts and raw measurements of each local run |
 | [`docs/`](docs/) | the design and measurement write-ups; [`docs/raw/`](docs/raw/) raw outputs |
+| [`v04/`](v04/) | the LEZ v0.4.0-rc1 spike: `wrap_bridge` and Sextant's Attest half on the actor model, their binaries and the token program's, executor tests, the sequencer driver ([docs/V04-PORT.md](docs/V04-PORT.md)); `chain/src/v04` and `zk/lez_chain_v04` decode v0.4 blocks |
 
 ## License
 
