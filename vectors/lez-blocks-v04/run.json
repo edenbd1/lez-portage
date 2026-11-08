@@ -1,0 +1,96 @@
+{
+ "programs": {
+  "sextant_attest": "SWmn7pHJoq59DQJAjPoewg7sz3zqGnotAttvmb6XYun",
+  "token": "3sNabUZKL776oo3x1aubaQyMLXaKpMSYjrxsGcybwDFX",
+  "wrap_bridge": "3WJtzhYHGpHDEAV6NJkvDwoTfT9P8sahB5WMESmVb1Qf"
+ },
+ "config": "54kshEkuggHJuQQJx5TM6HhdNxAjFFMLXM7ZwbBMN5fn",
+ "burns": "2U3ryzARJamJ6VDnkgug3BPZv2c8hJ9VKg8hvuxB5f29",
+ "pairing": "0xbe7c5f96c9f4cf0e115467b5aa80257e0ec00e385e57f64075f2fab12af89c88",
+ "first": 18,
+ "last": 28,
+ "applied_burn_leaves": [
+  "0x7836322811062cbd35f1c9c514a6304966990bcd95a549bc17fe221ffec02f7b",
+  "0x5e59c9a50423b9bb3e2eae0a178bcf0df7453dd3b9e7ae40ec8a6f354d20b4a9"
+ ],
+ "root": "0x4042780cf26245da1a7dc050a3742a19fc152a01b7bf09e3578b9e6bf0c1b4b3",
+ "transactions": [
+  {
+   "label": "Record",
+   "verdict": "applied",
+   "block": 18,
+   "tx": 0,
+   "hash": "ee7cefd32a8e7b17d31dd4560c45b2d02bdcd6fb04185da75bb732ab27c4be90"
+  },
+  {
+   "label": "Init",
+   "verdict": "applied",
+   "block": 19,
+   "tx": 0,
+   "hash": "a60c5a3fe4cac46a44c5b04e01193c1dba9dbc79b78da07b5e26315bad45770c"
+  },
+  {
+   "label": "Register ETH",
+   "verdict": "applied",
+   "block": 20,
+   "tx": 0,
+   "hash": "4b9e4cc4300204dd6df336b3cf3dfb45054cbc6a7809ed8d942f04896123789f"
+  },
+  {
+   "label": "alice InitializeHolding",
+   "verdict": "applied",
+   "block": 21,
+   "tx": 0,
+   "hash": "728c56352d1c63a4acb696e6c2f406bd16366bf89ae8f917c81d4eaee6aca8ad"
+  },
+  {
+   "label": "Claim deposit 0",
+   "verdict": "applied",
+   "block": 22,
+   "tx": 0,
+   "hash": "b063f40dfe08196b094c60bff407a85150645e6ad4ac50179fc376e1fa084a8d"
+  },
+  {
+   "label": "Claim deposit 1",
+   "verdict": "applied",
+   "block": 23,
+   "tx": 0,
+   "hash": "09465957411c7797afd2e41ab775c7d379a25278f000f2af9edf3c1bf08a3afa"
+  },
+  {
+   "label": "Claim deposit 0 again (replay)",
+   "verdict": "reverted",
+   "block": 24,
+   "tx": 0,
+   "hash": "18572beadadec3b0da5476442089f43f51d6a051ac0fdbf8036448bf6c2e65f3"
+  },
+  {
+   "label": "Burn 0.1 ETH",
+   "verdict": "applied",
+   "block": 25,
+   "tx": 0,
+   "hash": "bf623e7f400fab3100cdf4e1a9edca45b8dc6e84a701c27cc553660186c63010"
+  },
+  {
+   "label": "Burn 12345 wei (not a denomination)",
+   "verdict": "reverted",
+   "block": 26,
+   "tx": 0,
+   "hash": "0704a63bfa386dbf9b92b39659bee58d789555f61ceba27b8e36ebf552cb7f1b"
+  },
+  {
+   "label": "Burn 1 ETH",
+   "verdict": "applied",
+   "block": 27,
+   "tx": 0,
+   "hash": "f03aef364d116cd2ac77cd661bec11234fdba51ae730af821ac7b93563be2684"
+  },
+  {
+   "label": "Burn 1 ETH (more than alice holds)",
+   "verdict": "reverted",
+   "block": 28,
+   "tx": 0,
+   "hash": "ee468069e541068ba94c2771b580b1e8449af373c76e6c6b71b31b32390ae7c7"
+  }
+ ]
+}
