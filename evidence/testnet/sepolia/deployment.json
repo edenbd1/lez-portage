@@ -1,0 +1,25 @@
+{
+ "chain_id": 11155111,
+ "vault": "0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a",
+ "usdt": "0x0000000000000000000000000000000000000000",
+ "verifier": "0x7340eDb604ab33bfb7C48846eD741Ca69FbcCe67",
+ "release_verifier": "committee",
+ "committee": [
+  "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+  "0xAAAa3E9eaF0DB9C2Db1c5efCFB4e143412b4162D",
+  "0xA6d6B061FB1297D72AA78202970D25f840a983Ec"
+ ],
+ "threshold": 2,
+ "finality_depth": 30,
+ "pairing": "0x3914993843097b9f73c987a8ffa3da5cc71baed264cdc91cb2b6ad8381a4be7a",
+ "admin": "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+ "alice": "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+ "bob": "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+ "carol": "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+ "deploy_block": 12092946,
+ "txs": {
+  "verifier": "0x8e6b2b1610297ea0464d8a1bfd9fafcf1f324b77a7401f98abd59d0444dad38e",
+  "vault": "0x86521e22b33f49aa3a533d7e6a01251cd4c6d8265c77fe0b02b37ad42f84d288",
+  "register_eth": "0x1c8f710574e9a050497cb0b80af03c2d26b0565749b7d2b04cca1a4ff497df12"
+ }
+}

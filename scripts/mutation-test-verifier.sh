@@ -82,10 +82,15 @@ elif how == "eth-balance":           # the vault's final balance off by one wei
 elif how == "public-as-private":     # a public transaction recorded as the private claim
     i = next(i for i in public if cols(i)[1] == "applied"); c = cols(i); c[6] = "private"; put(i, c)
 elif how == "final-state":           # a nullifier account's recorded final bytes altered
-    i = next(i for i, l in enumerate(lines) if l.startswith("# final ") and " nullifier_3" in l); p = lines[i].split(); p[5] = "0" * 64; lines[i] = " ".join(p)
+    i = [i for i, l in enumerate(lines) if l.startswith("# final ") and " nullifier_" in l][-1]; p = lines[i].split(); p[5] = "0" * 64; lines[i] = " ".join(p)
 elif how == "final-unclaimed":       # the unclaimed deposit's nullifier claimed as spent
     i = next(i for i, l in enumerate(lines) if l.startswith("# final ") and l.endswith(" nullifier_2")); p = lines[i].split()
     p[4] = "1"; p[5] = "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"; lines[i] = " ".join(p)
+elif how == "shared-block-gas":      # a transaction in a shared block recorded with another pre-checked gas
+    blk, *members = next(l.split()[2:] for l in lines if l.startswith("# shared-block "))
+    i = next(i for i in public if cols(i)[0] in members and cols(i)[1] == "applied"); c = cols(i); c[6] = "gas=%d" % (int(c[6][4:]) + 1); put(i, c)
+elif how == "shared-block-member":   # a shared block recorded without one of its transactions
+    i = comment("# shared-block "); p = lines[i].split(); lines[i] = " ".join(p[:-1])
 elif how == "image-id":              # another ImageID claimed for a deployed program
     i = next(i for i, l in enumerate(lines) if l.startswith("# program ") and " wrap_bridge" in l); p = lines[i].split(); p[3] = "0" * 64; lines[i] = " ".join(p)
 elif how == "deploy-hash":           # a deployment transaction never sent
@@ -107,8 +112,12 @@ fail=0; caught=0; total=0
 ./scripts/verify-onchain.sh --manifest "$MANIFEST" --rpc "$RPC" ${ETH[@]+"${ETH[@]}"} > "$T/clean.out" 2>&1 \
   && echo "  ok   the recorded manifest verifies ($(tail -1 "$T/clean.out"))" || { echo "  FAIL the recorded manifest does not verify"; tail -5 "$T/clean.out"; fail=1; }
 MUTS=(fake-hash refusal-as-applied applied-as-refused wrong-gas wrong-block swapped-hashes private-fake-hash private-as-public
-      private-destination private-size public-as-private final-state final-unclaimed image-id deploy-hash
-      private-burn-fake-hash private-burn-holder private-burn-size)
+      private-destination private-size public-as-private final-state image-id deploy-hash)
+# Those that need a line only some runs record (the local run's unclaimed deposit and
+# private burn; a block the public testnet packed two of the run's transactions into).
+grep -q ' nullifier_2$' "$MANIFEST" && MUTS+=(final-unclaimed)
+grep -q '^burn-carol-private'$'\t' "$MANIFEST" && MUTS+=(private-burn-fake-hash private-burn-holder private-burn-size)
+grep -q '^# shared-block ' "$MANIFEST" && MUTS+=(shared-block-gas shared-block-member)
 [ -n "$ETH_RPC" ] && MUTS+=(eth-fake-hash eth-refusal-as-applied eth-applied-as-refused eth-other-error eth-wrong-block eth-wrong-nullifier
                             eth-wrong-root eth-unreleased eth-control-spent eth-balance)
 grep -q '^# anvil zk-verifier ' "$MANIFEST" && MUTS+=(zk-image-id zk-verifier zk-leaf-sent zk-path-sent)

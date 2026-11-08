@@ -1,0 +1,51 @@
+== LEZ (https://testnet.lez.logos.co)
+wrap_bridge run against https://testnet.lez.logos.co, from evidence/testnet/run.tsv
+  ok   program sextant_lc: header Ebe8rifvjyvw… names ImageID ad6fbedb983da6b6…
+  ok   program token: header 3cwJjDqD17a7… names ImageID 912d412c6e82c5a5…
+  ok   program associated_token_account: header 2ME6FvQqr3um… names ImageID 2b1d5580b54895db…
+  ok   program wrap_bridge: header D6XntqqUqgFR… names ImageID 073f046ce2a6fffd…
+  ok   deploy wrap_bridge-segment4: f160a03779045800… resolves (block 79163)
+  ok   deploy wrap_bridge-segment3: d1e0954d353b0d64… resolves (block 79165)
+  ok   deploy wrap_bridge-segment2: fbad54fa214c4ba6… resolves (block 79168)
+  ok   deploy wrap_bridge-segment1: 5fa798a0d10e04c5… resolves (block 79170)
+  ok   deploy wrap_bridge-segment0: 6fd1bf6f51a010c7… resolves (block 79171)
+  ok   deploy wrap_bridge-header: 59ef746a13bcb30d… resolves (block 79173)
+  ok   deploy associated_token_account-segment3: c2676523b788bc87… resolves (block 79155)
+  ok   deploy associated_token_account-segment2: 188664200bc7bf8c… resolves (block 79156)
+  ok   deploy associated_token_account-segment1: 0f821f0b617589cc… resolves (block 79157)
+  ok   deploy associated_token_account-segment0: 424be5c3f0e751f1… resolves (block 79158)
+  ok   deploy associated_token_account-header: 4f53672f5e28442a… resolves (block 79159)
+  ok   sextant-init: applied, a229935353b74089… in block 79184, charged 1834893 gas = the pre-checked gas, below its limit 1863241
+  ok   init-bridge: applied, aa654a7ae947c521… in block 79187, charged 27049 gas = the pre-checked gas, below its limit 37319
+  ok   register-eth: applied, 3ad7971422cec2a7… in block 79188, charged 90410 gas = the pre-checked gas, below its limit 101314
+  ok   claim-phantom-unknown-root: refused (E7208), 974f5e7de5c1914b… in block 79191, charged its whole limit 496217
+  ok   claim-carol-private: privacy-preserving, 4f6dfe0ab587d1c1… in block 79196, 257739 bytes, Private/F8WThjdHwii3… absent from its bytes
+  ok   final state of sextant_header (9Vs169NnZZP6…): 120 bytes as the run left them
+  ok   final state of config (81LxQSMq5LeC…): 2 bytes as the run left them
+  ok   final state of eth_entry (GXx9oChYBtzN…): 134 bytes as the run left them
+  ok   final state of nullifier_0 (4ggCWhWNXw9i…): 1 bytes as the run left them
+  ok   final state of nullifier_1 (8qMCXuDKSuKr…): 1 bytes as the run left them
+  ok   final state of eth_definition (2FywSuPkthHj…): 43 bytes as the run left them
+  ok   final state of alice_eth_ata (4rvEegtox9KG…): 49 bytes as the run left them
+  ok   shared block 79190: claim-alice (applied, 451107), claim-alice-replay (refused, 496217); charged 947324 gas = their sum, storage 12770 = their sizes, no other charged transaction
+  ok   control: a random hash (6182bf278f24…) does not resolve, and the endpoint answers
+29 checks pass, 0 fail (4 applied and 2 refused public transactions, 1 privacy-preserving, 0 applied and 0 refused releases, in the manifest)
+== Sepolia (https://ethereum-sepolia-rpc.publicnode.com) and the link to LEZ
+== Sepolia: vault 0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a, 2 deposits, checkpoint execution block 12092950
+  ok   the vault 0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a has code
+  ok   its PAIRING is 0x3914993843097b9f73c987a8ffa3da5cc71baed264cdc91cb2b6ad8381a4be7a
+  ok   its VERIFIER is 0x7340eDb604ab33bfb7C48846eD741Ca69FbcCe67
+  ok   deposit 0: 0x8385eedf92b93fba39939376e17717da29a0ca77c329cba65e7b9f3e5ac8dbfb in block 12092949, 1000000000000000 wei into the vault, its Deposit event (leaf 0xdc788c31a7f7e229..., root 0x83ace4eda448911e...)
+  ok   deposit 0 is at or before the checkpoint's execution block
+  ok   deposit 1: 0x2508a66321461e382fe7c00fe5cff9ca9232ef089ecde500bebcb92934207fdd in block 12092950, 1000000000000000 wei into the vault, its Deposit event (leaf 0xc9cad6bf5a97b5c5..., root 0x0f783dbd56aa5c54...)
+  ok   deposit 1 is at or before the checkpoint's execution block
+  ok   Sepolia block 12092950 is 0x95055659f1eddddf... with state root 0xcb2f2b05807bf7a5...
+  ok   the committed bootstrap (slot 11536448) commits to that execution block
+  ok   the committed proof of knownRoot[0x0f783dbd56aa5c54...] is under that state root, the vault's slot 0xe6327c657d2c01dd..., value 1
+  ok   knownRoot[root] is true on Sepolia now
+  ok   control: knownRoot of a random root is false
+== LEZ: Sextant instance sepolia-portage-1108, header record 9Vs169NnZZP6uYazAtudgpJXEtR5ZkCMvB85uHgzq8i9
+  ok   Sextant's header record for the checkpoint slot holds the checkpoint block's state root
+  ok   the public claim 834a346002e0410e... carries that root and the vault's address
+== 14 checks pass, 0 fail
+== PASS

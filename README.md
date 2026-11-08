@@ -16,10 +16,16 @@ program; they go back by a burn on LEZ and a release on Ethereum.
   2-of-3 committee says that the top Bedrock header is canonical. **F.7 of
   the RFP is therefore not met**; see [What is still trusted](#what-is-still-trusted).
 
-Everything here ran locally: anvil, a LEZ v0.3.1 sequencer, the v0.3.0 wallet,
-and a single-node Bedrock devnet. Nothing is deployed on a public network.
-The one public-network input is read-only: real Bedrock testnet blocks used as
-test vectors.
+**The inbound path ran on public networks** on 2026-11-08
+([docs/TESTNET.md](docs/TESTNET.md)). Two deposits were made into a vault on
+Sepolia. A Sextant instance on the public LEZ testnet was initialised from a
+Sepolia checkpoint finalized after them. `wrap_bridge` on the same testnet then
+minted both deposits, one by a public claim and one by a privacy-preserving
+claim into a shielded account. Each claim was attested against that header,
+by a storage proof checked on chain. `scripts/verify-testnet.sh` re-checks it.
+Everything else ran locally: anvil, a LEZ v0.3.1 sequencer, the v0.3.0 wallet,
+and a single-node Bedrock devnet. The release path has not run on a public
+network.
 
 ## How it works
 
@@ -71,6 +77,7 @@ was not measured on native x86_64.
 
 | run | result |
 |---|---|
+| [`evidence/testnet/`](evidence/testnet/), `scripts/testnet-inbound.sh`, **Sepolia and the public LEZ testnet** | 2 deposits on Sepolia; Sextant `Init` from a Sepolia checkpoint finalized after them; the public claim (451,107 gas) and the private claim (proven in 264.6 s, 257,739 B) applied; 2 refusals (a replay, a root the vault never had); `scripts/verify-testnet.sh`: 29 LEZ checks and 14 Sepolia checks, 0 fail; verifier mutation test 16 of 16; 35.4M of the testnet token |
 | [`evidence/local/`](evidence/local/), `scripts/e2e-local.sh` | PASS: 14 LEZ transactions (9 applied, 5 refused as expected), 11 zero-knowledge releases on anvil (2 applied, 9 refused as expected); verifier 81 checks, 0 fail; its mutation test 32 of 32 |
 | [`evidence/local-committee/`](evidence/local-committee/), `RELEASE_VERIFIER=committee` | PASS, releases opening the leaf: verifier 73 checks, mutation test 28 of 28 |
 | [`evidence/local-chain/`](evidence/local-chain/), `scripts/e2e-chain.sh` | PASS: 12 releases through `ZkChainBurnVerifier` (1 applied, 11 refused) |
@@ -167,9 +174,10 @@ Inbound, the trusted input is the checkpoint a light client starts from. Anvil
 has no beacon chain, so the local runs wrap its block in a beacon header and
 initialise Sextant from it; everything after that (the storage proof against
 the state root, the deposit's path, the nullifier, the mint) is verified as on
-a real network.
+a real network. On Sepolia the checkpoint is a finalized header served,
+byte for byte the same, by two beacon implementations.
 
-Not built yet: deployment on Sepolia and the LEZ public testnet, a relayer, a
+Not built yet: the release path on a public network, a relayer, a
 protocol fee, a rolling-window cap on LEZ (an outstanding-supply cap instead),
 Logos modules, and a SPEL IDL (SPEL does not build v0.3 programs). A public
 claim carries the deposit's opening, so it links the claim to its deposit.
@@ -224,6 +232,14 @@ scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http:/
 [docs/LOCAL-E2E.md](docs/LOCAL-E2E.md) describes each step, its ports and its
 limits; [docs/OUTBOUND.md](docs/OUTBOUND.md), section 5, the Bedrock step.
 
+The public-network inbound run is resumable by stage. Its commands are in
+[docs/TESTNET.md](docs/TESTNET.md#reproduce). To re-check the recorded run
+against the public LEZ testnet and Sepolia, with JSON-RPC only:
+
+```console
+scripts/verify-testnet.sh
+```
+
 ## Layout
 
 | path | what it is |
@@ -239,7 +255,7 @@ limits; [docs/OUTBOUND.md](docs/OUTBOUND.md), section 5, the Bedrock step.
 | [`cli/`](cli/) | `wrap`, the client on a LEZ v0.3 sequencer (v0.3.0 wallet crate, a vendored v0.3.1 `common` for the block format) and the release prover |
 | [`scripts/`](scripts/) | builds, end-to-end runs, the on-chain verifier, mutation tests, anvil helpers |
 | [`vectors/`](vectors/) | anvil deposits and proofs, LEZ sequencer blocks, a public-testnet Bedrock anchor |
-| [`evidence/`](evidence/) | manifests, transcripts and raw measurements of each local run |
+| [`evidence/`](evidence/) | manifests, transcripts and raw measurements of each run (`testnet/`: Sepolia and the public LEZ testnet) |
 | [`docs/`](docs/) | the design and measurement write-ups; [`docs/raw/`](docs/raw/) raw outputs |
 
 ## License

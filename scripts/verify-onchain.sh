@@ -9,6 +9,9 @@
 # and comment lines, of which these are checked:
 #   # program <header> <image-id> <name>   the program_loader header names this ImageID
 #   # deploy <what> <hash>                 the deployment transaction resolves
+#   # shared-block <block> <label> <label> ...
+#                                          these transactions of the run share one block: their
+#                                          charges are checked together (below)
 #   # final <account> <program> <len> <sha256> <name>
 #                                          the account's shard of that program is these bytes now
 #   # private <label> hides <account> tx_bytes <n>
@@ -42,6 +45,13 @@
 #   transaction (variant tag 1) carrying no signature, of the recorded size,
 #   and the private destination's id occurs nowhere in its bytes;
 # then every `final` line, and a control: a random hash does not resolve.
+# A block that holds several of the run's own transactions (a `shared-block`
+# line; the public testnet sometimes packs two, or moves one into the next
+# block when it rewrites recent blocks) is checked as a group: its
+# gas_used_stor must be exactly the sum of their sizes, so it holds no other
+# charged transaction, and its gas_used_exec exactly the sum of what each
+# verdict implies (an applied one its pre-checked gas, a refused one its
+# whole limit).
 # With --eth-rpc, every `eth` line: its receipt is in the recorded block with
 # the recorded gas; an applied release has status 1 and a Release event of the
 # vault naming the recorded nullifier; a refused one has status 0, and the
@@ -144,6 +154,13 @@ for l in lines:
         p = l.split(); v = p[p.index("tx_bytes") + 1]
         private_info[p[2]] = (p[p.index("hides") + 1], int(v) if v.isdigit() else None)
 
+shared = {}
+for l in lines:
+    if l.startswith("# shared-block "):
+        p = l.split()
+        shared[p[2]] = p[3:]
+groups = {}  # block -> {label: (expected charge, size)}
+
 print(f"wrap_bridge run against {rpc}, from {manifest}")
 applied = refused = private = 0
 for line in lines:
@@ -202,6 +219,10 @@ for line in lines:
             report(False, f"{label}: {e}")
             continue
         exec_gas, stor_gas = fee_summary(int(found))
+        if label in shared.get(found, []):
+            want = (int(pre.split("=")[1]) if pre.startswith("gas=") else -1) if expected == "applied" else limit
+            groups.setdefault(found, {})[label] = (want, len(mine), expected, limit)
+            continue
         if stor_gas != len(mine):
             report(False, f"{label}: block {found} holds other charged transactions; its charge is not separable")
             continue
@@ -216,6 +237,22 @@ for line in lines:
             report(exec_gas == limit,
                    f"{label}: refused ({pre}), {tx[:16]}… in block {found}, charged its whole limit {limit}" if exec_gas == limit
                    else f"{label}: expected refused, charged {exec_gas} gas against a limit of {limit}")
+
+for blk, members in shared.items():
+    got = groups.get(blk, {})
+    if sorted(got) != sorted(members):
+        report(False, f"shared block {blk}: recorded {members}, resolved there {sorted(got)}")
+        continue
+    exec_gas, stor_gas = fee_summary(int(blk))
+    want_exec = sum(v[0] for v in got.values()); want_stor = sum(v[1] for v in got.values())
+    for v in got.values():
+        if v[2] == "applied":
+            applied += 1
+        else:
+            refused += 1
+    good = exec_gas == want_exec and stor_gas == want_stor and all(v[0] < v[3] for v in got.values() if v[2] == "applied")
+    report(good, f"shared block {blk}: {', '.join(f'{k} ({v[2]}, {v[0]})' for k, v in got.items())}; charged {exec_gas} gas = their sum, storage {stor_gas} = their sizes, no other charged transaction" if good
+           else f"shared block {blk}: charged {exec_gas} exec / {stor_gas} storage, the members imply {want_exec} / {want_stor}")
 
 ctl = secrets.token_hex(32)
 res = call("getTransaction", ctl)
