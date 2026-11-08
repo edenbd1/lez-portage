@@ -1,0 +1,39 @@
+# pol_measure: times, in the RISC Zero zkVM (r0vm 3.0.5), one Bedrock Proof of
+# Leadership verification (the node's arkworks path, and RISC Zero's
+# accelerated substrate-bn) and the note-set update a Cryptarchia light client
+# repeats per note. Input (stdin): u32 LE length, then a borsh
+# `pol_measure_core::Job`. Journal: a borsh `pol_measure_core::Report`.
+[workspace]
+
+[package]
+name = "pol_measure"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+pol-measure-core = { path = "../core" }
+risc0-zkvm = { version = "=3.0.5", default-features = false, features = ["std"] }
+borsh = "1.5"
+ark-bn254 = { version = "0.5", default-features = false, features = ["curve"] }
+ark-ec = { version = "0.5", default-features = false }
+ark-ff = { version = "0.5", default-features = false }
+ark-groth16 = { version = "0.5", default-features = false }
+substrate-bn = { version = "0.6", default-features = false }
+risc0-bigint2 = { version = "1.4.14", features = ["unstable"] }
+lb-poseidon2 = { package = "logos-blockchain-poseidon2", git = "https://github.com/logos-blockchain/logos-blockchain.git", rev = "3926a532b9d96d62747da064161a115a7c0c5a3e" }
+
+[profile.release]
+opt-level     = 3
+lto           = "thin"
+codegen-units = 1
+panic         = "abort"
+
+# RISC Zero's accelerated BN254: substrate-bn whose Fq/Fq2/Fq12/Fr arithmetic
+# is done by the risc0-bigint2 precompiles (256-bit modmul, and the degree-2
+# extension field ops). arkworks has no RISC Zero acceleration and runs on the
+# plain RV32IM machine, as the node's own verifier would.
+[patch.crates-io]
+substrate-bn  = { git = "https://github.com/risc0/paritytech-bn", tag = "v0.6.0-risczero.0" }
+crypto-bigint = { git = "https://github.com/risc0/RustCrypto-crypto-bigint", tag = "v0.5.5-risczero.0" }
