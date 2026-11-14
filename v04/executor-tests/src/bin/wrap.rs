@@ -540,7 +540,8 @@ fn main() {
                 fail("the path does not lead to the chain's root");
             }
             println!("{}", json!({"owner": owner.name(), "token": b["token"], "amount": b["amount"], "recipient": b["recipient"], "fee": b["fee"],
-                "leaf": b["leaf"], "index": i, "path": path, "root": hx(&chain.root), "nullifier": hx(&nf), "vault": hx(&a.vault), "pairing": hx(&a.pairing)}));
+                "leaf": b["leaf"], "index": i, "path": path, "root": hx(&chain.root), "nullifier": hx(&nf), "vault": hx(&a.vault), "pairing": hx(&a.pairing),
+                "secret": b["blinding"], "burns_account": burns.to_string(), "bridge_program": p.wrap_bridge.to_string(), "lez": "v0.4", "private": false}));
         }
         Cmd::Finish { from } => {
             let p = ctx.programs();

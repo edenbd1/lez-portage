@@ -6,7 +6,8 @@ first tag of that line; **branch `v0.4-spike` now runs on `v0.4.0-rc3`**
 (commit `bafd07be`, 2026-11-11), the latest release candidate, and **on
 Sextant's real light client ported to v0.4**, which replaces the spike's
 pinned-key stand-in (section 0), **with the ERC-20 path, a v0.4 client and
-reproducible builds of every v0.4 binary** (section 0.1). This document lists what v0.4 changes for each
+reproducible builds of every v0.4 binary** (section 0.1), **and the release
+of v0.4 burns on Ethereum** (section 0.2). This document lists what v0.4 changes for each
 part of Portage, citing upstream files and lines, and records the port and its
 measurements. Nothing here is merged into `main`; the v0.3.1 stack on `main`
 is unchanged.
@@ -157,6 +158,48 @@ DOCKER=1 v04/scripts/build-guests.sh token wrap_bridge lez_chain_v04 sextant
 SEQ=<lez@v0.4.0-rc3>/target/release/sequencer_service LEZ=<lez@v0.4.0-rc3> v04/scripts/e2e-seq.sh <run dir>
 python3 scripts/v04-run-json.py <run dir> vectors/lez-blocks-v04
 ```
+
+## 0.2 2026-11-14 (later): the release of v0.4 burns, through the vault
+
+The sequencer run now ends on Ethereum: **every applied v0.4 burn is released
+from WrapVault on anvil through `CommitteeBurnVerifier`** (the vault with
+main's rolling-window caps, global caps, timelocked admin and freezer, merged
+into this branch). Nothing in the vault or the verifier changed for v0.4: the
+burn leaf, the nullifier and the release digest are `wrap_core`'s, the same on
+both LEZ versions. What changed is how a committee member reads the burn
+tree: on v0.4 it is wrap_bridge's actor state at the burn-tree account, read
+with `getAccountView` of that one actor (scripts/anvil_release.py, for a proof
+`wrap release-proof` marks `"lez": "v0.4"`; it now also gives the burn's
+secret and the burn-tree actor).
+
+Each of the three members (anvil accounts 5, 6, 7; 2 of 3) reads the root from
+the local rc3 sequencer itself, between two equal reads of the tip, and signs
+the verifier's `attestationDigest` of the root *it read*; "final" is the
+standalone sequencer's tip 3 blocks above the block read (no Bedrock in this
+run, stated in the manifest). evidence/v04-rc3/e2e-seq/releases.tsv, 11
+releases, each verdict equal to its `eth_call`:
+
+| release | verdict | gas |
+|---|---|---:|
+| alice 0.1 ETH, the root's block named final | refused `NotFinal` | 94,936 |
+| alice 0.1 ETH | applied | 160,177 |
+| alice 0.1 ETH again | refused `AlreadyReleased` | 71,520 |
+| bob 100 USDT redirected to the relayer | refused `RootNotAttested` | 107,605 |
+| bob 100 USDT as 1,000 USDT | refused `RootNotAttested` | 107,541 |
+| a burn that never happened, committee signatures | refused `RootNotAttested` | 107,180 |
+| the same, signed by two outsiders | refused `RootNotAttested` | 107,188 |
+| bob 100 USDT, one member's signature | refused `RootNotAttested` | 100,044 |
+| bob 100 USDT, sent by a relayer | applied | 167,718 |
+| bob 1,000 USDT | applied | 146,296 |
+| alice 1 ETH | applied | 143,529 |
+
+The vault paid out exactly 1.1 ETH and 1,100 USDT (bob +1,100,000,000 units),
+and recorded the four burn nullifiers spent; the e2e script fails otherwise.
+**What this does not show:** the zero-knowledge releases on v0.4
+(`ZkBurnVerifier` needs only the opening and would work as is;
+`ZkChainBurnVerifier` and `ZkBedrockBurnVerifier` need the v0.4 chain guest in
+their recursion and its 36-word journal, section 5), and a release whose
+committee reads a public v0.4 network.
 
 ## 1. What v0.4 changes (found at rc1, checked at rc3)
 
@@ -396,7 +439,7 @@ evidence/v04-rc3/image-ids.txt).
 - `v04/executor-tests`, `tests/sepolia.rs`: **1 passed**, the real Sepolia
   attestation of section 0.
 - `v04/executor-tests`, `tests/chain_v04.rs`: **4 passed**, on 23 real
-  blocks of the local v0.4.0-rc3 sequencer (20 to 42, section 4.2): the mirror and LEZ's own
+  blocks of the local v0.4.0-rc3 sequencer (21 to 43, section 4.2): the mirror and LEZ's own
   `common::block::Block` both decode every block and re-encode it to the same
   bytes; LEZ's `recompute_hash`, the header and `content_hash` agree; the
   reverted list is exactly the eight transactions the sequencer reverted;
@@ -417,7 +460,7 @@ driven entirely by the v0.4 client `wrap` (v04/scripts/e2e-seq.sh;
 transcript.txt): 15 program-loader transactions (token, sextant_lc,
 wrap_bridge, the Docker builds), anvil with WrapVault at this deployment's
 pairing, the USDT-shaped ERC-20 and four deposits (alice 1 ETH twice, bob 100
-and 1,000 USDT), then 22 transactions in blocks 21 to 42, **each pre-checked
+and 1,000 USDT), then 22 transactions in blocks 21 to 43, **each pre-checked
 on rc3's state machine, and every chain verdict equal to its pre-check**:
 
 - applied: Sextant's `Init` on the devnet header of the anvil block, the
@@ -435,8 +478,9 @@ on rc3's state machine, and every chain verdict equal to its pre-check**:
 Final state (balances.jsonl): alice 0.9 wrapped ETH, bob 0 wrapped USDT,
 supplies 0.9 ETH and 0 USDT. The program's own burn tree, read back:
 `0xf36d194f…`, four leaves, equal to the applied burns'; `wrap release-proof`
-gives each applied burn's opening against it (release-openings.jsonl). `wrap
-claim --private` is refused by the client (private-claim.txt). The blocks are
+gives each applied burn's opening against it (release-openings.jsonl), and
+each is then released from the vault on anvil (section 0.2, releases.tsv).
+`wrap claim --private` is refused by the client (private-claim.txt). The blocks are
 vectors/lez-blocks-v04. All on a local sequencer; nothing on a public network.
 (The previous rc3 run, two ETH claims and four burns by `seq_drive`, is
 replaced; the rc1 run, with the stand-in: evidence/v04-spike/e2e-seq.)
@@ -476,7 +520,7 @@ evidence/v04-spike/cycles-chain-guest.md):
 
 | input | blocks | bytes | burns | user cycles | total cycles |
 |---|---:|---:|---:|---:|---:|
-| real rc3 blocks 20-42 (section 4.2) | 23 | 87,566 | 4 | 558,635 | 1,048,576 |
+| real rc3 blocks 21-43 (section 4.2) | 23 | 87,534 | 4 | 559,083 | 1,048,576 |
 | 1 x 18 public burns (1 reverted) | 1 | 23,227 | 17 | 1,248,529 | 1,572,864 |
 | 10 x 18 public burns | 10 | 232,270 | 170 | 12,019,399 | 12,845,056 |
 | 50 x 18 public burns | 50 | 1,161,110 | 850 | 59,842,701 | 63,963,136 |
@@ -500,7 +544,8 @@ optimize (batching the frontier's upper levels per block).
 | A full Claim of the real Sepolia deposits on v0.4 | the Sextant half is shown (section 0); the mint needs the committed destination to open its holding, so a fresh Sepolia deposit to a v0.4 destination | 0.5 day |
 | ATA (one wrapped token per account until then: section 0.1) | lez-programs has an actor-model port (`refactor/ata-lez-v0.4.x`, `064b73f`, which also changes the token program); adopt both, mint to the destination's ATA, rebuild, rerun | 1 day |
 | Private claim and private burn (so the client's claim is public by default and `--private` is refused) | hybrid transactions (public root, private holder or destination), the in-proof fee from a funded private payer; the client's private path; re-measure proving | 3-4 days |
-| A release on v0.4 | `wrap release-proof` gives a burn's opening against the chain's tree; the release itself (CommitteeBurnVerifier on anvil, or the zk verifiers below) is not run on v0.4 | 0.5 day (committee) |
+| ~~A release on v0.4 (committee)~~ | done 2026-11-14 (section 0.2): every applied burn released through CommitteeBurnVerifier on anvil, seven refusals | - |
+| A zero-knowledge release on v0.4 | `ZkBurnVerifier` (membership only) needs `wrap release-proof --zk` in the v0.4 client; the chain-derived verifiers, the rows below | 0.5 day (ZkBurnVerifier) |
 | zk/bedrock_anchor, burn_release, bedrock_release on v0.4 | move compose.rs to chain/v04 and the 36-word journal; re-verify bedrock/ against lb-core d480efc6; accept staked sequencer keys | 2 days |
 | Chain guest recursion and per-burn cost | prior-receipt recursion as in zk/lez_chain; batch frontier inserts | 1 day |
 | Vault verifiers | new ImageIDs and journal layout in ZkChainBurnVerifier / ZkBedrockBurnVerifier, Foundry tests and mutations | 1 day |

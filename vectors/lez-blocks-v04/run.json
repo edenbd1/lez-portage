@@ -7,8 +7,8 @@
  "config": "5NbKMHqjuLcsNVNjRnbqJQ8JWhE4Lh8ZZ8y8cyjZvbZY",
  "burns": "9d4ZaPsNZw3EaRYHggZEczmDfk26kgsdHdhbAapFmcof",
  "pairing": "0xbe7c5f96c9f4cf0e115467b5aa80257e0ec00e385e57f64075f2fab12af89c88",
- "first": 20,
- "last": 42,
+ "first": 21,
+ "last": 43,
  "applied_burn_leaves": [
   "0xbda9924c88ad8e66d375b4b84473370cab8a38bc89c801dbf4463cb697cfc3c4",
   "0xdadb97576e8d20ceeda61d94fb30fe09f2f88b574d684945b234b0292a7181ae",
@@ -22,63 +22,63 @@
    "verdict": "applied",
    "block": 21,
    "tx": 0,
-   "hash": "a4ae45073f0358f988e19060b55139736741aa0ff32fb029e8dd24ff820223c2"
+   "hash": "e24ed655dbd908340191600933057ddea480f9c11990ca74832bd74cb4c33c39"
   },
   {
    "label": "Init",
    "verdict": "applied",
    "block": 22,
    "tx": 0,
-   "hash": "67e1cba78435437937f2fea9620e433c44ee59ffd8e452d613f9ee98f52d4074"
+   "hash": "cc1aa711582b61299837165eb9984ccba0e42ca8503bee59d37a41de8e8d06f5"
   },
   {
    "label": "REGISTER ETH",
    "verdict": "applied",
    "block": 23,
    "tx": 0,
-   "hash": "a16ad822c3b510db34be082f1ffd4bbd1184575385e8172861483c020b992600"
+   "hash": "c41250e218ff9a3a05bdfebd5ee2efbcd96a4ceb5d4c253b08edf90bd4b32686"
   },
   {
    "label": "REGISTER USDT",
    "verdict": "applied",
    "block": 24,
    "tx": 0,
-   "hash": "16f55c0bf8d0f0e9015a729b6d72056518504c43185e66a32f71d050a9b1e661"
+   "hash": "3e212374984a623998510e6462a05c62811d7c64dcd9764ab403c95e71e11081"
   },
   {
    "label": "alice InitializeHolding Eth",
    "verdict": "applied",
    "block": 25,
    "tx": 0,
-   "hash": "3772c40a96a5e1d1fd39d044d72adcd47a19100ff197991f8d1e051862936e62"
+   "hash": "f5e0f2d2dde523f998b843df768ef0954e270dc0a026f6256a68f7ccb587ec9d"
   },
   {
    "label": "bob InitializeHolding Usdt",
    "verdict": "applied",
    "block": 26,
    "tx": 0,
-   "hash": "e61f846e8be10c5ce5557f8e217095e24572d5c01c73a8e5879ad4003a40e3db"
+   "hash": "6b352a048442a36c48ab7c6143c64a2e9aad0981011970ba0e78de54923ed00a"
   },
   {
    "label": "Claim deposit 0",
    "verdict": "applied",
    "block": 27,
    "tx": 0,
-   "hash": "48c22db2e04d4cf26b2b606848d0d5f8d157984ee4c33cc2c8720d6b73181b32"
+   "hash": "c265ec9ef869ba009e26afd6e6a9a123b85dbf1732572b6cd37d3652970a7cb2"
   },
   {
    "label": "Claim deposit 2",
    "verdict": "applied",
    "block": 28,
    "tx": 0,
-   "hash": "8da41af7772afcafbd36da2b48f9c31c25afbb585bd188cabff894a520926768"
+   "hash": "88cfe35924c439736261d90bd9f6ab80a969193a64ca1ec06cf760dd832cb0bc"
   },
   {
    "label": "Claim deposit 0 again (replay)",
    "verdict": "reverted",
    "block": 29,
    "tx": 0,
-   "hash": "9974afca3de8151eec503756fedadfb1801abcb298db8890822a3fca54b32585",
+   "hash": "56aef1dab1f464e0df35900b94fd816ef243bfd202090a3eada718382dff5c71",
    "precheck": "E7402"
   },
   {
@@ -86,7 +86,7 @@
    "verdict": "reverted",
    "block": 30,
    "tx": 0,
-   "hash": "220d832da47062616cb0effb8e1c240d1229067d22b784f502ea0a2b8b8c76d0",
+   "hash": "b1885ddd716b1c20a80772db9980414686db7c6500542b963d5e491fbeeb25f4",
    "precheck": "E7402"
   },
   {
@@ -94,7 +94,7 @@
    "verdict": "reverted",
    "block": 31,
    "tx": 0,
-   "hash": "9dd1e00aac0b4c4bc2e3d93309e9f08ebd0543876d7c81a09bb49784590afad1",
+   "hash": "d0e64799852eb8fa7eba496122a2ff2a0a267d9f0f4a76f2f47342669b451009",
    "precheck": "E7208"
   },
   {
@@ -102,7 +102,7 @@
    "verdict": "reverted",
    "block": 32,
    "tx": 0,
-   "hash": "579dd8765711cb908434f51cdc201169d2eb52eea7f63b46cbc19555ff2ef770",
+   "hash": "9aaf3e20f479ae5d494bb26d98bc27960da0aa20ae2b17dbed5e217206f24d77",
    "precheck": "E7403"
   },
   {
@@ -110,7 +110,7 @@
    "verdict": "reverted",
    "block": 33,
    "tx": 0,
-   "hash": "e412a09432067ecfa9a09fd4b0bc82c1e46a0d913e9242cb8009bba1bdc487ad",
+   "hash": "de9dd8e3ef1533ea5772bd56695823a2059de51dc3fbce05c3113e3f1e2c0199",
    "precheck": "E7403"
   },
   {
@@ -118,66 +118,66 @@
    "verdict": "applied",
    "block": 34,
    "tx": 0,
-   "hash": "b917cdc8c43b69129aebcd5161db592693b776819cb0a0885ed9749edc78d837"
+   "hash": "1d32ad612b3e634744cf7b9fa61d73ef4818b555c2a92efd84c998b6cbe72100"
   },
   {
    "label": "Claim deposit 3",
    "verdict": "applied",
-   "block": 35,
+   "block": 36,
    "tx": 0,
-   "hash": "5a478a6bed819db95b31f3a5dbb5b33265a81f4f91970ba77a533c2d0c7fed31"
+   "hash": "95f8a5d88a2209179c53be50d0d251947ef7d636c15b1a5357aa6023d05de406"
   },
   {
    "label": "alice Burn 100000000000000000 Eth",
    "verdict": "applied",
-   "block": 36,
+   "block": 37,
    "tx": 0,
-   "hash": "543c6ca2584c74566e5414046d75f0e9cf056089b3516e70c6701cafd282e38f"
+   "hash": "a7548cb88991f13211b00e7bca3a83044f5779d3d26d508e4bc77dc43167a574"
   },
   {
    "label": "bob Burn 100000000 Usdt",
    "verdict": "applied",
-   "block": 37,
+   "block": 38,
    "tx": 0,
-   "hash": "45efb58a8588ef1a140c2dab2666f1e0cbb3769425be090ca4c141adf5bb1345"
+   "hash": "7f59967a81899ba17b97b0233ad06136fd6cd0d20a6611e7ceace95a5c701ad5"
   },
   {
    "label": "bob Burn 12345 USDT units (not a denomination)",
    "verdict": "reverted",
-   "block": 38,
+   "block": 39,
    "tx": 0,
-   "hash": "e35e9886bb6f1fa32e30be13b4817201fdaa884541d79645f22658b6d72abbfd",
+   "hash": "99d5bc441a2d295769957902bcd9115af7926fbddc28387474e6bc163b72c1e0",
    "precheck": "E7408"
   },
   {
    "label": "alice Burn 100 USDT from her wrapped ETH (the wrong token)",
    "verdict": "reverted",
-   "block": 39,
+   "block": 40,
    "tx": 0,
-   "hash": "4c90178fbe1b5b848c6e2db43403d4767b0c17c47971de2a057d5d54736d89a8",
+   "hash": "3f1b880e9e7a4092cd2533c27e8f4b7316789b65d7de17331c9db8365ccfdebc",
    "precheck": "Failed to execute program: Guest panicked: recipient holds another token"
   },
   {
    "label": "bob Burn 1000000000 Usdt",
    "verdict": "applied",
-   "block": 40,
+   "block": 41,
    "tx": 0,
-   "hash": "b99d2b5862b3a82f0912d25e0665d28d1a4da093598eb266507c378ce758e4f5"
+   "hash": "d8fe17766e0d11762813f68a758e71b59c41936526a04bb904a69de135a2f303"
   },
   {
    "label": "bob Burn 1000 USDT (more than bob holds)",
    "verdict": "reverted",
-   "block": 41,
+   "block": 42,
    "tx": 0,
-   "hash": "fca27118cab82d0a8110c7783861e7464ffc8327e75838bf591f38b796274bc2",
+   "hash": "1c2fa24b92b6ed6c14920d40057653303c3d94c8470d6508478607a901d81291",
    "precheck": "Failed to execute program: Guest panicked: insufficient balance"
   },
   {
    "label": "alice Burn 1000000000000000000 Eth",
    "verdict": "applied",
-   "block": 42,
+   "block": 43,
    "tx": 0,
-   "hash": "c4269a507ab193ed64742aaedab79b092165d5ca8cdede135d3e1f50ee94ddef"
+   "hash": "facace565db7639e494f4dd9f8e2e491f459567ca8cfeb93fba90cca8ed2a942"
   }
  ]
 }

@@ -37,7 +37,8 @@ actor-model port, Sextant's light client on v0.4, blocks that list reverted
 transactions (so public burns are derivable from blocks), ETH and an ERC-20
 claimed and burned, a v0.4 client (`wrap`, pre-checking every transaction on
 rc3's state machine), reproducible Docker builds of every v0.4 binary, and a
-run on a local v0.4.0-rc3 sequencer. Nothing of v0.4 is on a public network
+run on a local v0.4.0-rc3 sequencer whose applied burns are then released from
+WrapVault on anvil through the committee verifier. Nothing of v0.4 is on a public network
 (there is no public 0.4 network yet). See [docs/V04-PORT.md](docs/V04-PORT.md)
 and [`v04/`](v04/); how to run it is under "Run" below.
 
@@ -369,6 +370,11 @@ cd <logos-execution-zone@v0.4.0-rc3> && cargo build --release --features standal
 SEQ=<lez@v0.4.0-rc3>/target/release/sequencer_service LEZ=<lez@v0.4.0-rc3> v04/scripts/e2e-seq.sh <run dir>
 python3 scripts/v04-run-json.py <run dir> vectors/lez-blocks-v04            # the block vectors chain_v04 reads
 ```
+
+It ends on anvil: each applied v0.4 burn released from WrapVault through
+`CommitteeBurnVerifier` (each member reads the burn tree's root from the rc3
+sequencer), with seven refusals ([evidence/v04-rc3/e2e-seq/releases.tsv](evidence/v04-rc3/e2e-seq/releases.tsv),
+docs/V04-PORT.md section 0.2).
 
 ## Layout
 

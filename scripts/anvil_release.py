@@ -12,8 +12,9 @@ nullifier, and the LEZ burn-tree account.
 **The committee** (CommitteeBurnVerifier, 2 of anvil accounts 5, 6, 7). Each
 member, independently, reads the burn tree's root from the LEZ sequencer
 (getAccount of the burn-tree account, read between two equal reads of the
-tip, so the root is the state at that block), and signs, with anvil's
-eth_sign (EIP-191), the verifier's `attestationDigest` of the root *it read*,
+tip, so the root is the state at that block; on LEZ v0.4, a proof with
+`"lez": "v0.4"`, getAccountView of wrap_bridge's actor at that account),
+and signs, with anvil's eth_sign (EIP-191), the verifier's `attestationDigest` of the root *it read*,
 not the one the release names: a member never signs a root it did not see.
 With `--wait-final` it first waits until the LEZ tip is `finality_depth`
 blocks above the block it read, and names the tip as final; without it, it
@@ -115,12 +116,21 @@ def lez_tip(lez):
     return int(ok(lez, "getLastBlockId", []))
 
 
-def lez_burn_root(lez, burns, program):
+def burn_tree_bytes(lez, burns, program, v04):
+    if v04:
+        # LEZ v0.4: the burn tree is wrap_bridge's actor state at the burn-tree
+        # account, read alone (getAccountView of that actor).
+        res = ok(lez, "getAccountView", [{"account_id": burns, "program_account_id": program}]) or {}
+        return bytes(((res.get("data") or {}).get("actor_states") or {}).get(program, []))
+    res = ok(lez, "getAccount", [burns]) or {}
+    return bytes(((res.get("data") or {}).get("shards") or {}).get(program, []))
+
+
+def lez_burn_root(lez, burns, program, v04=False):
     """The burn tree's root at the tip, and that tip (two equal reads around the account)."""
     for _ in range(20):
         t0 = lez_tip(lez)
-        res = ok(lez, "getAccount", [burns]) or {}
-        data = bytes(((res.get("data") or {}).get("shards") or {}).get(program, []))
+        data = burn_tree_bytes(lez, burns, program, v04)
         if lez_tip(lez) == t0:
             # borsh Frontier { next_index: u64, filled: Vec<[u8; 32]>, root: [u8; 32] }
             if len(data) != 8 + 4 + 24 * 32 + 32:
@@ -172,7 +182,7 @@ def main():
     sender = {"recipient": recipient, "relayer": dep["relayer"], "outsider": dep["outsiders"][0]}[a.sender]
 
     # The committee's view of LEZ.
-    root_seen, leaves_seen, lez_block = lez_burn_root(a.lez, pr["burns_account"], pr["bridge_program"])
+    root_seen, leaves_seen, lez_block = lez_burn_root(a.lez, pr["burns_account"], pr["bridge_program"], pr.get("lez") == "v0.4")
     final = lez_block
     if a.wait_final:
         while lez_tip(a.lez) < lez_block + depth:

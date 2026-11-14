@@ -27,8 +27,12 @@ re-verification.
 
 Test names are function names: Foundry tests in `vault/test/`, executor
 tests in `executor-tests/tests/`. Everything here runs on LEZ v0.3 (the
-public testnet is v0.3.1); a port to LEZ v0.4.0-rc1 is on the `v0.4-spike`
-branch and is not counted.
+public testnet is v0.3.1); a port to LEZ v0.4.0-rc3 is on the `v0.4-spike`
+branch and is not counted below: there, on a local rc3 sequencer and anvil,
+ETH and an ERC-20 are claimed (public claims only), burned, and released from
+the vault through the committee verifier ([V04-PORT.md](V04-PORT.md) sections
+0 to 0.2); the private claim and burn and the zero-knowledge releases are not
+ported yet (section 5 there).
 
 ## Functionality
 
