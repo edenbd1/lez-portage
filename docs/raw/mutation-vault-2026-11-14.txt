@@ -1,0 +1,108 @@
+baseline    the unmutated sources pass (131 tests passed)
+caught      release digest not compared: test_a_relayer_other_than_the_proofs_is_refused
+caught      finality depth not checked: test_a_burn_not_yet_final_by_the_configured_depth_is_refused
+caught      threshold not checked: test_a_root_the_committee_did_not_sign_is_refused
+caught      a non-member's signature counts: test_a_burn_that_never_happened_is_refused
+caught      a member counted twice: test_one_member_signing_twice_counts_once
+caught      high-s signatures accepted: test_a_malleated_signature_does_not_count
+caught      attestation not bound to chain and vault: test_a_final_attested_burn_releases_once_to_its_committed_recipient
+caught      pairing not read from the vault: test_another_pairing_is_refused
+caught      fee not bound by the burn: test_a_burn_not_yet_final_by_the_configured_depth_is_refused
+caught      index range not checked: test_another_index_or_path_is_refused
+caught      burn nullifier ignores the leaf index: test_a_burn_not_yet_final_by_the_configured_depth_is_refused
+caught      zk: the journal not compared with the vault's digest: test_a_higher_fee_is_refused
+caught      zk: the seal not verified: test_a_journal_tampered_to_another_amount_is_refused
+caught      zk: the seal checked against a fixed digest, not the vault's: test_a_journal_tampered_to_another_amount_is_refused
+caught      zk: the committee not consulted: test_a_root_not_yet_final_is_refused
+caught      zk: the attested root is not the journal's: test_a_proven_attested_burn_releases_once_to_its_committed_recipient
+caught      zk: the attestation not bound to the journal's pairing: test_a_proven_attested_burn_releases_once_to_its_committed_recipient
+caught      chain: the journal's length not checked: test_a_membership_journal_without_the_chain_is_refused
+caught      chain: the release preimage not compared with the vault's digest: test_another_chain_id_is_refused
+caught      chain: the preimage compared on 320 bytes: test_a_block_hash_the_members_did_not_read_is_refused
+caught      chain: the chain guest's image id not checked: test_a_journal_naming_another_chain_is_refused
+caught      chain: the program not checked: test_a_journal_naming_another_chain_is_refused
+caught      chain: the burn-tree account not checked: test_a_journal_naming_another_chain_is_refused
+caught      chain: the anchor's height not checked: test_a_journal_naming_another_chain_is_refused
+caught      chain: the anchor's hash not checked: test_a_journal_naming_another_chain_is_refused
+caught      chain: the seal not verified: test_a_journal_tampered_to_another_tip_is_refused
+caught      chain: the seal checked against the preimage's digest only: test_a_block_hash_the_members_did_not_read_is_refused
+caught      chain: the tip not attested: test_a_block_hash_the_members_did_not_read_is_refused
+caught      chain: the attested hash is not the journal's tip: test_a_chain_derived_release_pays_once_to_the_committed_recipient
+caught      chain: the attested height is not the journal's tip: test_a_block_hash_the_members_did_not_read_is_refused
+caught      block committee: finality depth not checked: test_a_tip_not_yet_final_is_refused
+caught      block committee: threshold not checked: test_a_block_hash_the_members_did_not_read_is_refused
+caught      block committee: a non-member's signature counts: test_a_malleated_signature_does_not_count
+caught      block committee: a member counted twice: test_one_member_or_outsiders_are_refused
+caught      block committee: high-s signatures accepted: test_a_malleated_signature_does_not_count
+caught      block committee: attestation not bound to the vault: test_a_chain_derived_release_pays_once_to_the_committed_recipient
+caught      block committee: attestation not bound to the pairing: test_a_chain_derived_release_pays_once_to_the_committed_recipient
+caught      bedrock: the journal's length not checked: test_a_chain_journal_without_the_anchor_is_refused
+caught      bedrock: the release preimage not compared with the vault's digest: test_another_chain_id_is_refused
+caught      bedrock: the chain guest's image id not checked: test_a_journal_naming_another_chain_is_refused
+caught      bedrock: the program not checked: test_a_journal_naming_another_chain_is_refused
+caught      bedrock: the burn-tree account not checked: test_a_journal_naming_another_chain_is_refused
+caught      bedrock: the LEZ anchor's height not checked: test_a_journal_naming_another_chain_is_refused
+caught      bedrock: the LEZ anchor's hash not checked: test_a_journal_naming_another_chain_is_refused
+caught      bedrock: the anchor guest's image id not checked: test_a_journal_naming_another_anchor_guest_channel_or_key_is_refused
+caught      bedrock: the channel not checked: test_a_journal_naming_another_anchor_guest_channel_or_key_is_refused
+caught      bedrock: the sequencer key not checked: test_a_journal_naming_another_anchor_guest_channel_or_key_is_refused
+caught      bedrock: the depth not checked: test_a_verifier_pinned_otherwise_refuses
+caught      bedrock: the depth checked one short: test_a_verifier_pinned_otherwise_refuses
+caught      bedrock: the seal not verified: test_a_journal_tampered_to_another_bedrock_header_is_refused
+caught      bedrock: the seal checked against the preimage's digest only: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      bedrock: the top header not attested: test_a_header_the_members_did_not_see_is_refused
+caught      bedrock: the attested header is the inscription's block, not the top: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      bedrock: the attestation not bound to the journal's pairing: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      bedrock: a zero minimum depth accepted: test_a_misconfigured_verifier_is_refused
+caught      header committee: threshold not checked: test_a_header_the_members_did_not_see_is_refused
+caught      header committee: a non-member's signature counts: test_a_malleated_signature_does_not_count
+caught      header committee: a member counted twice: test_one_member_twice_outsiders_or_a_member_and_an_outsider_are_refused
+caught      header committee: high-s signatures accepted: test_a_malleated_signature_does_not_count
+caught      header committee: attestation not bound to the vault: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      header committee: attestation not bound to the header: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      vault: release digest not bound to the chain: test_the_digest_binds_this_vault_and_chain
+caught      vault: release digest not bound to the vault: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      vault: release digest omits the relayer: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      vault: a spent nullifier not refused: test_release_once_and_only_as_proven
+caught      vault: the nullifier not recorded: test_a_bedrock_anchored_release_pays_once_to_the_committed_recipient
+caught      vault: deposits not rate-limited: test_a_raised_cap_is_settled_at_the_old_rate_first
+caught      vault: releases not rate-limited: test_release_cap_per_window
+caught      vault: a bucket never drains: test_deposit_cap_per_window
+caught      vault: a bucket empties at once after a window (fixed window): test_a_raised_cap_is_settled_at_the_old_rate_first
+caught      vault: the global deposit cap ignored: test_an_unpriced_token_is_refused_while_a_global_cap_is_on
+caught      vault: the global release cap ignored: test_an_unpriced_token_is_refused_while_a_global_cap_is_on
+caught      vault: an unpriced token moves free under a global cap: test_an_unpriced_token_is_refused_while_a_global_cap_is_on
+caught      vault: a bucket not settled at the old cap before a change: test_a_raised_cap_is_settled_at_the_old_rate_first
+caught      vault: the constructor accepts any window: test_the_constructor_enforces_the_window_bounds_and_both_roles
+caught      vault: a loosening runs without the timelock: test_a_cancelled_operation_cannot_run
+caught      vault: a raised deposit cap is not a loosening: test_a_matured_operation_expires_after_the_grace_period
+caught      vault: a raised release cap is not a loosening: test_relisting_adding_a_denomination_or_changing_decimals_is_not_immediate
+caught      vault: relisting is not a loosening: test_relisting_adding_a_denomination_or_changing_decimals_is_not_immediate
+caught      vault: a new denomination is not a loosening: test_relisting_adding_a_denomination_or_changing_decimals_is_not_immediate
+caught      vault: the decimals of a registered token change: test_relisting_adding_a_denomination_or_changing_decimals_is_not_immediate
+caught      vault: a lower value is not a loosening: test_an_unpriced_token_is_refused_while_a_global_cap_is_on
+caught      vault: a raised global cap is not a loosening: test_a_cancelled_operation_cannot_run
+caught      vault: a shorter delay is not a loosening: test_the_delay_lengthens_at_once_and_shortens_through_itself_within_bounds
+caught      vault: the delay bounds not checked: test_the_delay_lengthens_at_once_and_shortens_through_itself_within_bounds
+caught      timelock: an operation runs before its delay: test_raising_a_cap_needs_the_exact_call_scheduled_a_delay_earlier
+caught      timelock: an operation never expires: test_a_matured_operation_expires_after_the_grace_period
+caught      timelock: an operation is not consumed: test_raising_a_cap_needs_the_exact_call_scheduled_a_delay_earlier
+caught      timelock: operations not keyed on the admin epoch: test_admin_rotation_is_two_step_timelocked_and_voids_the_old_admins_operations
+caught      timelock: a cancel does nothing: test_a_cancelled_operation_cannot_run
+caught      guardian: the admin may pause: test_the_admin_cannot_bypass_a_pause_at_once
+caught      guardian: freeze can unpause a token: test_the_freezer_pauses_at_once_and_cannot_unpause
+caught      guardian: freezeAll can unpause: test_the_freezer_pauses_at_once_and_cannot_unpause
+caught      guardian: a token pause does not count: test_a_token_unpause_cannot_lift_a_later_token_pause
+caught      guardian: a global pause does not count: test_an_unpause_kept_ready_cannot_lift_a_later_pause
+caught      guardian: a repeated pause counts: test_repausing_what_is_paused_does_not_void_a_scheduled_unpause
+caught      unpause: a token unpause runs without the timelock: test_the_admin_cannot_bypass_a_pause_at_once
+caught      unpause: a global unpause runs without the timelock: test_an_unpause_kept_ready_cannot_lift_a_later_pause
+caught      unpause: a token unpause lifts a later pause: test_a_token_unpause_cannot_lift_a_later_token_pause
+caught      unpause: a global unpause lifts a later pause: test_an_unpause_kept_ready_cannot_lift_a_later_pause
+caught      rotation: the freezer rotates without the timelock: test_the_freezer_rotates_only_through_the_timelock_and_never_to_the_admin
+caught      rotation: the freezer may become the admin: test_the_freezer_rotates_only_through_the_timelock_and_never_to_the_admin
+caught      rotation: the admin is proposed without the timelock: test_admin_rotation_is_two_step_timelocked_and_voids_the_old_admins_operations
+caught      rotation: anyone accepts the admin role: test_admin_rotation_is_two_step_timelocked_and_voids_the_old_admins_operations
+caught      rotation: the freezer may accept the admin role: test_the_freezer_cannot_become_the_admin
+caught      rotation: the old admin's operations survive: test_admin_rotation_is_two_step_timelocked_and_voids_the_old_admins_operations
+106 caught, 0 missed

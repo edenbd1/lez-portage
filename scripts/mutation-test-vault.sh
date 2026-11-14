@@ -19,7 +19,7 @@ for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB" "$ZB" "$BH"; do cp "$f" "$SAVE/"; done
 restore() { for f in "$V" "$C" "$Z" "$W" "$ZC" "$LB" "$ZB" "$BH"; do cp "$SAVE/$(basename "$f")" "$f"; done; }
 trap restore EXIT
 
-# name @@ file @@ literal text @@ replacement
+# name @@ file @@ literal text @@ replacement (\& is &, \n a newline)
 MUTATIONS=(
   "release digest not compared@@$V@@ != publicInputs) {@@ != publicInputs \&\& false) {"
   "finality depth not checked@@$C@@if (uint256(lezFinalBlock) < uint256(lezBlock) + FINALITY_DEPTH) revert NotFinal();@@if (false) revert NotFinal();"
@@ -87,6 +87,46 @@ MUTATIONS=(
   "vault: release digest omits the relayer@@$W@@token, amount, recipient, relayer, fee, lezBurnRoot, nullifier)@@token, amount, recipient, address(0), fee, lezBurnRoot, nullifier)"
   "vault: a spent nullifier not refused@@$W@@if (nullifierSpent[nullifier]) revert AlreadyReleased();@@"
   "vault: the nullifier not recorded@@$W@@nullifierSpent[nullifier] = true;@@"
+  "vault: deposits not rate-limited@@$W@@_spend(depositBucket[token], t.depositCap, amount);@@"
+  "vault: releases not rate-limited@@$W@@_spend(releaseBucket[token], t.releaseCap, amount);@@"
+  "vault: a bucket never drains@@$W@@uint256 drained = (block.timestamp - b.updated) * cap / WINDOW;@@uint256 drained = 0;"
+  "vault: a bucket empties at once after a window (fixed window)@@$W@@return drained >= level ? 0 : level - drained;@@return block.timestamp - b.updated >= WINDOW ? 0 : level;"
+  "vault: the global deposit cap ignored@@$W@@if (g != UNCAPPED) _spend(globalDepositBucket, g, _value(t, amount));@@"
+  "vault: the global release cap ignored@@$W@@if (g != UNCAPPED) _spend(globalReleaseBucket, g, _value(t, amount));@@"
+  "vault: an unpriced token moves free under a global cap@@$W@@if (v == 0) revert Unpriced();@@"
+  "vault: a bucket not settled at the old cap before a change@@$W@@_settle(depositBucket[token], t.depositCap);@@"
+  "vault: the constructor accepts any window@@$W@@window < MIN_WINDOW || window > MAX_WINDOW@@window == 0"
+  "vault: a loosening runs without the timelock@@$W@@if (loosens) _timelocked();@@"
+  "vault: a raised deposit cap is not a loosening@@$W@@depositCap > t.depositCap@@false"
+  "vault: a raised release cap is not a loosening@@$W@@releaseCap > t.releaseCap;@@false;"
+  "vault: relisting is not a loosening@@$W@@loosens = !t.listed || @@loosens = "
+  "vault: a new denomination is not a loosening@@$W@@if (t.registered \&\& !permitted[token][amounts[i]]) loosens = true;@@"
+  "vault: the decimals of a registered token change@@$W@@if (decimals != t.decimals) revert BadConfig();@@"
+  "vault: a lower value is not a loosening@@$W@@_authorize(value != 0 \&\& (old == 0 || value < old));@@_authorize(false);"
+  "vault: a raised global cap is not a loosening@@$W@@_authorize(depositCap > globalDepositCap || releaseCap > globalReleaseCap);@@_authorize(false);"
+  "vault: a shorter delay is not a loosening@@$W@@_authorize(d < delay);@@_authorize(false);"
+  "vault: the delay bounds not checked@@$W@@if (d < MIN_DELAY || d > MAX_DELAY) revert BadConfig();@@"
+  "timelock: an operation runs before its delay@@$W@@if (block.timestamp < at) revert TooEarly();@@"
+  "timelock: an operation never expires@@$W@@if (block.timestamp > at + GRACE) revert Expired();@@"
+  "timelock: an operation is not consumed@@$W@@readyAt[id] = 0;@@"
+  "timelock: operations not keyed on the admin epoch@@$W@@bytes32 id = keccak256(abi.encode(adminEpoch, msg.data));@@bytes32 id = keccak256(abi.encode(uint64(0), msg.data));"
+  "timelock: a cancel does nothing@@$W@@delete readyAt[id];\n        emit Cancelled(id);@@emit Cancelled(id);"
+  "guardian: the admin may pause@@$W@@if (msg.sender != freezer) revert NotFreezer();@@if (msg.sender != freezer \&\& msg.sender != admin) revert NotFreezer();"
+  "guardian: freeze can unpause a token@@$W@@if (deposits) t.depositsFrozen = true;@@t.depositsFrozen = deposits;"
+  "guardian: freezeAll can unpause@@$W@@if (releases) releasesFrozen = true;@@releasesFrozen = releases;"
+  "guardian: a token pause does not count@@$W@@if ((deposits \&\& !t.depositsFrozen) || (releases \&\& !t.releasesFrozen)) ++pauseCount;@@"
+  "guardian: a global pause does not count@@$W@@if ((deposits \&\& !depositsFrozen) || (releases \&\& !releasesFrozen)) ++pauseCount;@@"
+  "guardian: a repeated pause counts@@$W@@if ((deposits \&\& !depositsFrozen) || (releases \&\& !releasesFrozen)) ++pauseCount;@@if (deposits || releases) ++pauseCount;"
+  "unpause: a token unpause runs without the timelock@@$W@@revert StalePause();\n        _timelocked();\n        TokenConfig@@revert StalePause();\n        TokenConfig"
+  "unpause: a global unpause runs without the timelock@@$W@@if (pauseCount != count) revert StalePause();\n        _timelocked();@@if (pauseCount != count) revert StalePause();"
+  "unpause: a token unpause lifts a later pause@@$W@@if (count != pauseCount) revert StalePause();@@"
+  "unpause: a global unpause lifts a later pause@@$W@@if (pauseCount != count) revert StalePause();@@"
+  "rotation: the freezer rotates without the timelock@@$W@@_timelocked();\n        freezer = f;@@freezer = f;"
+  "rotation: the freezer may become the admin@@$W@@if (f == address(0) || f == admin) revert BadConfig();@@if (f == address(0)) revert BadConfig();"
+  "rotation: the admin is proposed without the timelock@@$W@@_timelocked();\n        pendingAdmin = a;@@pendingAdmin = a;"
+  "rotation: anyone accepts the admin role@@$W@@if (msg.sender != pendingAdmin || msg.sender == address(0)) revert NotAdmin();@@"
+  "rotation: the freezer may accept the admin role@@$W@@if (msg.sender == freezer) revert BadConfig();@@"
+  "rotation: the old admin's operations survive@@$W@@++adminEpoch;@@"
 )
 
 restore
@@ -99,7 +139,7 @@ for m in "${MUTATIONS[@]}"; do
   restore
   python3 - "$file" "$from" "$to" <<'EOF' || { echo "SETUP FAIL  $name (text not found)"; missed=$((missed+1)); continue; }
 import sys
-p, a, b = sys.argv[1], sys.argv[2].replace('\\&', '&'), sys.argv[3].replace('\\&', '&')
+p, a, b = sys.argv[1], sys.argv[2].replace('\\&', '&').replace('\\n', '\n'), sys.argv[3].replace('\\&', '&').replace('\\n', '\n')
 s = open(p).read()
 if a not in s:
     sys.exit(1)

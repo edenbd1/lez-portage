@@ -234,8 +234,14 @@ contract WrapVaultTest is Test {
 
         vm.prank(freezer);
         v.freezeAll(false, true);
-        vm.prank(freezer);
-        v.freeze(ETH, false, false);
+        // Only the admin lifts a pause, and only through the timelock (WrapVaultGuard.t.sol).
+        bytes memory lift = abi.encodeCall(WrapVault.unfreeze, (ETH, true, false, v.pauseCount()));
+        vm.prank(admin);
+        v.schedule(lift);
+        vm.warp(block.timestamp + v.delay());
+        vm.prank(admin);
+        (bool ok,) = address(v).call(lift);
+        assertTrue(ok);
         ver.approve(v.releaseDigest(ETH, 1 ether, bob, relayer, 0, r, bytes32(uint256(2))));
         vm.expectRevert(WrapVault.IsFrozen.selector);
         v.release(ETH, 1 ether, payable(bob), payable(relayer), 0, r, bytes32(uint256(2)), hex"01");
