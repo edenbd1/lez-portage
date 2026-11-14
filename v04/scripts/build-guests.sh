@@ -28,8 +28,9 @@ FLAGS=$(printf '%s\x1f' -C passes=lower-atomic -C link-arg=-Ttext=0x00200800 -C 
   -C panic=abort --cfg 'getrandom_backend="custom"' \
   "--remap-path-prefix=$HOME/.cargo=/cargo" "--remap-path-prefix=$WORK=/work" "--remap-path-prefix=$ROOT=/portage")
 FLAGS=${FLAGS%$'\x1f'}
-TC="${RISC0_RUST:-$(ls -d "$HOME"/.risc0/toolchains/v1.*-rust-* | sort -V | tail -1)/bin}"
-CC_RV="${RISC0_CC:-$(ls -d "$HOME"/.risc0/toolchains/v*-cpp-*/riscv32im-*/bin/riscv32-unknown-elf-gcc | sort -V | tail -1)}"
+# The local toolchains (not needed by the Docker build).
+TC="${RISC0_RUST:-$(ls -d "$HOME"/.risc0/toolchains/v1.*-rust-* 2>/dev/null | sort -V | tail -1 || true)/bin}"
+CC_RV="${RISC0_CC:-$(ls -d "$HOME"/.risc0/toolchains/v*-cpp-*/riscv32im-*/bin/riscv32-unknown-elf-gcc 2>/dev/null | sort -V | tail -1 || true)}"
 
 docker_guest() { # <crate dir, relative to the repository> <bin>
   RISC0_DOCKER_CONTAINER_TAG=r0.1.91.1 cargo risczero build --manifest-path "$1/Cargo.toml"
