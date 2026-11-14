@@ -177,6 +177,7 @@ proof, the same claim is 297,457 gas (README): the difference is Sextant's
 
 ```console
 scripts/verify-testnet.sh            # LEZ testnet and Sepolia, JSON-RPC only
+scripts/mutation-test-verifier.sh --manifest evidence/testnet/run.tsv --rpc https://testnet.lez.logos.co   # 16 of 16
 ```
 
 It runs `scripts/verify-onchain.sh` against `https://testnet.lez.logos.co`

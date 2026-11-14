@@ -33,7 +33,7 @@
 #      tree; signed by the committee, then by outsiders), one member alone.
 #      With RELEASE_VERIFIER=committee, CommitteeBurnVerifier: each release
 #      opens its burn leaf, with the refusals of that path. Then both releases.
-#   5. The manifest $OUT, one line per LEZ transaction:
+#   5. The manifest $OUT (default $RUN/evidence/e2e.tsv), one line per LEZ transaction:
 #        label expected(applied|refused) verdict block tx attempts precheck gas_limit charged_gas
 #      plus `#` lines the verifier checks (programs, deployments, final state,
 #      the private transactions' hidden accounts, the Ethereum releases and
@@ -54,7 +54,7 @@
 # FINALITY_DEPTH (3): the LEZ blocks a burn-tree root must be under the final head.
 # RELEASE_VERIFIER (zk): zk (ZkBurnVerifier, Groth16) or committee (CommitteeBurnVerifier).
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 2
 
 : "${SEQUENCER:?path to a v0.3.1 standalone sequencer_service}"
 : "${WALLET:?path to the v0.3.0 wallet binary}"
@@ -62,9 +62,11 @@ cd "$(dirname "$0")/.."
 CLI="${CLI:-cli/target/release/wrap}"
 PORT="${PORT:-3051}"; METRICS_PORT="${METRICS_PORT:-9471}"; ANVIL_PORT="${ANVIL_PORT:-8551}"
 BLOCK_TIME="${BLOCK_TIME:-5s}"
-OUT="${OUT:-evidence/local/e2e.tsv}"
-EVID="$(dirname "$OUT")"
 RUN="${RUN:-$(mktemp -d "${TMPDIR:-/tmp}/rfp022-e2e.XXXXXX")}"
+# The manifest and the raw measurements go into the run directory unless OUT
+# names a committed record (OUT=evidence/local/e2e.tsv rewrites that one).
+OUT="${OUT:-$RUN/evidence/e2e.tsv}"
+EVID="$(dirname "$OUT")"
 HEAVY="${HEAVY:-}"; [ -x "$HEAVY" ] || HEAVY=""
 FINALITY_DEPTH="${FINALITY_DEPTH:-3}"
 RELEASE_VERIFIER="${RELEASE_VERIFIER:-zk}"
@@ -97,6 +99,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
+echo "run dir $RUN, manifest $OUT"
 echo "== 0. a local v0.3.1 sequencer on $PORT (blocks every $BLOCK_TIME) and anvil on $ANVIL_PORT"
 SEQ_MODE=standalone; [ -n "${BEDROCK_NODE:-}" ] && SEQ_MODE="Bedrock-backed (node $BEDROCK_NODE, channel ${BEDROCK_CHANNEL:-of the debug config})"
 # BEDROCK_NODE (and BEDROCK_CHANNEL): a sequencer built without `standalone`
@@ -329,6 +332,30 @@ SP="$("$CLI" show-private 2>/dev/null | grep '^{' | tail -1)"
 echo "# show-private-after-burn $SP" >> "$OUT"
 check "carol's wallet decrypts her account after the burn: 0 wrapped ETH" "$(jget "$SP" wrapped_balance)" 0
 check "wrapped ETH supply after both burns" "$(jget "$("$CLI" balance alice eth)" supply)" 0
+
+if [ -n "${BEDROCK_NODE:-}" ]; then
+  # A Bedrock-backed run is only of use to scripts/e2e-bedrock.sh if the
+  # sequencer's blocks are inscribed on the node. Take the sequencer's latest
+  # block now, after the last LEZ transaction, and wait for its inscription on
+  # the channel (bedrock_fetch.py walks back from the node's tip); fail here,
+  # before the release proofs, if it does not land.
+  echo "-- Bedrock: the sequencer's latest block is inscribed on the node's channel"
+  BCH="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["bedrock_config"]["channel_id"])' "$RUN/seq/sequencer_config.json")"
+  LEZ_TIP="$(rpc getLastBlockId '[]' | python3 -c 'import json,sys;print(json.load(sys.stdin)["result"])')"
+  LEZ_TIP_HASH="$(rpc getBlock "[$LEZ_TIP]" | python3 -c 'import base64,json,sys;print("0x"+base64.b64decode(json.load(sys.stdin)["result"])[40:72].hex())')"
+  inscribed=no
+  for _ in $(seq "${INSCRIPTION_WAIT:-36}"); do  # 5 s apart: 3 minutes
+    if python3 scripts/bedrock_fetch.py --node "$BEDROCK_NODE" --out "$RUN/bedrock-probe" --count 300 \
+         --until-lez-hash "$LEZ_TIP_HASH" --channel "$BCH" > "$RUN/bedrock-probe.json" 2> "$RUN/bedrock-probe.err"; then
+      inscribed=yes; break
+    fi
+    sleep 5
+  done
+  [ "$inscribed" = yes ] || tail -1 "$RUN/bedrock-probe.err"
+  echo "# bedrock-probe LEZ block $LEZ_TIP $LEZ_TIP_HASH channel $BCH inscribed $inscribed $(cat "$RUN/bedrock-probe.json" 2>/dev/null)" >> "$OUT"
+  check "LEZ block $LEZ_TIP (the sequencer's latest) is inscribed on Bedrock channel $BCH" "$inscribed" yes
+  [ "$inscribed" = yes ] || { echo "== FAIL: the sequencer's blocks are not landing on Bedrock; e2e-bedrock.sh could not use this run (scripts/bedrock-devnet.sh, WARMUP_EPOCHS)"; exit 1; }
+fi
 
 echo "== 4. Ethereum (anvil): releases against the LEZ burn tree ($RELEASE_VERIFIER)"
 echo "# caveat-release the release committee (anvil accounts 5, 6, 7; 2 of 3) attests the LEZ burn tree's root as each member reads it from the sequencer; 'final' is the standalone sequencer's tip, $FINALITY_DEPTH blocks above the block read: there is no Bedrock in this run, and the committee is the trust assumption of this release path" >> "$OUT"

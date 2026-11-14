@@ -322,7 +322,9 @@ cargo build --release --features standalone -p sequencer_service  # at 1a003bfb
 cargo build --release --manifest-path cli/Cargo.toml
 SEQUENCER=<lez@1a003bfb>/target/release/sequencer_service \
 WALLET=<lez@db66590a>/target/release/wallet \
-LEZ_SRC=<lez@1a003bfb> scripts/e2e-local.sh 2>&1 | tee evidence/local/transcript.txt
+LEZ_SRC=<lez@1a003bfb> scripts/e2e-local.sh          # writes $RUN/evidence/, prints RUN
+# to rewrite the committed record instead:
+OUT=evidence/local/e2e.tsv SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh 2>&1 | tee evidence/local/transcript.txt
 # the same with the releases opening their leaf (CommitteeBurnVerifier):
 RELEASE_VERIFIER=committee OUT=evidence/local-committee/e2e.tsv SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh
 ```
