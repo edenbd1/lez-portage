@@ -65,6 +65,47 @@ The zero-knowledge releases carry no leaf, secret, commitment or path. Their
 journal (token, amount, recipient, relayer, fee, root, nullifier) is public, so
 a release hides among the burns of the same token and denomination.
 
+**Caps, pause and roles.** Each deposit and release passes two rate limits
+over a rolling window (`WINDOW`, 1 hour to 30 days, fixed at deployment; 1 day
+in the scripts): one per token and direction, in token units, and one global
+per direction, in a value unit the admin sets per token (`setTokenValue`). The
+global caps are off until `setGlobalCaps` turns them on; a token without a
+value is then refused, so leaving one unpriced is no way around them. Each
+limit is a bucket that fills with every transfer and drains linearly, one full
+cap per window: no burst exceeds the cap, and any interval of length T moves
+at most cap × (1 + T / `WINDOW`). The fixed window it replaces let two caps
+through in one second across its reset
+(`test_the_boundary_burst_of_a_fixed_window_is_closed`; the bound is fuzzed in
+`testFuzz_rolling_bound_holds_over_every_interval`).
+
+The freezer (guardian) pauses deposits and/or releases, of one token or all,
+at once and with no delay; it can do nothing else, not even unpause. The
+admin registers a new token and tightens at once (a lower cap, a higher
+value, a delisting); everything that loosens (a higher cap, a lower value, a
+relisting, a new denomination, a shorter delay) and everything that touches a
+pause or a role runs only as an operation scheduled with its exact calldata,
+runnable from `delay` later (2 days by default, bounded to 1 to 30 days) and
+for 14 days after that. Rotation rules:
+
+- an unpause is always timelocked and names the pause count it lifts, so an
+  unpause scheduled before the freezer's latest pause cannot lift it: the
+  admin cannot bypass a pause, even with an operation kept ready; re-pausing
+  what is already paused does not count, so the freezer cannot void unpauses
+  without end;
+- the freezer is replaced only by the admin, through the timelock; the
+  current freezer keeps pausing until the replacement runs, and cannot block it;
+- the admin is replaced in two steps, a timelocked proposal and the new
+  admin's acceptance; the acceptance voids every operation the old admin had
+  pending;
+- no rotation can make the admin and the freezer one account (the constructor
+  allows it only for test rigs, where the separation is then void).
+
+Tests: [`vault/test/WrapVaultGuard.t.sol`](vault/test/WrapVaultGuard.t.sol),
+each role acting adversarially. The `WrapVault` deployed on Sepolia
+([docs/TESTNET.md](docs/TESTNET.md)) is the previous version, with a fixed
+window, per-token caps only and a freezer the admin could override at once;
+these caps and roles land with the next deployment.
+
 Details: [docs/OUTBOUND.md](docs/OUTBOUND.md) (burn and the four releases),
 [docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md) (how LEZ sits on Bedrock,
 what a light client would need, what was built),
@@ -122,7 +163,9 @@ blocks (on 2026-11-14, 865 blocks, 4.77M user cycles, 587 s, 8.41 GB, after a
 
 **Gas** (LEZ figures from `executor-tests --bin measure`, exact; Ethereum
 `release` figures from the local runs, which move by up to about 100 gas with
-the anvil deployment addresses):
+the anvil deployment addresses, on the vault before the rolling-window limits;
+the `deposit` row and the two rate-limit rows from Foundry, the latter on cold
+storage, [`docs/raw/vault-gas-2026-11-14.txt`](docs/raw/vault-gas-2026-11-14.txt)):
 
 | | gas |
 |---|---:|
@@ -130,7 +173,9 @@ the anvil deployment addresses):
 | of which Sextant's `Attest` of the storage slot | 111,122 |
 | LEZ `Burn` (burn-tree append, chained ATA `Burn`) | 228,728 |
 | LEZ `Register` (entry, chained `NewFungibleDefinition`) | 90,958 |
-| Ethereum `deposit` (median, max) | 257,854, 336,694 |
+| Ethereum `deposit` (median, max) | 256,230, 359,982 |
+| rate limits on a deposit, a release: per token only, change from the fixed window | −1,576, +645 (a token's first release: about +20,000, once) |
+| global caps on: added to a deposit, a release | 3,794, 4,037 |
 | Ethereum `release`, `CommitteeBurnVerifier` | 143,096 (fee 0), 152,400 (relayer paid) |
 | Ethereum `release`, `ZkBurnVerifier` | 334,215 (fee 0), 343,550 (relayer paid) |
 | Ethereum `release`, `ZkChainBurnVerifier` | 347,250 |
@@ -142,8 +187,8 @@ measured at 304,478 gas for an `Attest` (v2 binary, ImageID `ad6fbedb…`;
 304,267 with the earlier `fa229edd…`), so a mainnet claim is about 490,000
 gas, under 5% of the cap.
 
-**Tests:** 105 Foundry tests (`vault/`, the 66 of the three zero-knowledge verifiers on real Groth16 seals), the
-vault's mutation test 66 of 66; 15 executor tests running the committed
+**Tests:** 131 Foundry tests (`vault/`, the 66 of the three zero-knowledge verifiers on real Groth16 seals, 26 of
+the rate limits, timelock and freezer), the vault's mutation test 106 of 106; 15 executor tests running the committed
 binaries through `lee::V03State`, plus 3 private-path tests in dev mode; the
 program's mutation test 21 of 21; `wrap-core` 9, `lez-chain` 10, `lez-bedrock`
 14 tests and its mutation test 30 of 30. Raw outputs: [`docs/raw/`](docs/raw/).
