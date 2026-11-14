@@ -494,8 +494,18 @@ on the same run:
 BEDROCK_BIN=<logos-blockchain-node 0.3.1> LEZ_SRC=<lez@1a003bfb> DIR=<new dir> scripts/bedrock-devnet.sh
 cargo build --release -p sequencer_service                       # at 1a003bfb, without standalone
 cargo build --release --manifest-path bedrock/tools/Cargo.toml
-KEEP=1 BEDROCK_NODE=http://127.0.0.1:18480 BEDROCK_CHANNEL=<32 bytes hex> RUN=<dir> OUT=evidence/local-bedrock/e2e.tsv \
+KEEP=1 BEDROCK_NODE=http://127.0.0.1:18480 BEDROCK_CHANNEL=<64 hex characters, optional> RUN=<dir> \
   SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh
-RUN=<dir> BASE=evidence/local-bedrock/e2e.tsv OUT=evidence/local-bedrock/e2e-chain.tsv scripts/e2e-chain.sh
-RUN=<dir> BASE=evidence/local-bedrock/e2e.tsv BEDROCK_NODE=http://127.0.0.1:18480 scripts/e2e-bedrock.sh
+RUN=<dir> BASE=<dir>/evidence/e2e.tsv scripts/e2e-chain.sh
+RUN=<dir> BASE=<dir>/evidence/e2e.tsv BEDROCK_NODE=http://127.0.0.1:18480 scripts/e2e-bedrock.sh
 ```
+
+`bedrock-devnet.sh` returns only after the devnet has passed three epoch
+transitions (about 5 minutes, `WARMUP_EPOCHS`): the devnet's genesis is in
+the past, and a channel the sequencer opens, and fills with the program
+deployments, inside the node's first epoch loses every inscription from the
+first transition on. In Bedrock mode `e2e-local.sh` checks that the
+sequencer's latest block is inscribed on the channel before the releases, and
+fails there otherwise. Each script writes into `<dir>/evidence/`; give
+`OUT=evidence/local-bedrock/e2e.tsv` (and `BASE` the same, `OUT=` the matching
+`e2e-chain.tsv`, `e2e-bedrock.tsv`) to rewrite the committed record.

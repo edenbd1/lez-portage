@@ -241,6 +241,7 @@ numbers.
 
 ```
 scripts/pol-measure.sh            # build, generate jobs, execute all (about 2 minutes of r0vm)
+                                  # into a new temporary directory; OUT=evidence/pol-measure rewrites the record
 scripts/pol-measure.sh --prove    # also prove pol-bn-1 and notes-bigint2
 ```
 

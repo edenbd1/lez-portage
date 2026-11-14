@@ -26,18 +26,18 @@
 #      member), carol's release by the relayer, its replay.
 #
 # Usage: RUN=<the e2e run dir> BASE=<its manifest> scripts/e2e-chain.sh
-# Writes $OUT (default evidence/local-chain/e2e-chain.tsv) and the raw
+# Writes $OUT (default $RUN/evidence/e2e-chain.tsv) and the raw
 # measurements next to it. Everything is local: anvil and a standalone
 # sequencer, no Bedrock. "Final" is the sequencer's tip, as in the base run.
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 2
 
 : "${RUN:?the run directory of a KEEP=1 e2e-local.sh run}"
 : "${BASE:?the manifest of that run}"
 CLI="${CLI:-cli/target/release/wrap}"
 PORT="${PORT:-3051}"; ANVIL_PORT="${ANVIL_PORT:-8551}"
 RPC="http://127.0.0.1:$PORT"; ANVIL="http://127.0.0.1:$ANVIL_PORT"
-OUT="${OUT:-evidence/local-chain/e2e-chain.tsv}"
+OUT="${OUT:-$RUN/evidence/e2e-chain.tsv}"   # OUT=evidence/local-chain/e2e-chain.tsv rewrites the committed record
 EVID="$(dirname "$OUT")"
 HEAVY="${HEAVY:-}"; [ -x "$HEAVY" ] || HEAVY=""
 FINALITY_DEPTH="${FINALITY_DEPTH:-3}"

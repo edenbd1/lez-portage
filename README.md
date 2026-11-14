@@ -75,6 +75,47 @@ The zero-knowledge releases carry no leaf, secret, commitment or path. Their
 journal (token, amount, recipient, relayer, fee, root, nullifier) is public, so
 a release hides among the burns of the same token and denomination.
 
+**Caps, pause and roles.** Each deposit and release passes two rate limits
+over a rolling window (`WINDOW`, 1 hour to 30 days, fixed at deployment; 1 day
+in the scripts): one per token and direction, in token units, and one global
+per direction, in a value unit the admin sets per token (`setTokenValue`). The
+global caps are off until `setGlobalCaps` turns them on; a token without a
+value is then refused, so leaving one unpriced is no way around them. Each
+limit is a bucket that fills with every transfer and drains linearly, one full
+cap per window: no burst exceeds the cap, and any interval of length T moves
+at most cap × (1 + T / `WINDOW`). The fixed window it replaces let two caps
+through in one second across its reset
+(`test_the_boundary_burst_of_a_fixed_window_is_closed`; the bound is fuzzed in
+`testFuzz_rolling_bound_holds_over_every_interval`).
+
+The freezer (guardian) pauses deposits and/or releases, of one token or all,
+at once and with no delay; it can do nothing else, not even unpause. The
+admin registers a new token and tightens at once (a lower cap, a higher
+value, a delisting); everything that loosens (a higher cap, a lower value, a
+relisting, a new denomination, a shorter delay) and everything that touches a
+pause or a role runs only as an operation scheduled with its exact calldata,
+runnable from `delay` later (2 days by default, bounded to 1 to 30 days) and
+for 14 days after that. Rotation rules:
+
+- an unpause is always timelocked and names the pause count it lifts, so an
+  unpause scheduled before the freezer's latest pause cannot lift it: the
+  admin cannot bypass a pause, even with an operation kept ready; re-pausing
+  what is already paused does not count, so the freezer cannot void unpauses
+  without end;
+- the freezer is replaced only by the admin, through the timelock; the
+  current freezer keeps pausing until the replacement runs, and cannot block it;
+- the admin is replaced in two steps, a timelocked proposal and the new
+  admin's acceptance; the acceptance voids every operation the old admin had
+  pending;
+- no rotation can make the admin and the freezer one account (the constructor
+  allows it only for test rigs, where the separation is then void).
+
+Tests: [`vault/test/WrapVaultGuard.t.sol`](vault/test/WrapVaultGuard.t.sol),
+each role acting adversarially. The `WrapVault` deployed on Sepolia
+([docs/TESTNET.md](docs/TESTNET.md)) is the previous version, with a fixed
+window, per-token caps only and a freezer the admin could override at once;
+these caps and roles land with the next deployment.
+
 Details: [docs/OUTBOUND.md](docs/OUTBOUND.md) (burn and the four releases),
 [docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md) (how LEZ sits on Bedrock,
 what a light client would need, what was built),
@@ -104,30 +145,47 @@ short of `MIN_DEPTH`, outsiders and a single committee member signing, and a
 real proof over a made-up Bedrock block signed by the real sequencer key,
 which only the committee members' node refuses.
 
-**Proving** (one proof each, real proving):
+**Proving** (real proving; the private rows are ranges over the committed
+local runs, `evidence/local*/`, and three re-runs from fresh clones on
+2026-11-14; the release row is an idle machine):
 
 | proof | time | memory | size |
 |---|---:|---:|---:|
-| private claim, through the client and the sequencer | 263 s | 6.87 GB | 251,527 B on chain |
-| private burn (`BurnFrom` out of a private account) | 202.9 s | 7.22 GB | 248,358 B on chain |
+| private claim, through the client and the sequencer | 230-362 s | 4.6-8.1 GB | 251,335-251,777 B on chain |
+| private burn (`BurnFrom` out of a private account) | 178-276 s | 5.6-8.7 GB | 248,358 B on chain |
 | zero-knowledge release: STARK, then Groth16 (emulated) | 19-21 s + 52-56 s | 2.5 GB host, ~7.6 GiB container | 260 B seal |
 | chain proof, LEZ blocks 28-120 then 121-317 (recursive) | 87 s, 141 s | | 1.31M, 2.10M cycles |
 | Bedrock anchor, 5 headers deep (devnet) | 111 s STARK | 5.9 GB | 1.14M user cycles |
 | Bedrock-anchored release, three guests in one seal | 52 s STARK + 62 s Groth16 | 5.3 GB, container 7.5 GiB | 260 B seal |
 
+Private-proof times above about 300 s were measured at a load average of 30
+to 56 on a shared machine, where the release row's proof took 87-94 s end to
+end. The peak memory of a private proof varies by up to 3.5 GB from run to
+run with segment scheduling, and its size by a few hundred bytes.
+
 A Bedrock anchor 30 headers deep (k on the public testnet), on a real testnet
 block, is 1.80M user cycles in the executor (24.3k per header). The chain
-proof costs about 1.5 cycles per block byte plus 4.3k per block.
+proof costs about 1.5 cycles per block byte plus 4.3k per block, and it covers
+every LEZ block from the anchor to the tip: the sequencer makes one every 5 s,
+so a kept run that sits for an hour before `e2e-chain.sh` proves some 700 more
+blocks (on 2026-11-14, 865 blocks, 4.77M user cycles, 587 s, 8.41 GB, after a
+55-minute wait for the machine's prover lock).
 
-**Gas:**
+**Gas** (LEZ figures from `executor-tests --bin measure`, exact; Ethereum
+`release` figures from the local runs, which move by up to about 100 gas with
+the anvil deployment addresses, on the vault before the rolling-window limits;
+the `deposit` row and the two rate-limit rows from Foundry, the latter on cold
+storage, [`docs/raw/vault-gas-2026-11-14.txt`](docs/raw/vault-gas-2026-11-14.txt)):
 
 | | gas |
 |---|---:|
 | LEZ `Claim` (path, chained `Attest`, chained token `Mint`) | 297,457 (2.97% of the 10M cap) |
 | of which Sextant's `Attest` of the storage slot | 111,122 |
 | LEZ `Burn` (burn-tree append, chained ATA `Burn`) | 228,728 |
-| LEZ `Register` (entry, chained `NewFungibleDefinition`) | 90,577 |
-| Ethereum `deposit` (median, max) | 257,854, 336,694 |
+| LEZ `Register` (entry, chained `NewFungibleDefinition`) | 90,958 |
+| Ethereum `deposit` (median, max) | 256,230, 359,982 |
+| rate limits on a deposit, a release: per token only, change from the fixed window | −1,576, +645 (a token's first release: about +20,000, once) |
+| global caps on: added to a deposit, a release | 3,794, 4,037 |
 | Ethereum `release`, `CommitteeBurnVerifier` | 143,096 (fee 0), 152,400 (relayer paid) |
 | Ethereum `release`, `ZkBurnVerifier` | 334,215 (fee 0), 343,550 (relayer paid) |
 | Ethereum `release`, `ZkChainBurnVerifier` | 347,250 |
@@ -135,11 +193,12 @@ proof costs about 1.5 cycles per block byte plus 4.3k per block.
 | of which RISC Zero's Groth16 `verify` | 253,318 |
 
 The anvil storage proof has 3 nodes; a mainnet one has 8 to 9, which Sextant
-measured at 304,267 gas for an `Attest`, so a mainnet claim is about 490,000
+measured at 304,478 gas for an `Attest` (v2 binary, ImageID `ad6fbedb…`;
+304,267 with the earlier `fa229edd…`), so a mainnet claim is about 490,000
 gas, under 5% of the cap.
 
-**Tests:** 105 Foundry tests (`vault/`, the 66 of the three zero-knowledge verifiers on real Groth16 seals), the
-vault's mutation test 66 of 66; 15 executor tests running the committed
+**Tests:** 131 Foundry tests (`vault/`, the 66 of the three zero-knowledge verifiers on real Groth16 seals, 26 of
+the rate limits, timelock and freezer), the vault's mutation test 106 of 106; 15 executor tests running the committed
 binaries through `lee::V03State`, plus 3 private-path tests in dev mode; the
 program's mutation test 21 of 21; `wrap-core` 9, `lez-chain` 10, `lez-bedrock`
 14 tests and its mutation test 30 of 30. Raw outputs: [`docs/raw/`](docs/raw/).
@@ -233,38 +292,61 @@ The end-to-end runs need a LEZ checkout at `db66590a` (v0.3.0, for the wallet)
 and `1a003bfb` (v0.3.1, for the sequencer), anvil, Docker with RISC Zero's
 x86_64 Groth16 prover image (`risczero/risc0-groth16-prover:v2025-04-03.1`,
 emulated on Apple Silicon by `DOCKER_DEFAULT_PLATFORM=linux/amd64`), and about
-8 GB of free memory per proof. Set `HEAVY` to a wrapper command to serialize
-the provers with other work on the machine.
+8 GB of free memory per proof. To serialize the provers with other work on
+the machine, set `HEAVY` in the environment to a lock-style wrapper command;
+the scripts wrap each prover in it themselves, so do not also prefix the
+script with it (a non-re-entrant lock then waits on itself).
+
+Each run writes its manifest and raw measurements into its run directory
+(`$RUN/evidence/`, `RUN` a new temporary directory by default) and leaves the
+committed records alone; `OUT=evidence/<dir>/<file>.tsv` rewrites one of them.
 
 ```console
+# LEZ at db66590a (v0.3.0): the wallet; at 1a003bfb (v0.3.1): two sequencers,
+# in two target directories (one with `standalone`, one without)
+cargo build --release -p wallet                                    # at db66590a
+cargo build --release --features standalone -p sequencer_service   # at 1a003bfb, step 1
+cargo build --release -p sequencer_service                         # at 1a003bfb, another target dir, step 2
 cargo build --release --manifest-path cli/Cargo.toml
 # 1. claim, burn and zero-knowledge release on a standalone sequencer and anvil
-SEQUENCER=<lez@1a003bfb>/target/release/sequencer_service \
+SEQUENCER=<lez@1a003bfb, standalone>/target/release/sequencer_service \
 WALLET=<lez@db66590a>/target/release/wallet \
 LEZ_SRC=<lez@1a003bfb> scripts/e2e-local.sh
 # 2. the Bedrock-anchored release: a separate single-node Bedrock devnet,
 #    a sequencer built without `standalone` inscribing on it, then the chain
-#    and Bedrock steps on the kept run
+#    and Bedrock steps on the kept run. bedrock-devnet.sh returns after three
+#    epoch transitions (about 5 minutes): a channel opened in the devnet's
+#    first epoch loses every inscription at its first transition. e2e-local.sh
+#    then fails early if the sequencer's latest block is not inscribed.
 BEDROCK_BIN=<logos-blockchain-node 0.3.1> LEZ_SRC=<lez@1a003bfb> DIR=<new dir> scripts/bedrock-devnet.sh
 cargo build --release --manifest-path bedrock/tools/Cargo.toml
-KEEP=1 BEDROCK_NODE=http://127.0.0.1:18480 BEDROCK_CHANNEL=<32 bytes hex> RUN=<run dir> \
-  OUT=evidence/local-bedrock/e2e.tsv SEQUENCER=… WALLET=… LEZ_SRC=… scripts/e2e-local.sh
-RUN=<run dir> BASE=evidence/local-bedrock/e2e.tsv OUT=evidence/local-bedrock/e2e-chain.tsv scripts/e2e-chain.sh
-RUN=<run dir> BASE=evidence/local-bedrock/e2e.tsv BEDROCK_NODE=http://127.0.0.1:18480 scripts/e2e-bedrock.sh
+KEEP=1 BEDROCK_NODE=http://127.0.0.1:18480 BEDROCK_CHANNEL=<64 hex characters> RUN=<run dir> \
+  SEQUENCER=<lez@1a003bfb, without standalone>/target/release/sequencer_service WALLET=… LEZ_SRC=… scripts/e2e-local.sh
+RUN=<run dir> BASE=<run dir>/evidence/e2e.tsv scripts/e2e-chain.sh
+RUN=<run dir> BASE=<run dir>/evidence/e2e.tsv BEDROCK_NODE=http://127.0.0.1:18480 scripts/e2e-bedrock.sh
+kill "$(cat <devnet dir>/node.pid)"   # and the kept sequencer and anvil, whose pids e2e-local.sh printed
 # re-check a kept run's manifest against the chains, and mutation-test that check
-scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
-scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
+scripts/verify-onchain.sh --manifest <run dir>/evidence/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
+scripts/mutation-test-verifier.sh --manifest <run dir>/evidence/e2e.tsv --rpc http://127.0.0.1:3051 --eth-rpc http://127.0.0.1:8551
 ```
+
+`BEDROCK_BIN` is `logos-blockchain-node` of logos-blockchain at tag `0.3.1`
+(`a023e89`; `cargo build --release -p logos-blockchain-node`, or that tag's
+release binary). `BEDROCK_CHANNEL` is the channel id as 64 hex characters
+without `0x`; it is optional (default: the debug configuration's
+`0101…01`), and the committed run used `0202…02`.
 
 [docs/LOCAL-E2E.md](docs/LOCAL-E2E.md) describes each step, its ports and its
 limits; [docs/OUTBOUND.md](docs/OUTBOUND.md), section 5, the Bedrock step.
 
 The public-network inbound run is resumable by stage. Its commands are in
 [docs/TESTNET.md](docs/TESTNET.md#reproduce). To re-check the recorded run
-against the public LEZ testnet and Sepolia, with JSON-RPC only:
+against the public LEZ testnet and Sepolia, with JSON-RPC only, and to
+mutation-test the LEZ half of that check:
 
 ```console
 scripts/verify-testnet.sh
+scripts/mutation-test-verifier.sh --manifest evidence/testnet/run.tsv --rpc https://testnet.lez.logos.co   # 16 of 16
 ```
 
 ### The LEZ v0.4.0-rc3 port (this branch)

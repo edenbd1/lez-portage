@@ -31,11 +31,11 @@
 #      outsiders, another key), carol's release by the relayer, its replay.
 #
 # Usage: RUN=<the e2e run dir> BASE=<its manifest> BEDROCK_NODE=<URL> scripts/e2e-bedrock.sh
-# Writes $OUT (default evidence/local-bedrock/e2e-bedrock.tsv) and the raw
+# Writes $OUT (default $RUN/evidence/e2e-bedrock.tsv) and the raw
 # measurements next to it. Everything is local: anvil, a LEZ sequencer and a
 # single-node Bedrock devnet whose proofs of leadership are in dev mode.
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 2
 
 : "${RUN:?the run directory of a KEEP=1 e2e-local.sh run}"
 : "${BASE:?the manifest of that run}"
@@ -44,7 +44,7 @@ CLI="${CLI:-cli/target/release/wrap}"
 BT="${BT:-bedrock/tools/target/release/bedrock-tools}"
 PORT="${PORT:-3051}"; ANVIL_PORT="${ANVIL_PORT:-8551}"
 RPC="http://127.0.0.1:$PORT"; ANVIL="http://127.0.0.1:$ANVIL_PORT"
-OUT="${OUT:-evidence/local-bedrock/e2e-bedrock.tsv}"
+OUT="${OUT:-$RUN/evidence/e2e-bedrock.tsv}"   # OUT=evidence/local-bedrock/e2e-bedrock.tsv rewrites the committed record
 EVID="$(dirname "$OUT")"
 HEAVY="${HEAVY:-}"; [ -x "$HEAVY" ] || HEAVY=""
 MIN_DEPTH="${MIN_DEPTH:-5}"

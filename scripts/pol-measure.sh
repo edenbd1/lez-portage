@@ -7,10 +7,12 @@
 # The host tool builds its jobs with the Bedrock node's own code at 3926a532
 # and checks the measured implementations against it natively first; the
 # guest is built in RISC Zero's pinned builder image (r0.1.91.1).
-# Outputs: evidence/pol-measure/{vectors.json,<job>.json,run.txt}.
+# Outputs: $OUT/{vectors.json,<job>.json,run.txt}, OUT a new temporary directory
+# by default; OUT=evidence/pol-measure rewrites the committed record.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-OUT=evidence/pol-measure
+OUT="${OUT:-$(mktemp -d "${TMPDIR:-/tmp}/pol-measure-out.XXXXXX")}"
+echo "writing to $OUT"
 JOBS="$(mktemp -d /tmp/pol-measure.XXXXXX)"
 HEAVY="${HEAVY:-}"; [ -x "$HEAVY" ] || HEAVY=""
 mkdir -p "$OUT"
