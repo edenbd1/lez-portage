@@ -1,4 +1,4 @@
-//! wrap_bridge on LEZ v0.4.0-rc1 (the actor model).
+//! wrap_bridge on LEZ v0.4.0-rc3 (the actor model).
 //!
 //! The same bridge as `programs/wrap_bridge` (LEZ v0.3): Claim mints a wrapped
 //! token against a deposit escrowed in `WrapVault` (a Merkle path to a vault
@@ -94,7 +94,7 @@ pub struct Config {
     pub deployment_id: H256,
     pub lez_chain_id: H256,
     pub zone_id: H256,
-    /// The Sextant deployment (its Attest half, ../sextant_attest) and instance.
+    /// The Sextant deployment (sextant_lc on v0.4, lez-sextant `v0.4`) and instance.
     pub sextant: AccountId,
     pub instance_id: H256,
     pub chain_id: u64,
@@ -183,7 +183,7 @@ pub enum Internal {
     Burn { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, holder: AccountId },
 }
 
-/// The Attest half of Sextant on v0.4 (`v04/programs/sextant_attest`): the
+/// Sextant's light client on v0.4 (lez-sextant `v0.4`, sextant_lc): the
 /// message its header actor accepts.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum AttestMessage {

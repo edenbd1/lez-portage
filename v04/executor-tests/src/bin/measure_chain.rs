@@ -3,7 +3,7 @@
 //! `lez_chain_v04::chain_journal` on the host, then user and total cycles
 //! (total = the segments' padded power-of-two sizes) are printed, for:
 //!
-//! 1. the real blocks of vectors/lez-blocks-v04 (a local v0.4.0-rc1 sequencer);
+//! 1. the real blocks of vectors/lez-blocks-v04 (a local v0.4.0-rc3 sequencer);
 //! 2. synthetic chains in the exact v0.4 layout (chain/v04/src/block.rs), linked and
 //!    hashed: blocks of 18 public burns (a full 20-transaction block), and blocks
 //!    of 4 private transactions with a 223,551-byte proof each (`PROOF_BYTES`, at
@@ -141,7 +141,7 @@ fn main() {
     let pairing: [u8; 32] = hex::decode(run["pairing"].as_str().unwrap().trim_start_matches("0x")).unwrap().try_into().unwrap();
     let params = v04::Params { program_id: acct(&run["programs"]["wrap_bridge"]), burns_account: acct(&run["burns"]), pairing };
     let head = v04::ChainHead { self_image_id: [0x77; 32], params, anchor_id: first - 1, anchor_hash: b0.header.prev_block_hash, blocks: blocks.len() as u32 };
-    row("real v0.4.0-rc1 blocks 18-28 (sequencer)", head, blocks);
+    row(&format!("real v0.4.0-rc3 blocks {first}-{last} (sequencer)"), head, blocks);
 
     // 2. Synthetic chains in the v0.4 layout.
     for n in [1usize, 10, 50] {

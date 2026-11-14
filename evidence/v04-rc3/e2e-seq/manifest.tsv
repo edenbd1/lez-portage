@@ -1,0 +1,18 @@
+# label	expected	verdict	block	tx	hash
+Sextant Init (devnet header of the anvil block)	applied	applied	20	0	0d5f18687c8301aa55ae364faae7333bb0ca314ca874da1b541b6836e6d51460
+Init	applied	applied	21	0	5ceb736b64c4b655a144e7e57f3182fe32b66dd6cd4adc1dc6bfd73f519221c1
+Register ETH	applied	applied	22	0	75910fc1c83db7f9a95dafa5b4bb80e0cdab1f1926ef8fa10102b7c902bb5657
+alice InitializeHolding	applied	applied	23	0	bbd7e86c5096177133be4049f03869c0b7feb983c747ba44824f46bc26d54a05
+Claim deposit 0	applied	applied	24	0	3355e7645b3a83e78d8c62be660490da4aab88e004999e7dced1dc2986fb3478
+Claim deposit 1	applied	applied	25	0	63073a38d9758619a90b9176a0c82b43b8c9bd21c0be882f89311a626031b6fb
+Claim deposit 0 again (replay)	reverted	reverted	26	0	644c8671fbc089a8d0a5a66212ed087f2a71776ee76009aa3dc558123f37e55a
+Claim against a root the vault never had (Sextant refuses)	reverted	reverted	27	0	1fa8ba561cd5e0366240b1d1e42e77aeb4055289d0af89dc7ef3facf818af664
+Burn 0.1 ETH	applied	applied	28	0	56e9205048c9330098b21a14f609f22567d5ac51a4de4bddb1c68c0381d7590f
+Burn 12345 wei (not a denomination)	reverted	reverted	29	0	c34d048c1ca42d72a43e06e62260ec2f391982092e2696db01c61fc8db80d0c0
+Burn 1 ETH	applied	applied	30	0	199feca0f980c223c95aef023d8cd511f18729d690faadd2bfe469e06260a5bd
+Burn 1 ETH (more than alice holds)	reverted	reverted	31	0	816a832e4b65a279b9cc070d0c83c449e4db585bf749a024d3339ff5f512bca8
+# programs token 3sNabUZKL776oo3x1aubaQyMLXaKpMSYjrxsGcybwDFX sextant_lc SWmn7pHJoq59DQJAjPoewg7sz3zqGnotAttvmb6XYun wrap_bridge 3WJtzhYHGpHDEAV6NJkvDwoTfT9P8sahB5WMESmVb1Qf
+# config 5NbKMHqjuLcsNVNjRnbqJQ8JWhE4Lh8ZZ8y8cyjZvbZY burns 9d4ZaPsNZw3EaRYHggZEczmDfk26kgsdHdhbAapFmcof pairing 0xbe7c5f96c9f4cf0e115467b5aa80257e0ec00e385e57f64075f2fab12af89c88
+# blocks 20..=31
+# burn leaves (applied burns, in order) 0x7836322811062cbd35f1c9c514a6304966990bcd95a549bc17fe221ffec02f7b 0x5e59c9a50423b9bb3e2eae0a178bcf0df7453dd3b9e7ae40ec8a6f354d20b4a9
+# burn tree root 0x4042780cf26245da1a7dc050a3742a19fc152a01b7bf09e3578b9e6bf0c1b4b3 (the program's own frontier, read back: 2 leaves, root 0x4042780cf26245da1a7dc050a3742a19fc152a01b7bf09e3578b9e6bf0c1b4b3)

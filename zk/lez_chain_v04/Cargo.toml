@@ -1,4 +1,4 @@
-# lez_chain_v04: the LEZ chain guest for LEZ v0.4.0-rc1 blocks (chain/v04).
+# lez_chain_v04: the LEZ chain guest for LEZ v0.4 blocks (rc1 to rc3) (chain/v04).
 #
 # It reads v0.4 blocks as the sequencer returns them (borsh), checks each
 # one's hash against its contents (the reverted list included) and its link to

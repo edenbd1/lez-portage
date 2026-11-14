@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Build the three LEZ v0.4.0-rc1 programs the v0.4 spike runs, with the local
+# Build the LEZ v0.4.0-rc3 programs the v0.4 port runs, with the local
 # RISC Zero toolchains (rzup: rust, cpp), and pack each as the R0BF binary LEZ
 # loads (v04/executor-tests `pack`):
 #   v04/artifacts/token.bin           lez-programs refactor/lez-v0.4.x @ 2801ea1 (the canonical
-#                                     token program's actor-model port), its lee_core pin moved
-#                                     from 616256b9 to the v0.4.0-rc1 tag (the program ABI,
-#                                     lee_core::program, is identical at both)
-#   v04/artifacts/sextant_attest.bin  v04/programs/sextant_attest
+#                                     token program's actor-model port; the branch's later commits
+#                                     change only comments in programs/token), its lee_core pin
+#                                     moved from 616256b9 to the v0.4.0-rc3 tag
+#   v04/artifacts/sextant_lc.bin      Sextant's light client on v0.4: lez-sextant branch `v0.4`,
+#                                     v04/programs/sextant, built by that repository's
+#                                     v04/scripts/build-guests.sh (`sextant` here clones it at SEXTANT_REV)
 #   v04/artifacts/wrap_bridge.bin     v04/programs/wrap_bridge
 #   v04/artifacts/lez_chain_v04.bin   zk/lez_chain_v04 (the chain guest on v0.4 blocks; built on request)
 # Not reproducible builds (no Docker): ImageIDs are recorded in evidence/v04-spike, not pinned.
@@ -41,17 +43,27 @@ token() {
   git -C "$src" fetch -q origin 2801ea19ea7fed003295eaa89f7c0dc8f01cece2 2>/dev/null || git -C "$src" fetch -q origin refactor/lez-v0.4.x
   git -C "$src" checkout -q -f 2801ea19ea7fed003295eaa89f7c0dc8f01cece2
   for f in programs/token/Cargo.toml programs/token/core/Cargo.toml programs/token/methods/guest/Cargo.toml; do
-    sed -i.bak 's/rev = "616256b9c9efd2c28d4f7683b7b5d2348df7314e"/tag = "v0.4.0-rc1"/' "$src/$f"
+    sed -i.bak -e 's/rev = "616256b9c9efd2c28d4f7683b7b5d2348df7314e"/tag = "v0.4.0-rc3"/' -e 's/tag = "v0.4.0-rc1"/tag = "v0.4.0-rc3"/' "$src/$f"
   done
   rm -f "$src/programs/token/methods/guest/Cargo.lock"
   guest "$src/programs/token/methods/guest" token
 }
 
-for t in "${@:-token sextant_attest wrap_bridge}"; do
+sextant() {
+  local src="$WORK/lez-sextant"
+  [ -d "$src" ] || git clone -q https://github.com/edenbd1/lez-sextant.git "$src"
+  git -C "$src" fetch -q origin v0.4
+  git -C "$src" checkout -q -f "${SEXTANT_REV:-1e55629a80117bc9e8caed35439df86ec6433dff}"
+  "$src/v04/scripts/build-guests.sh"
+  cp "$src/v04/artifacts/sextant_lc.bin" v04/artifacts/sextant_lc.bin
+}
+
+for t in "${@:-token wrap_bridge}"; do
   for x in $t; do
     case "$x" in
       token) token ;;
-      sextant_attest | wrap_bridge) guest "$ROOT/v04/programs/$x" "$x" ;;
+      sextant) sextant ;;
+      wrap_bridge) guest "$ROOT/v04/programs/$x" "$x" ;;
       lez_chain_v04) guest "$ROOT/zk/lez_chain_v04" "$x" ;;
       *) echo "unknown guest $x" >&2; exit 2 ;;
     esac

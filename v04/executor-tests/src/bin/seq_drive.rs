@@ -1,13 +1,14 @@
-//! Drive the v0.4 spike on a local LEZ v0.4.0-rc1 standalone sequencer
+//! Drive the v0.4 port on a local LEZ v0.4.0-rc3 standalone sequencer
 //! (v04/scripts/e2e-seq.sh), over its JSON-RPC, with signed public
 //! transactions that each declare a fee paid by one funded key (`payer`,
 //! supplied at genesis):
 //!
 //! ```text
 //! seq_drive pubkey                      the payer's public key, hex (for the genesis)
-//! seq_drive deploy RPC DIR              load token, sextant_attest, wrap_bridge through the
+//! seq_drive deploy RPC DIR              load token, sextant_lc, wrap_bridge through the
 //!                                       program loader; DIR/programs.json, DIR/plan.json
-//! seq_drive run RPC DIR                 on DIR/anvil (scripts/anvil_deposits.py): Record, Init,
+//! seq_drive run RPC DIR                 on DIR/anvil (scripts/anvil_deposits.py): Sextant's Init on
+//!                                       the devnet header of the anvil block, the bridge's Init,
 //!                                       Register, a holding, a claim, burns; DIR/manifest.tsv,
 //!                                       DIR/blocks/<id>.borsh for every block from the first
 //! ```
@@ -32,7 +33,7 @@ use serde_json::{json, Value};
 use wrap_bridge_v04::{Config, Message as Bm};
 use wrap_executor_tests_v04::*;
 
-const GAS_LIMIT: u64 = 2_000_000;
+const GAS_LIMIT: u64 = 4_000_000;
 /// The wallet's `max_fee_for`: `(gas_limit + 100_000) * 64`.
 const MAX_FEE: u128 = (GAS_LIMIT as u128 + 100_000) * 64;
 const SEGMENT: usize = 96 * 1024;
@@ -173,7 +174,7 @@ impl Driver {
     }
 }
 
-/// `program_loader_core::Message` (lez/programs/program_loader/core, v0.4.0-rc1), mirrored.
+/// `program_loader_core::Message` (lez/programs/program_loader/core, v0.4.0-rc3), mirrored.
 mod program_loader_core_msg {
     use borsh::BorshSerialize;
     use lee::AccountId;
@@ -191,7 +192,7 @@ fn hx(b: &[u8]) -> String {
 #[derive(serde::Deserialize)]
 struct Programs {
     token: AccountId,
-    sextant_attest: AccountId,
+    sextant_lc: AccountId,
     wrap_bridge: AccountId,
 }
 
@@ -200,8 +201,8 @@ fn run_config(p: &Programs, vault: [u8; 20]) -> Config {
         deployment_id: DEPLOYMENT_ID,
         lez_chain_id: LEZ_CHAIN_ID,
         zone_id: ZONE_ID,
-        sextant: p.sextant_attest,
-        instance_id: sextant_attest_v04::writer_instance(&writer().id),
+        sextant: p.sextant_lc,
+        instance_id: INSTANCE,
         chain_id: ANVIL_CHAIN_ID,
         vault,
         token_program: p.token,
@@ -219,9 +220,9 @@ fn main() {
             std::fs::create_dir_all(&dir).unwrap();
             let mut d = Driver { rpc: Rpc::new(&args[2]), manifest: vec![] };
             let token = d.deploy("token.bin", 2000);
-            let sa = d.deploy("sextant_attest.bin", 2100);
+            let sa = d.deploy("sextant_lc.bin", 2100);
             let br = d.deploy("wrap_bridge.bin", 2200);
-            std::fs::write(dir.join("programs.json"), json!({"token": token, "sextant_attest": sa, "wrap_bridge": br}).to_string()).unwrap();
+            std::fs::write(dir.join("programs.json"), json!({"token": token, "sextant_lc": sa, "wrap_bridge": br}).to_string()).unwrap();
             // The vault is deployed with this deployment's pairing; alice's deposits commit to her account.
             let pairing = wrap_core::pairing(&LEZ_CHAIN_ID, &ZONE_ID, br.value(), &DEPLOYMENT_ID);
             let dep = |n: u64, amount: &str| {
@@ -232,7 +233,7 @@ fn main() {
             let plan = json!({"pairing": hx(&pairing), "phantom": hx(&phantom), "deposits": [dep(0, "1000000000000000000"), dep(1, "1000000000000000000")]});
             std::fs::write(dir.join("plan.json"), plan.to_string()).unwrap();
             std::fs::write(dir.join("deploy.tsv"), d.manifest.join("\n") + "\n").unwrap();
-            println!("token {token}\nsextant_attest {sa}\nwrap_bridge {br}\npairing {}", hx(&pairing));
+            println!("token {token}\nsextant_lc {sa}\nwrap_bridge {br}\npairing {}", hx(&pairing));
         }
         Some("run") => run(&args[2], Path::new(&args[3])),
         _ => {
@@ -246,7 +247,7 @@ fn run(rpc: &str, dir: &Path) {
     let p: Programs = serde_json::from_str(&std::fs::read_to_string(dir.join("programs.json")).unwrap()).unwrap();
     let a = anvil_at(&dir.join("anvil"));
     let cfg = run_config(&p, a.vault);
-    let (tp, sa, me) = (p.token, p.sextant_attest, p.wrap_bridge);
+    let (tp, sa, me) = (p.token, p.sextant_lc, p.wrap_bridge);
     assert_eq!(wrap_bridge_v04::pairing(&me, &cfg), a.pairing, "the vault's pairing is this deployment's");
     let mut d = Driver { rpc: Rpc::new(rpc), manifest: vec![] };
     let first = d.rpc.last_block() + 1;
@@ -257,11 +258,15 @@ fn run(rpc: &str, dir: &Path) {
     let def = wrap_bridge_v04::definition_account(&me, &ca, &ETH, &SALT).0;
     let burns = wrap_bridge_v04::burns_account(&me, &ca);
 
-    // The anvil header, as the Attest program's record (the writer key stands in for Sextant's light client).
+    // Sextant's Init on the devnet beacon header of the anvil block: the light
+    // client verifies the bootstrap and records the header claims attest against.
+    // The devnet's slot starts now, so the sequencer's clock accepts the checkpoint.
     let slot = SLOT;
-    let w = writer();
-    let hdr = sextant_attest_v04::header_account(&sa, &cfg.instance_id, slot);
-    d.send("Record", true, Actor::new(w.id, sa), &[Actor::new(hdr, sa)], &[&w], &[], &sextant_attest_v04::Message::Record { slot, record: a.record(slot) });
+    let now_s = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let dn = devnet_at(&a.block, slot, now_s - 60);
+    let inst = sextant_program_v04::instance_account(&sa, &INSTANCE);
+    let hdr = sextant_program_v04::header_account(&sa, &INSTANCE, slot);
+    d.send("Sextant Init (devnet header of the anvil block)", true, Actor::new(inst, sa), &[Actor::new(hdr, sa)], &[], &[(sa, sextant_program_v04::instance_seed(&INSTANCE))], &init_message(&dn));
     let (_, cseed) = wrap_bridge_v04::config_pda(&me, &cfg);
     d.send("Init", true, br(ca), &[br(burns)], &[], &[(me, cseed)], &Bm::Init { config: cfg.clone() });
     let reg = Bm::Register { config: cfg.clone(), eth_token: ETH, name: "Wrapped Ether (anvil)".into(), salt: SALT, policy: eth_policy() };
@@ -277,6 +282,19 @@ fn run(rpc: &str, dir: &Path) {
     let c = claim_message(&a, &cfg, &a.deposits[0], a.deposits.len(), alice().id, secret(&ALICE_SEED, 0), slot);
     let (to, actors, _) = claim_actors_with(&me, &cfg, &c);
     d.send("Claim deposit 0 again (replay)", false, to, &actors, &[], &[], &Bm::Claim(Box::new(c)));
+    // A tree the vault never had: the path is consistent, but Sextant refuses the
+    // statement against the header it recorded (the slot is not in the proof, E7207).
+    let d1 = &a.deposits[1];
+    let mut c = claim_message(&a, &cfg, d1, a.deposits.len(), alice().id, secret(&ALICE_SEED, 1), slot);
+    let fake = vec![a.deposits[0].leaf, d1.leaf, [0xab; 32]];
+    c.index = 1;
+    c.path = wrap_core::path(&fake, 1);
+    c.root = wrap_core::root(&fake);
+    let mut p = a.unknown.1.clone();
+    p.slot = wrap_core::known_root_slot(&c.root);
+    c.proof = p;
+    let (to, actors, pda) = claim_actors_with(&me, &cfg, &c);
+    d.send("Claim against a root the vault never had (Sextant refuses)", false, to, &actors, &[], &[pda], &Bm::Claim(Box::new(c)));
 
     // Burns: two applied, two reverted (not a denomination; more than alice holds after the others).
     let burn_actors = vec![br(ca), br(entry), tk(alice().id), tk(entry), tk(def)];
@@ -313,7 +331,7 @@ fn run(rpc: &str, dir: &Path) {
     }
     let mut m = vec!["# label\texpected\tverdict\tblock\ttx\thash".to_string()];
     m.extend(d.manifest.iter().cloned());
-    m.push(format!("# programs token {tp} sextant_attest {sa} wrap_bridge {me}"));
+    m.push(format!("# programs token {tp} sextant_lc {sa} wrap_bridge {me}"));
     m.push(format!("# config {ca} burns {burns} pairing {}", hx(&a.pairing)));
     m.push(format!("# blocks {first}..={last}"));
     m.push(format!("# burn leaves (applied burns, in order) {}", leaves.iter().map(|l| hx(l)).collect::<Vec<_>>().join(" ")));

@@ -1,16 +1,72 @@
-# Portage on LEZ v0.4.0-rc1: what changes, and a port spike
+# Portage on LEZ v0.4: what changes, and a port
 
 RFP-022 asks for LEZ program delivery on testnet 0.4. LEZ v0.4.0-rc1
 (logos-execution-zone tag `v0.4.0-rc1`, commit `1806e873`, 2026-10-29) is the
-first tag of that line. This document lists what it changes for each part of
-Portage, citing upstream files and lines at that tag, and records a spike on
-branch `v0.4-spike` that ports the parts that matter most and measures them.
-Nothing here is merged into `main`; the v0.3.1 stack on `main` is unchanged.
+first tag of that line; **branch `v0.4-spike` now runs on `v0.4.0-rc3`**
+(commit `bafd07be`, 2026-11-11), the latest release candidate, and **on
+Sextant's real light client ported to v0.4**, which replaces the spike's
+pinned-key stand-in (section 0). This document lists what v0.4 changes for each
+part of Portage, citing upstream files and lines, and records the port and its
+measurements. Nothing here is merged into `main`; the v0.3.1 stack on `main`
+is unchanged.
 
 Upstream paths below are relative to the logos-execution-zone checkout at
-`v0.4.0-rc1` unless they name `lez-programs` (logos-blockchain/lez-programs).
+`v0.4.0-rc1` unless they name `lez-programs` (logos-blockchain/lez-programs)
+or say otherwise; section 1 was checked again at rc3 and holds there.
 
-## 1. What v0.4.0-rc1 changes
+## 0. 2026-11-14: rc3, and Sextant's light client instead of the stand-in
+
+**rc1 to rc3.** 67 commits. For Portage's programs: the clock is one actor read
+by message (PR #988: `ReadTimestamp`/`ReadBlockId` with a granularity, replies
+to an actor only; Portage reads no clock), the program loader's state is a
+tagged `LoaderEntry` and its reads are charged at one cycle per byte, and an
+outbound cross-zone send pays a fee like any user transaction. The program ABI
+(`ReceiveInput`, `Response`, validity windows), the block layout (the
+`reverted` list, the hash formula) and the public message layout are
+unchanged: chain/v04 decodes rc3 blocks as it decoded rc1's, and the rc1
+wrap_bridge source builds against rc3 as is. The clock transaction at the end
+of every block now targets the single clock actor. A transaction whose
+validity window has closed is included, charged and reverted at settlement.
+
+**Sextant.** The spike's `v04/programs/sextant_attest` (a header record per
+slot written by one pinned writer key, a federation of one) is gone.
+`v04/artifacts/sextant_lc.bin` is Sextant's light client on v0.4
+(edenbd1/lez-sextant branch `v0.4`, `v04/programs/sextant`, reproducible
+Docker build, ImageID `bf3df59e…`; its docs/V04.md): `Init` from a checkpoint
+(the bootstrap's committee branch and execution header verified),
+sync-committee updates in three transactions (`Begin`, `Miller`, `Finish`), and
+`Attest`, the message wrap_bridge's Claim sends to the header actor, with
+Sextant's own refusal codes. Here:
+
+- **The claim path on the real light client.** The executor tests and the
+  sequencer run initialise Sextant with `Init` on a devnet beacon header that
+  commits to the anvil block's execution header and to a committee (as the
+  v0.3 tests do; anvil has no beacon chain): the light client verifies that
+  bootstrap and records the header, and every claim's `Attest` reads that
+  record. A claim against a tree the vault never had is now refused by Sextant
+  itself (`E7207`, its inclusion check; the stand-in answered `E7296`).
+- **A real Sextant attestation of the real Sepolia deposits**
+  (`v04/executor-tests/tests/sepolia.rs`): sextant_lc on v0.4 is initialised
+  from the real Sepolia checkpoint finalized after the two deposits into the
+  Sepolia WrapVault (slot 11,536,448, execution block 12,092,950, lez-sextant
+  `vectors/sepolia-portage`), and attests the exact statement wrap_bridge's
+  Claim sends (`knownRoot[root] == 1` at the vault, over the vault's real
+  account and storage proofs at that block, `evidence/testnet/sepolia`) for
+  the vault's three roots (154,004 to 158,185 cycles each); a root the vault
+  never had is refused `E7208`, as on the v0.3 testnet, and the same
+  statement as a mainnet one `E7209`. The full Claim of a Sepolia deposit
+  (the mint) is not run: it mints to the deposit's committed destination,
+  whose holding only that destination's key can open.
+- **The token program** is lez-programs `refactor/lez-v0.4.x` at `2801ea1`
+  rebuilt against rc3; the branch's head (`4c0b8c7`) changes only comments in
+  `programs/token`. lez-programs now also has an actor-model **ATA** port
+  (`refactor/ata-lez-v0.4.x`, `064b73f`), not adopted here (section 5).
+
+Results on rc3 (evidence/v04-rc3): executor tests 11 + 4 + 1 passed
+(`executor-tests.txt`), chain/v04 7 passed, and a local rc3 sequencer run
+(section 4.2).
+
+## 1. What v0.4 changes (found at rc1, checked at rc3)
 
 ### 1.1 Programs: the actor model
 
@@ -130,7 +186,7 @@ Ported in the spike (`v04/programs/wrap_bridge`, section 3). What changed:
 | v0.3 (`programs/wrap_bridge`) | v0.4 (`v04/programs/wrap_bridge`) |
 |---|---|
 | one `plan` over rows, effects on config, entry, nullifier, burns | one actor per PDA; the root call goes to the nullifier (Claim) or the burn tree (Burn), which messages the others |
-| `Attest` as a chained call over Sextant's header row | a sync `Attest` message to Sextant's header actor (`v04/programs/sextant_attest`) |
+| `Attest` as a chained call over Sextant's header row | a sync `Attest` message to Sextant's header actor (sextant_lc on v0.4, lez-sextant `v0.4`) |
 | mint: chained `Mint` to the token program with the definition's seed | the definition's mint authority is the entry PDA; the entry sends `Mint` to its own token actor with its seed, which forwards to the definition |
 | mint to the destination's ATA (ATA program) | mint to the destination's own token actor (no ATA port upstream); the destination opens its holding first |
 | `Burn` via the ATA program, `BurnFrom` from a holding | `Burn` moves the holder's tokens into the entry's escrow holding (which refuses another definition), then the escrow burns them: the burn is of the wrapped token by construction, without reading the holding |
@@ -198,28 +254,29 @@ All on branch `v0.4-spike`, alongside the v0.3 tree:
 
 - `v04/programs/wrap_bridge`: the port (Init, Register, SetPolicy, Freeze,
   Claim, Burn), refusal codes as on v0.3 (`E74xx`).
-- `v04/programs/sextant_attest`: the Attest half of Sextant on the actor
-  model: a header record actor per slot, and `Attest` verbatim
-  (`sextant_core::statement::evaluate`). **The light client is not ported**:
-  a record is written by one pinned key (the instance id is
-  `sha256("sextant-attest/writer" ‖ writer)`), a stand-in for it.
+- `v04/artifacts/sextant_lc.bin`: Sextant's light client on v0.4 (section 0;
+  the rc1 spike used a pinned-key stand-in, `v04/programs/sextant_attest`,
+  now removed).
 - `v04/artifacts/token.bin`: lez-programs `2801ea1` built against the
-  v0.4.0-rc1 `lee_core` (v04/scripts/build-guests.sh).
+  v0.4.0-rc3 `lee_core` (v04/scripts/build-guests.sh).
 - `v04/executor-tests`: the three programs through `lee::V03State` at
-  v0.4.0-rc1 (`ValidatedStateDiff::from_public_transaction_metered`, the
+  v0.4.0-rc3 (`ValidatedStateDiff::from_public_transaction_metered`, the
   call settlement makes), on the anvil deposits of vectors/anvil (the same
   vault pairing as the v0.3 tests: the program account id is the same).
 - `chain/v04` and `zk/lez_chain_v04`.
-- `v04/scripts/e2e-seq.sh` + `seq_drive`: a local standalone v0.4.0-rc1
-  sequencer (built from the tag with `--features standalone`), the three
+- `v04/scripts/e2e-seq.sh` + `seq_drive`: a local standalone v0.4.0-rc3
+  sequencer (built from the tag with `--features standalone`, run with
+  `RISC0_DEV_MODE=0`), the three
   programs loaded through the program loader, a local anvil vault with this
   deployment's pairing, and the bridge driven over JSON-RPC with
   fee-declaring signed transactions. Every block is saved
-  (vectors/lez-blocks-v04, evidence/v04-spike/e2e-seq).
+  (vectors/lez-blocks-v04, evidence/v04-rc3/e2e-seq; the rc1 run is kept in
+  evidence/v04-spike/e2e-seq).
 
-Guest builds use the local RISC Zero toolchains, with local paths remapped;
-they are not Docker-reproducible yet, so ImageIDs are recorded, not pinned
-(evidence/v04-spike/image-ids.txt).
+The token and wrap_bridge guests are built with the local RISC Zero
+toolchains, with local paths remapped; they are not Docker-reproducible yet,
+so their ImageIDs are recorded, not pinned (evidence/v04-rc3/image-ids.txt).
+sextant_lc is lez-sextant's reproducible Docker build.
 
 ## 4. Results
 
@@ -229,17 +286,20 @@ they are not Docker-reproducible yet, so ImageIDs are recorded, not pinned
   supply, the entry as mint authority and escrow), admin-only register, a
   claim minted once to its committed destination (replays under the same or
   an earlier root refused, `E7402`), redirection and a forged amount refused
-  (`E7403`), the root attested (an unknown root fails `Attest`, `E7296`; a
+  (`E7403`), the root attested by Sextant's light client (a tree the vault
+  never had fails `Attest`, `E7207`; a
   proof of another slot `E7404`; an unrecorded header is an unadmitted actor),
   the destination's holding required, freezes and the cap (`E7401`, `E7406`,
   `E7409`), a burn (supply down, escrow empty, leaf appended, event), and
   burns refused: not a denomination (`E7408`), not signed by the holder,
   another token's holding (the escrow refuses it), a wrong salt (`E7407`).
-- `v04/executor-tests`, `tests/chain_v04.rs`: **4 passed**, on 11 real
-  blocks of the local v0.4.0-rc1 sequencer: the mirror and LEZ's own
+- `v04/executor-tests`, `tests/sepolia.rs`: **1 passed**, the real Sepolia
+  attestation of section 0.
+- `v04/executor-tests`, `tests/chain_v04.rs`: **4 passed**, on 12 real
+  blocks of the local v0.4.0-rc3 sequencer (20 to 31): the mirror and LEZ's own
   `common::block::Block` both decode every block and re-encode it to the same
   bytes; LEZ's `recompute_hash`, the header and `content_hash` agree; the
-  reverted list is exactly the three transactions the sequencer reverted;
+  reverted list is exactly the four transactions the sequencer reverted;
   **four burns are in the blocks, two applied and two reverted, and the tree
   rebuilt from the blocks alone holds the two applied ones, with the root of
   the program's own burn tree read back from the sequencer**
@@ -250,13 +310,20 @@ they are not Docker-reproducible yet, so ImageIDs are recorded, not pinned
   not; chaining; every truncation and every flipped byte borsh refuses, the
   scan refuses; out-of-order sets and bad reverted lists refused).
 
-### 4.2 The sequencer run (evidence/v04-spike/e2e-seq/manifest.tsv)
+### 4.2 The sequencer run (evidence/v04-rc3/e2e-seq/manifest.tsv)
 
-13 program-loader transactions (3 programs), then Record, Init, Register,
-alice's holding, two claims (applied), a replayed claim (reverted, block 24),
-burns of 0.1 ETH and 1 ETH (applied, blocks 25 and 27), of 12,345 wei (not a
-denomination) and of 1 ETH beyond alice's balance (reverted, blocks 26 and
-28). All on a local sequencer; nothing on a public network.
+On a local standalone v0.4.0-rc3 sequencer, `RISC0_DEV_MODE=0`: 15
+program-loader transactions (token, sextant_lc, wrap_bridge), then Sextant's
+`Init` on the devnet header of the anvil block (block 20), the bridge's Init,
+Register, alice's holding, two claims each attested by Sextant (applied,
+blocks 24 and 25), a replayed claim (reverted, block 26), a claim against a
+tree the vault never had (reverted, block 27: the construction the executor
+test `the_root_is_attested_by_sextant` refuses with Sextant's `E7207`), burns
+of 0.1 ETH and 1 ETH (applied, blocks 28 and 30), of 12,345 wei (not a
+denomination) and of 1 ETH beyond alice's balance (reverted, blocks 29 and
+31); the program's own burn tree read back, `0x40427808…`, two leaves. All on
+a local sequencer; nothing on a public network. (The rc1 run, with the
+stand-in: evidence/v04-spike/e2e-seq.)
 
 ### 4.3 Cycles
 
@@ -264,14 +331,14 @@ Per transaction, in the executor (`cycles_per_transaction`; cycles are the
 execution gas a transaction is charged, `MAX_GAS_EXEC = 10,000,000` per
 block):
 
-| transaction | v0.4.0-rc1 cycles | v0.3 gas, same machine and vectors |
-|---|---:|---:|
-| Record (the Attest stand-in's header write) | 24,995 | (sextant_lc Init: 1,831,160) |
-| Init | 63,464 (also creates the burn tree) | 27,049 |
-| Register | 84,958 | 90,958 |
-| InitializeHolding (token) | 30,947 | (none: ATA created in the claim) |
-| Claim, 1 ETH | 259,022 | 297,457 |
-| Burn, 0.1 ETH | 198,834 | 228,728 (1 ETH) |
+| transaction | v0.4.0-rc3 cycles | v0.4.0-rc1 cycles (spike) | v0.3 gas, same machine and vectors |
+|---|---:|---:|---:|
+| Sextant `Init` (devnet checkpoint; rc1: the stand-in's Record, 24,995) | 1,672,261 | - | 1,831,160 |
+| Init | 63,464 (also creates the burn tree) | 63,464 | 27,049 |
+| Register | 84,983 | 84,958 | 90,958 |
+| InitializeHolding (token) | 30,944 | 30,947 | (none: ATA created in the claim) |
+| Claim, 1 ETH (Attest by sextant_lc) | 261,204 | 259,022 | 297,457 |
+| Burn, 0.1 ETH | 198,884 | 198,834 | 228,728 (1 ETH) |
 
 (v0.3: `executor-tests --bin measure` at `main`, evidence/v04-spike/cycles-v03-same-machine.md.)
 The Claim is 13% cheaper on v0.4 with the same `statement::evaluate` (the
@@ -305,12 +372,13 @@ optimize (batching the frontier's upper levels per block).
 
 | gap | what it takes | estimate |
 |---|---|---|
-| Sextant's light client on v0.4 (the record writer stands in) | port `Init`/`Begin`/`Miller`/`Finish` to actors: the job account is already one actor; the instance and header become actors written by sync messages | 2-3 days |
-| ATA | wait for lez-programs' port, or keep minting to the account's own token actor (one wrapped token per account) | upstream; 0.5 day to adopt |
+| ~~Sextant's light client on v0.4~~ | done 2026-11-14 (section 0): lez-sextant `v0.4`, on rc3 | - |
+| A full Claim of the real Sepolia deposits on v0.4 | the Sextant half is shown (section 0); the mint needs the committed destination to open its holding, so a fresh Sepolia deposit to a v0.4 destination | 0.5 day |
+| ATA | lez-programs now has an actor-model port (`refactor/ata-lez-v0.4.x`, `064b73f`); adopt it, or keep minting to the account's own token actor (one wrapped token per account) | 0.5 day to adopt |
 | Private claim and private burn | hybrid transactions (public root, private holder or destination), the in-proof fee from a funded private payer; re-measure proving | 3-4 days |
 | zk/bedrock_anchor, burn_release, bedrock_release on v0.4 | move compose.rs to chain/v04 and the 36-word journal; re-verify bedrock/ against lb-core d480efc6; accept staked sequencer keys | 2 days |
 | Chain guest recursion and per-burn cost | prior-receipt recursion as in zk/lez_chain; batch frontier inserts | 1 day |
 | Vault verifiers | new ImageIDs and journal layout in ZkChainBurnVerifier / ZkBedrockBurnVerifier, Foundry tests and mutations | 1 day |
-| Reproducible builds | Docker builds of the v0.4 guests (RISC Zero's pinned builder) and a CI cmp | 0.5 day |
+| Reproducible builds | sextant_lc is reproducible (lez-sextant CI); Docker builds of token, wrap_bridge and the chain guest and a CI cmp | 0.5 day |
 | A private transaction in real v0.4 blocks | the scan's private path is tested on synthetic blocks in the exact layout only | with the private paths |
 | testnet 0.4 | deploy on the public 0.4 network when it exists (needs funds) | 1 day |

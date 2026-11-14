@@ -1,4 +1,4 @@
-# lez-chain-v04: chain/ for LEZ v0.4.0-rc1 blocks (docs/V04-PORT.md). A crate
+# lez-chain-v04: chain/ for LEZ v0.4 blocks (rc1 to rc3) (docs/V04-PORT.md). A crate
 # of its own so that the v0.3.1 crate, and the committed guests built from it
 # (artifacts/zk/lez_chain.bin and the guests that link it), stay byte for byte.
 [package]

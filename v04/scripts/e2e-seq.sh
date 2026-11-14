@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
-# The v0.4 spike on a local LEZ v0.4.0-rc1 standalone sequencer (mock Bedrock)
+# The v0.4 port on a local LEZ v0.4.0-rc3 standalone sequencer (mock Bedrock)
 # and a local anvil chain:
 #   1. a sequencer home from LEZ's networks/local.json, its genesis supplying the
 #      driver's fee payer (seq_drive pubkey), 2 s blocks, no gossip;
-#   2. seq_drive deploy: token, sextant_attest, wrap_bridge through the program loader;
+#   2. seq_drive deploy: token, sextant_lc, wrap_bridge through the program loader;
 #   3. anvil: WrapVault with this deployment's pairing, two deposits committed to
 #      alice (scripts/anvil_deposits.py, committee release verifier: no release here);
-#   4. seq_drive run: Record, Init, Register, alice's holding, both claims, a replay
+#   4. seq_drive run: Sextant's Init (the light client verifies a devnet beacon
+#      header committing to the anvil block and records it), the bridge's Init,
+#      Register, alice's holding, both claims (each attested by Sextant), a replay
 #      (reverted), four burns (two applied, two reverted), every block saved.
-# Needs SEQ (the sequencer_service binary of logos-execution-zone v0.4.0-rc1, built
+# The sequencer runs with RISC0_DEV_MODE=0.
+# Needs SEQ (the sequencer_service binary of logos-execution-zone v0.4.0-rc3, built
 # with --features standalone) and LEZ (that checkout, for networks/local.json).
 #   SEQ=... LEZ=... v04/scripts/e2e-seq.sh [RUN]
 # Nothing here reaches a public network.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-: "${SEQ:?set SEQ to the v0.4.0-rc1 sequencer_service binary (standalone)}"
-: "${LEZ:?set LEZ to the logos-execution-zone v0.4.0-rc1 checkout}"
+: "${SEQ:?set SEQ to the v0.4.0-rc3 sequencer_service binary (standalone)}"
+: "${LEZ:?set LEZ to the logos-execution-zone v0.4.0-rc3 checkout}"
 RUN="${1:-${TMPDIR:-/tmp}/portage-v04-e2e}"
 PORT="${PORT:-3077}"; METRICS_PORT="${METRICS_PORT:-9477}"; ANVIL_PORT="${ANVIL_PORT:-8577}"
+export RISC0_DEV_MODE=0
 rm -rf "$RUN"; mkdir -p "$RUN"
 DRIVE=(cargo run -q --release -j "${JOBS:-4}" --manifest-path v04/executor-tests/Cargo.toml --bin seq_drive --)
 PIDS=()

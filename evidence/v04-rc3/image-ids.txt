@@ -1,0 +1,9 @@
+# v04/artifacts at LEZ v0.4.0-rc3 (bafd07be), 2026-11-14
+# token: lez-programs refactor/lez-v0.4.x @ 2801ea1, lee_core at v0.4.0-rc3 (v04/scripts/build-guests.sh token; local toolchains)
+# wrap_bridge: v04/programs/wrap_bridge (v04/scripts/build-guests.sh wrap_bridge; local toolchains)
+# sextant_lc: lez-sextant 1e55629a80117bc9e8caed35439df86ec6433dff, v04/artifacts/sextant_lc.bin there (DOCKER=1, RISC Zero r0.1.91.1, reproducible; its CI cmp's a clean rebuild)
+# lez_chain_v04: unchanged from the rc1 spike (chain/v04's block layout is the same at rc3)
+token 222712 bytes, ImageID 7b551db2398c2e055c230db0e809ed6b15603c2f6b9beae560b05d29d00357db
+wrap_bridge 405124 bytes, ImageID eed96b93e0caefe946de5da7f1fc68458869294e4ec8c3995aa75bcbdad304bc
+sextant_lc 616172 bytes, ImageID bf3df59e28d180ca1109cc39b0a5fd479106d007b49f1d1dc5e48aa8fc6e530a
+lez_chain_v04 287272 bytes, ImageID 23396bb9edcfeaf91ae81b6536c715952d1ecf2c73ff47ef82b21941e144ed45

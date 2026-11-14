@@ -1,4 +1,4 @@
-//! LEZ v0.4.0-rc1 blocks (docs/V04-PORT.md).
+//! LEZ v0.4 blocks, v0.4.0-rc1 to rc3 (docs/V04-PORT.md).
 //!
 //! Two things change for the chain-derived release:
 //!

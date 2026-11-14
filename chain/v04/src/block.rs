@@ -1,8 +1,8 @@
-//! The borsh layout of a LEZ v0.4.0-rc1 block, mirrored field for field from
+//! The borsh layout of a LEZ v0.4 block (rc1 to rc3), mirrored field for field from
 //! `common::block`, `common::transaction` and `lee`/`lee_core` at the
-//! v0.4.0-rc1 tag (1806e873), with plain byte arrays for ids, keys, digests
+//! v0.4.0-rc1 tag (1806e873; the same at rc3, bafd07be), with byte arrays for ids, keys, digests
 //! and seeds. v04/executor-tests (tests/chain_v04.rs) decodes real blocks from
-//! a v0.4.0-rc1 sequencer with both these types and LEZ's own, and checks
+//! a v0.4.0-rc3 sequencer with both these types and LEZ's own, and checks
 //! that both consume every byte and re-encode to the same bytes.
 //!
 //! Sets and maps are `BTreeSet`/`BTreeMap` as in LEZ. borsh (built, as LEZ

@@ -1,7 +1,8 @@
-//! chain/v04 on real LEZ v0.4.0-rc1 blocks: blocks 18 to 28 of a local
-//! standalone v0.4.0-rc1 sequencer (v04/scripts/e2e-seq.sh), saved as the
+//! chain/v04 on real LEZ v0.4.0-rc3 blocks: every block of a run of a local
+//! standalone v0.4.0-rc3 sequencer (v04/scripts/e2e-seq.sh), saved as the
 //! sequencer's `getBlock` returned them (vectors/lez-blocks-v04, run.json:
-//! what each transaction was and whether the sequencer reverted it).
+//! what each transaction was and whether the sequencer reverted it;
+//! scripts/v04-run-json.py writes it from the run's manifest).
 //!
 //! What it shows: the block mirror is LEZ's layout byte for byte (the
 //! reverted list included), the hash formula is LEZ's, and the burns the
@@ -89,7 +90,7 @@ fn applied_public_burns_and_only_those_are_derived_from_the_blocks() {
         }
     }
     assert_eq!(sent, 4, "four burns in the blocks");
-    // From the anchor (block 17, which block 18 names), the blocks give the applied two.
+    // From the anchor (the block before the first, which it names), the blocks give the applied two.
     let first: common::block::Block = borsh::from_slice(&blocks[0].1).unwrap();
     let mut s = v04::ChainState::at_anchor(blocks[0].0 - 1, first.header.prev_block_hash.0);
     let mut leaves = Vec::new();
@@ -106,14 +107,16 @@ fn applied_public_burns_and_only_those_are_derived_from_the_blocks() {
 fn a_block_whose_reverted_list_is_tampered_does_not_hash() {
     let p = params();
     let blocks = blocks();
-    // Block 26 holds a reverted burn: un-list it, and the block no longer has its hash.
-    let raw = &blocks.iter().find(|(id, _)| *id == 26).unwrap().1;
+    // The block of a reverted burn: un-list it, and the block no longer has its hash.
+    let r = run();
+    let n = r["transactions"].as_array().unwrap().iter().find(|t| t["label"].as_str().unwrap().starts_with("Burn 12345")).unwrap()["block"].as_u64().unwrap();
+    let raw = &blocks.iter().find(|(id, _)| *id == n).unwrap().1;
     let mut b: v04::block::Block = borsh::from_slice(raw).unwrap();
     assert_eq!(b.body.reverted, vec![0]);
     b.body.reverted.clear();
     let forged = borsh::to_vec(&b).unwrap();
     let (_, leaves) = v04::scan::scan_block(&forged, &p).unwrap();
     assert_eq!(leaves.len(), 1, "un-listed, the reverted burn would count");
-    let mut s = v04::ChainState::at_anchor(25, b.header.prev_block_hash);
-    assert_eq!(v04::apply_block(&mut s, &p, &forged), Err(lez_chain::ChainError::HashMismatch { block_id: 26 }));
+    let mut s = v04::ChainState::at_anchor(n - 1, b.header.prev_block_hash);
+    assert_eq!(v04::apply_block(&mut s, &p, &forged), Err(lez_chain::ChainError::HashMismatch { block_id: n }));
 }

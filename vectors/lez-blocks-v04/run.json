@@ -1,14 +1,14 @@
 {
  "programs": {
-  "sextant_attest": "SWmn7pHJoq59DQJAjPoewg7sz3zqGnotAttvmb6XYun",
+  "sextant_lc": "SWmn7pHJoq59DQJAjPoewg7sz3zqGnotAttvmb6XYun",
   "token": "3sNabUZKL776oo3x1aubaQyMLXaKpMSYjrxsGcybwDFX",
   "wrap_bridge": "3WJtzhYHGpHDEAV6NJkvDwoTfT9P8sahB5WMESmVb1Qf"
  },
- "config": "54kshEkuggHJuQQJx5TM6HhdNxAjFFMLXM7ZwbBMN5fn",
- "burns": "2U3ryzARJamJ6VDnkgug3BPZv2c8hJ9VKg8hvuxB5f29",
+ "config": "5NbKMHqjuLcsNVNjRnbqJQ8JWhE4Lh8ZZ8y8cyjZvbZY",
+ "burns": "9d4ZaPsNZw3EaRYHggZEczmDfk26kgsdHdhbAapFmcof",
  "pairing": "0xbe7c5f96c9f4cf0e115467b5aa80257e0ec00e385e57f64075f2fab12af89c88",
- "first": 18,
- "last": 28,
+ "first": 20,
+ "last": 31,
  "applied_burn_leaves": [
   "0x7836322811062cbd35f1c9c514a6304966990bcd95a549bc17fe221ffec02f7b",
   "0x5e59c9a50423b9bb3e2eae0a178bcf0df7453dd3b9e7ae40ec8a6f354d20b4a9"
@@ -16,81 +16,88 @@
  "root": "0x4042780cf26245da1a7dc050a3742a19fc152a01b7bf09e3578b9e6bf0c1b4b3",
  "transactions": [
   {
-   "label": "Record",
+   "label": "Sextant Init (devnet header of the anvil block)",
    "verdict": "applied",
-   "block": 18,
+   "block": 20,
    "tx": 0,
-   "hash": "ee7cefd32a8e7b17d31dd4560c45b2d02bdcd6fb04185da75bb732ab27c4be90"
+   "hash": "0d5f18687c8301aa55ae364faae7333bb0ca314ca874da1b541b6836e6d51460"
   },
   {
    "label": "Init",
    "verdict": "applied",
-   "block": 19,
+   "block": 21,
    "tx": 0,
-   "hash": "a60c5a3fe4cac46a44c5b04e01193c1dba9dbc79b78da07b5e26315bad45770c"
+   "hash": "5ceb736b64c4b655a144e7e57f3182fe32b66dd6cd4adc1dc6bfd73f519221c1"
   },
   {
    "label": "Register ETH",
    "verdict": "applied",
-   "block": 20,
+   "block": 22,
    "tx": 0,
-   "hash": "4b9e4cc4300204dd6df336b3cf3dfb45054cbc6a7809ed8d942f04896123789f"
+   "hash": "75910fc1c83db7f9a95dafa5b4bb80e0cdab1f1926ef8fa10102b7c902bb5657"
   },
   {
    "label": "alice InitializeHolding",
    "verdict": "applied",
-   "block": 21,
+   "block": 23,
    "tx": 0,
-   "hash": "728c56352d1c63a4acb696e6c2f406bd16366bf89ae8f917c81d4eaee6aca8ad"
+   "hash": "bbd7e86c5096177133be4049f03869c0b7feb983c747ba44824f46bc26d54a05"
   },
   {
    "label": "Claim deposit 0",
    "verdict": "applied",
-   "block": 22,
+   "block": 24,
    "tx": 0,
-   "hash": "b063f40dfe08196b094c60bff407a85150645e6ad4ac50179fc376e1fa084a8d"
+   "hash": "3355e7645b3a83e78d8c62be660490da4aab88e004999e7dced1dc2986fb3478"
   },
   {
    "label": "Claim deposit 1",
    "verdict": "applied",
-   "block": 23,
+   "block": 25,
    "tx": 0,
-   "hash": "09465957411c7797afd2e41ab775c7d379a25278f000f2af9edf3c1bf08a3afa"
+   "hash": "63073a38d9758619a90b9176a0c82b43b8c9bd21c0be882f89311a626031b6fb"
   },
   {
    "label": "Claim deposit 0 again (replay)",
    "verdict": "reverted",
-   "block": 24,
+   "block": 26,
    "tx": 0,
-   "hash": "18572beadadec3b0da5476442089f43f51d6a051ac0fdbf8036448bf6c2e65f3"
+   "hash": "644c8671fbc089a8d0a5a66212ed087f2a71776ee76009aa3dc558123f37e55a"
+  },
+  {
+   "label": "Claim against a root the vault never had (Sextant refuses)",
+   "verdict": "reverted",
+   "block": 27,
+   "tx": 0,
+   "hash": "1fa8ba561cd5e0366240b1d1e42e77aeb4055289d0af89dc7ef3facf818af664"
   },
   {
    "label": "Burn 0.1 ETH",
    "verdict": "applied",
-   "block": 25,
+   "block": 28,
    "tx": 0,
-   "hash": "bf623e7f400fab3100cdf4e1a9edca45b8dc6e84a701c27cc553660186c63010"
+   "hash": "56e9205048c9330098b21a14f609f22567d5ac51a4de4bddb1c68c0381d7590f"
   },
   {
    "label": "Burn 12345 wei (not a denomination)",
    "verdict": "reverted",
-   "block": 26,
+   "block": 29,
    "tx": 0,
-   "hash": "0704a63bfa386dbf9b92b39659bee58d789555f61ceba27b8e36ebf552cb7f1b"
+   "hash": "c34d048c1ca42d72a43e06e62260ec2f391982092e2696db01c61fc8db80d0c0"
   },
   {
    "label": "Burn 1 ETH",
    "verdict": "applied",
-   "block": 27,
+   "block": 30,
    "tx": 0,
-   "hash": "f03aef364d116cd2ac77cd661bec11234fdba51ae730af821ac7b93563be2684"
+   "hash": "199feca0f980c223c95aef023d8cd511f18729d690faadd2bfe469e06260a5bd"
   },
   {
    "label": "Burn 1 ETH (more than alice holds)",
    "verdict": "reverted",
-   "block": 28,
+   "block": 31,
    "tx": 0,
-   "hash": "ee468069e541068ba94c2771b580b1e8449af373c76e6c6b71b31b32390ae7c7"
+   "hash": "816a832e4b65a279b9cc070d0c83c449e4db585bf749a024d3339ff5f512bca8"
   }
  ]
 }

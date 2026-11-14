@@ -1,6 +1,7 @@
-//! wrap_bridge on LEZ v0.4.0-rc1, through `lee::V03State`, next to the
-//! canonical token program's actor-model port and Sextant's Attest half, on
-//! the anvil deposits of vectors/anvil. Every claim is sent by a brand-new
+//! wrap_bridge on LEZ v0.4.0-rc3, through `lee::V03State`, next to the
+//! canonical token program's actor-model port and Sextant's light client
+//! (sextant_lc on v0.4, initialised on the devnet header of the anvil block),
+//! on the anvil deposits of vectors/anvil. Every claim is sent by a brand-new
 //! relayer account.
 
 use wrap_bridge_v04::*;
@@ -121,7 +122,7 @@ fn the_root_is_attested_by_sextant() {
     let mut p = w.a.unknown.1.clone();
     p.slot = wrap_core::known_root_slot(&c.root);
     c.proof = p;
-    assert_eq!(refused(claim(&mut w.ch, &cfg, &c)), sextant_attest_v04::E_ATTEST);
+    assert_eq!(refused(claim(&mut w.ch, &cfg, &c)), sextant_program_v04::E_BASE + sextant_core::Error::BadInclusion as u32);
     // The real unknown-root proof against its own root: the slot holds 0.
     let mut c = claim_message(&w.a, &cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), SLOT);
     c.proof = w.a.unknown.1.clone();

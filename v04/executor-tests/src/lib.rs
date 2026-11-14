@@ -1,7 +1,7 @@
-//! A one-node LEZ v0.4.0-rc1 chain in memory with three actor-model programs
+//! A one-node LEZ v0.4.0-rc3 chain in memory with three actor-model programs
 //! deployed: the canonical token program (lez-programs' actor-model port),
-//! the Attest half of Sextant (`v04/programs/sextant_attest`), and
-//! `wrap_bridge` (`v04/programs/wrap_bridge`).
+//! Sextant's light client on v0.4 (`sextant_lc`, lez-sextant branch `v0.4`,
+//! `v04/programs/sextant`), and `wrap_bridge` (`v04/programs/wrap_bridge`).
 //!
 //! Transactions are signed `PublicTransaction`s and go through
 //! `ValidatedStateDiff::from_public_transaction_metered`, the call the
@@ -12,11 +12,13 @@
 //! *revert*: the transaction stays (its signers' nonces advance), its effects
 //! do not.
 //!
-//! The Ethereum side is the anvil run of vectors/anvil, as for v0.3. Its block
-//! is recorded in the Attest program by the record writer key (a stand-in for
-//! Sextant's light client, not ported to v0.4); the storage proofs, the
-//! deposits' leaves and paths, the nullifiers and the mints are checked
-//! exactly as on v0.3.
+//! The Ethereum side is the anvil run of vectors/anvil, as for v0.3. Anvil has
+//! no beacon chain, so, as the v0.3 tests do, a devnet beacon header commits to
+//! the anvil block's execution header and to a committee, and Sextant's `Init`
+//! verifies that bootstrap and records the header (`devnet`,
+//! `init_light_client`): the record a claim's `Attest` reads is written by the
+//! light client itself. The storage proofs, the deposits' leaves and paths,
+//! the nullifiers and the mints are checked exactly as on v0.3.
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -30,8 +32,9 @@ use lee::{
 };
 use lee_core::program::TransactionEvent;
 use serde_json::Value;
+use sextant_core::lc::{self, CURRENT_COMMITTEE_DEPTH, CURRENT_COMMITTEE_INDEX, EXECUTION_DEPTH, EXECUTION_INDEX};
 use sextant_core::mpt::AccountStorageProof;
-use sextant_core::statement::HeaderRecord;
+use sextant_core::{ssz, BeaconHeader, ChainConfig, ExecutionHeader, LcHeader, SyncCommittee};
 use wrap_bridge_v04::{config_account, token, Config, Policy};
 use wrap_core::H256;
 
@@ -39,7 +42,10 @@ use wrap_core::H256;
 pub const GAS_CAP: u64 = 10_000_000;
 
 pub const TOKEN: AccountId = AccountId::new(*b"token/v0.4/test/header/000000001");
-pub const SA: AccountId = AccountId::new(*b"sextant_attest/v0.4/test/hdr/001");
+/// Sextant's light client (`sextant_lc.bin`, lez-sextant branch `v0.4`).
+pub const LC: AccountId = AccountId::new(*b"sextant_lc/v0.4/test/header/0001");
+/// The light-client instance the bridge's claims attest against.
+pub const INSTANCE: H256 = *b"anvil/devnet/instance/0000000001";
 /// The same program account id as the v0.3 tests: the anvil vault was
 /// deployed with the pairing it names, so the vectors' deposits are this
 /// program's.
@@ -100,9 +106,6 @@ pub fn admin() -> Key {
 pub fn freezer() -> Key {
     Key::new(301)
 }
-pub fn writer() -> Key {
-    Key::new(302)
-}
 
 /// One transaction's outcome: applied, or reverted with the guest's message.
 #[derive(Debug)]
@@ -122,7 +125,7 @@ pub struct Chain {
 impl Chain {
     #[must_use]
     pub fn new() -> Self {
-        let state = V03State::new().with_named_programs([(TOKEN, program("token.bin")), (SA, program("sextant_attest.bin")), (BR, program("wrap_bridge.bin"))]);
+        let state = V03State::new().with_named_programs([(TOKEN, program("token.bin")), (LC, program("sextant_lc.bin")), (BR, program("wrap_bridge.bin"))]);
         Self { state, block: 10, now: 1_760_000_000_000, log: vec![], next_key: 1000 }
     }
 
@@ -178,7 +181,7 @@ impl Default for Chain {
     }
 }
 
-/// The first typed refusal in a revert message: `E72xx` (sextant_attest) or `E74xx` (wrap_bridge).
+/// The first typed refusal in a revert message: `E72xx` (sextant_lc) or `E74xx` (wrap_bridge).
 pub fn refusal(e: &str) -> Option<u32> {
     let i = e.match_indices('E').map(|(i, _)| i).find(|&i| {
         e.get(i + 1..i + 5).is_some_and(|d| d.bytes().all(|b| b.is_ascii_digit()) && (d.starts_with("72") || d.starts_with("74")))
@@ -267,31 +270,114 @@ impl Anvil {
     pub fn leaves(&self, n: usize) -> Vec<H256> {
         self.deposits[..n].iter().map(|d| d.leaf).collect()
     }
-    /// The anvil block as Sextant records a finalized header.
-    pub fn record(&self, slot: u64) -> HeaderRecord {
-        HeaderRecord {
-            chain_id: ANVIL_CHAIN_ID,
-            slot,
-            beacon_root: wrap_core::sha256(&[b"anvil has no beacon chain", &slot.to_le_bytes()]),
-            block_number: q(&self.block["number"]),
-            state_root: h(&self.block["stateRoot"]),
-            receipts_root: h(&self.block["receiptsRoot"]),
-        }
+}
+
+// ---- the devnet light-client instance ----
+
+fn fold(leaf: &H256, branch: &[H256], index: u64) -> H256 {
+    let mut v = *leaf;
+    for (i, sib) in branch.iter().enumerate() {
+        v = if (index >> i) & 1 == 1 { ssz::hash2(sib, &v) } else { ssz::hash2(&v, sib) };
+    }
+    v
+}
+
+/// The anvil block's execution header, as a beacon block would carry it.
+pub fn execution_header(b: &Value) -> ExecutionHeader {
+    let mut base_fee = [0u8; 32];
+    base_fee[..16].copy_from_slice(&u128::from(q(&b["baseFeePerGas"])).to_le_bytes());
+    ExecutionHeader {
+        parent_hash: h(&b["parentHash"]),
+        fee_recipient: h(&b["miner"]),
+        state_root: h(&b["stateRoot"]),
+        receipts_root: h(&b["receiptsRoot"]),
+        logs_bloom: hexv(b["logsBloom"].as_str().unwrap()),
+        prev_randao: h(&b["mixHash"]),
+        block_number: q(&b["number"]),
+        gas_limit: q(&b["gasLimit"]),
+        gas_used: q(&b["gasUsed"]),
+        timestamp: q(&b["timestamp"]),
+        extra_data: hexv(b["extraData"].as_str().unwrap()),
+        base_fee_per_gas: base_fee,
+        block_hash: h(&b["hash"]),
+        transactions_root: h(&b["transactionsRoot"]),
+        withdrawals_root: b.get("withdrawalsRoot").map(h).unwrap_or_default(),
+        blob_gas_used: b.get("blobGasUsed").map(q).unwrap_or_default(),
+        excess_blob_gas: b.get("excessBlobGas").map(q).unwrap_or_default(),
     }
 }
 
-// ---- the Attest program ----
-
-pub fn instance() -> H256 {
-    sextant_attest_v04::writer_instance(&writer().id)
+pub struct Devnet {
+    pub checkpoint: H256,
+    pub cfg: ChainConfig,
+    pub header: LcHeader,
+    pub committee: SyncCommittee,
+    pub branch: Vec<H256>,
+    pub slot: u64,
 }
 
-pub fn record_header(c: &mut Chain, record: HeaderRecord) -> Result<Outcome, String> {
-    let w = writer();
-    let inst = sextant_attest_v04::writer_instance(&w.id);
-    let slot = record.slot;
-    let hdr = sextant_attest_v04::header_account(&SA, &inst, slot);
-    c.send("Record", Actor::new(w.id, SA), &[Actor::new(hdr, SA)], &[&w], &[], &sextant_attest_v04::Message::Record { slot, record })
+/// A beacon header at `slot` whose body commits to the anvil block's
+/// execution header, and whose state commits to a committee of 512 keys; its
+/// chain's genesis is placed so that `slot` starts at `slot_time_s` (unix
+/// seconds), and the instance takes the usual two-week weak-subjectivity bound.
+#[must_use]
+pub fn devnet_at(block: &Value, slot: u64, slot_time_s: u64) -> Devnet {
+    let execution = execution_header(block);
+    let filler = |tag: u8, n: usize| (0..n).map(|i| wrap_core::sha256(&[&[tag, i as u8]])).collect::<Vec<H256>>();
+    let execution_branch = filler(1, EXECUTION_DEPTH);
+    let body_root = fold(&ssz::execution_header_root(&execution), &execution_branch, EXECUTION_INDEX);
+    let committee = SyncCommittee {
+        pubkeys: (0..512u16)
+            .map(|i| {
+                let mut k = [0u8; 48];
+                k[..2].copy_from_slice(&i.to_le_bytes());
+                k
+            })
+            .collect(),
+        aggregate: [0xaa; 48],
+    };
+    let branch = filler(2, CURRENT_COMMITTEE_DEPTH);
+    let state_root = fold(&ssz::sync_committee_root(&committee), &branch, CURRENT_COMMITTEE_INDEX);
+    let beacon = BeaconHeader { slot, proposer_index: 0, parent_root: [0; 32], state_root, body_root };
+    let header = LcHeader { beacon, execution, execution_branch, execution_rlp: vec![] };
+    let checkpoint = ssz::beacon_header_root(&header.beacon);
+    let cfg = ChainConfig {
+        chain_id: ANVIL_CHAIN_ID,
+        genesis_validators_root: [0; 32],
+        forks: vec![(0, [0; 4])],
+        min_participants: 342,
+        genesis_time: slot_time_s - slot * lc::SECONDS_PER_SLOT,
+        max_checkpoint_age: 14 * 24 * 3600,
+        gloas_epoch: u64::MAX,
+    };
+    assert!(lc::bootstrap(&cfg, &checkpoint, &header, &committee, &branch).is_ok());
+    Devnet { checkpoint, cfg, header, committee, branch, slot }
+}
+
+/// The devnet header at `slot`, starting when the in-memory chain's clock does.
+#[must_use]
+pub fn devnet(block: &Value, slot: u64) -> Devnet {
+    devnet_at(block, slot, 1_760_000_000)
+}
+
+pub fn init_message(d: &Devnet) -> sextant_program_v04::Message {
+    sextant_program_v04::Message::Init {
+        instance_id: INSTANCE,
+        checkpoint: d.checkpoint,
+        cfg: d.cfg.clone(),
+        header: d.header.clone(),
+        committee: d.committee.clone(),
+        branch: d.branch.clone(),
+    }
+}
+
+/// Sextant's `Init` of the devnet instance from the anvil block: the light
+/// client verifies the bootstrap and records the header claims attest against.
+pub fn init_light_client(c: &mut Chain, d: &Devnet) -> Result<Outcome, String> {
+    let inst = sextant_program_v04::instance_account(&LC, &INSTANCE);
+    let hdr = sextant_program_v04::header_account(&LC, &INSTANCE, d.slot);
+    let relayer = c.fresh();
+    c.send("Init (sextant_lc)", Actor::new(inst, LC), &[Actor::new(hdr, LC)], &[&relayer], &[(LC, sextant_program_v04::instance_seed(&INSTANCE))], &init_message(d))
 }
 
 // ---- the bridge ----
@@ -302,8 +388,8 @@ pub fn config(vault: [u8; 20]) -> Config {
         deployment_id: DEPLOYMENT_ID,
         lez_chain_id: LEZ_CHAIN_ID,
         zone_id: ZONE_ID,
-        sextant: SA,
-        instance_id: instance(),
+        sextant: LC,
+        instance_id: INSTANCE,
         chain_id: ANVIL_CHAIN_ID,
         vault,
         token_program: TOKEN,
@@ -441,12 +527,13 @@ pub struct World {
     pub cfg: Config,
 }
 
-/// The anvil header recorded, the bridge configured, ETH and USDT registered.
+/// Sextant initialised on the devnet header of the anvil block, the bridge
+/// configured, ETH and USDT registered.
 #[must_use]
 pub fn world() -> World {
     let a = anvil();
     let mut ch = Chain::new();
-    record_header(&mut ch, a.record(SLOT)).expect("Record the anvil header");
+    init_light_client(&mut ch, &devnet(&a.block, SLOT)).expect("Sextant's Init from the devnet checkpoint");
     let cfg = config(a.vault);
     assert_eq!(wrap_bridge_v04::pairing(&BR, &cfg), a.pairing, "the vault was deployed with this deployment's pairing");
     init_bridge(&mut ch, &cfg).expect("Init");

@@ -139,7 +139,7 @@ jobs:
       - run: cargo build --release --manifest-path executor-tests/Cargo.toml --tests --bins
       - run: scripts/mutation-test.sh
   v04:
-    name: LEZ v0.4.0-rc1 spike (actor-model wrap_bridge, real v0.4 blocks)
+    name: LEZ v0.4.0-rc3 port (actor-model wrap_bridge on Sextant's v0.4 light client, real v0.4 blocks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -154,9 +154,11 @@ jobs:
         run: |
           for i in 1 2 3; do rzup install r0vm 3.0.5 && exit 0; sleep $((i * 20)); done
           exit 1
-      # The committed v0.4 binaries (v04/artifacts) through lee::V03State at
-      # v0.4.0-rc1, and chain/v04 on the blocks of a local v0.4.0-rc1
-      # sequencer (vectors/lez-blocks-v04); docs/V04-PORT.md.
+      # The committed v0.4 binaries (v04/artifacts: token, sextant_lc,
+      # wrap_bridge) through lee::V03State at v0.4.0-rc3, a real Sepolia
+      # checkpoint attesting the Sepolia vault's roots, and chain/v04 on the
+      # blocks of a local v0.4.0-rc3 sequencer (vectors/lez-blocks-v04);
+      # docs/V04-PORT.md.
       - run: cargo test --release --manifest-path chain/v04/Cargo.toml
       - run: cargo test --release --manifest-path v04/executor-tests/Cargo.toml -- --nocapture
       - name: The v0.4 chain guest's cycles
