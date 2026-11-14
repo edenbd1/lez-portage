@@ -69,7 +69,8 @@ Details: [docs/OUTBOUND.md](docs/OUTBOUND.md) (burn and the four releases),
 [docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md) (how LEZ sits on Bedrock,
 what a light client would need, what was built),
 [docs/PRIVATE-CLAIM-MEASURED.md](docs/PRIVATE-CLAIM-MEASURED.md),
-[docs/LOCAL-E2E.md](docs/LOCAL-E2E.md).
+[docs/LOCAL-E2E.md](docs/LOCAL-E2E.md),
+[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) (each RFP requirement: met, partial or planned).
 
 ## What is proven and measured
 
