@@ -1,5 +1,5 @@
 //! The canonical token program on the actor model (logos-blockchain/lez-programs,
-//! branch `refactor/lez-v0.4.x` at 2801ea1, `programs/token/core/src/lib.rs`),
+//! branch `refactor/lez-v0.4.x` at 2801ea1, unchanged at 064b73f, `programs/token/core/src/lib.rs`),
 //! mirrored: its crate pins another LEZ revision, and one binary cannot hold
 //! two `lee_core`s. The borsh layouts are pinned against the real program by
 //! the executor tests (v04/executor-tests), which run its guest.

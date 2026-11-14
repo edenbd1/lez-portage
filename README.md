@@ -39,7 +39,9 @@ transactions (so public burns are derivable from blocks), ETH and an ERC-20
 claimed and burned, a v0.4 client (`wrap`, pre-checking every transaction on
 rc3's state machine), reproducible Docker builds of every v0.4 binary, and a
 run on a local v0.4.0-rc3 sequencer whose applied burns are then released from
-WrapVault on anvil through the committee verifier. Nothing of v0.4 is on a public network
+WrapVault on anvil through the committee verifier, including a private claim
+and a private burn proven for real, their fee paid inside the proof by a
+funded private account. Nothing of v0.4 is on a public network
 (there is no public 0.4 network yet). See [docs/V04-PORT.md](docs/V04-PORT.md)
 and [`v04/`](v04/); how to run it is under "Run" below.
 
@@ -358,7 +360,7 @@ job rebuilds each in Docker and `cmp`s it against the committed binary):
 
 ```console
 cargo test --release --manifest-path chain/v04/Cargo.toml
-cargo test --release --manifest-path v04/executor-tests/Cargo.toml   # r0vm 3.0.5; bridge, erc20, sepolia, chain_v04
+cargo test --release --manifest-path v04/executor-tests/Cargo.toml   # r0vm 3.0.5; bridge, erc20, private, sepolia, chain_v04
 cargo run --release --manifest-path v04/executor-tests/Cargo.toml --bin measure_chain
 DOCKER=1 v04/scripts/build-guests.sh token ata wrap_bridge lez_chain_v04 sextant   # v04/artifacts/*.bin
 ```
@@ -375,7 +377,11 @@ python3 scripts/v04-run-json.py <run dir> vectors/lez-blocks-v04            # th
 It ends on anvil: each applied v0.4 burn released from WrapVault through
 `CommitteeBurnVerifier` (each member reads the burn tree's root from the rc3
 sequencer), with seven refusals ([evidence/v04-rc3/e2e-seq/releases.tsv](evidence/v04-rc3/e2e-seq/releases.tsv),
-docs/V04-PORT.md section 0.2).
+docs/V04-PORT.md section 0.2). Between them, `wrap claim 4 --private` and
+`wrap burn carol eth 100000000000000000 --private` prove carol's private
+claim and private burn (real proving unless `RISC0_DEV_MODE=1`; times, memory
+and sizes in evidence/v04-rc3/e2e-seq/private-claim.json and
+private-burn.json, docs/V04-PORT.md section 0.4).
 
 ## Layout
 

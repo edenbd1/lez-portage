@@ -1,0 +1,30 @@
+{
+  "block": 266,
+  "block_gas_exec": 577484,
+  "block_gas_stor": 224063,
+  "block_revenue_base": "6412376",
+  "carol_holding": {
+    "balance": "1000000000000000000",
+    "definition": "FybukS9kF6nKry78jq5u6cEpPUyatsbBad6Cu5KeV1Ta",
+    "is_wrapped_eth": true
+  },
+  "destination_alias": "GzWvBqvo6ZSpLtjgSAJKCVuF6DfigcqfgCrkPfFvDFtz",
+  "dev_mode": false,
+  "fee_at_head": "6412376",
+  "hash": "5f5dbab10d79fd0020dccf705824b64e4d6ad8abd2e067ef877db9032380bb75",
+  "label": "Claim deposit 4 privately (carol)",
+  "not_published": [
+    "destination",
+    "secret"
+  ],
+  "nullifier": "0xb3efddc7ec4eff45ca888a95bccdead4c3cb70a5a78755e35f87ace32b9e9a19",
+  "nullifier_spent": true,
+  "peak_rss_bytes": 7316799488,
+  "prove_s": 456.7,
+  "public_cycles": 167720,
+  "receipt_succinct": true,
+  "reserve": "63066048",
+  "tx": 0,
+  "tx_bytes": 241332,
+  "verdict": "applied"
+}

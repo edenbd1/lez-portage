@@ -14,11 +14,12 @@ deploy sextant_lc segment 2: block 13 tx 0 applied
 deploy sextant_lc segment 1: block 14 tx 0 applied
 deploy sextant_lc segment 0: block 15 tx 0 applied
 deploy sextant_lc header: block 16 tx 0 applied
-deploy wrap_bridge segment 3: block 17 tx 0 applied
-deploy wrap_bridge segment 2: block 18 tx 0 applied
-deploy wrap_bridge segment 1: block 19 tx 0 applied
-deploy wrap_bridge segment 0: block 20 tx 0 applied
-deploy wrap_bridge header: block 21 tx 0 applied
+deploy wrap_bridge segment 4: block 17 tx 0 applied
+deploy wrap_bridge segment 3: block 18 tx 0 applied
+deploy wrap_bridge segment 2: block 19 tx 0 applied
+deploy wrap_bridge segment 1: block 20 tx 0 applied
+deploy wrap_bridge segment 0: block 21 tx 0 applied
+deploy wrap_bridge header: block 22 tx 0 applied
 token 3sNabUZKL776oo3x1aubaQyMLXaKpMSYjrxsGcybwDFX
 ata Ap9znteddBRqBUoRR9Ct2LkgA8p6evSVNU3LEUDEv5id
 sextant_lc SWmn7pHJoq59DQJAjPoewg7sz3zqGnotAttvmb6XYun
@@ -29,96 +30,109 @@ deposit 0: alice eth 1000000000000000000, tx 0x1c0efb1e9125cd72015227b318a11372f
 deposit 1: alice eth 1000000000000000000, tx 0xbf2915164a5470269514bad8ee6bf7b5a7747f39bc44a54c6696892c8b42e8e7, gas 256602
 deposit 2: bob usdt 100000000, tx 0x0a9d0553bb02206faa7752c3ed0f4cde32ba7b0e05c293d017349ed15ab1d777, gas 312878
 deposit 3: alice usdt 1000000000, tx 0x9c0653f238ab4c8e38939763b8da8e8e4e0d8a4d044ec2f9292d2039d3b6b4c1, gas 274106
-4 deposits, block 15 (state root 0x58cfd34f0309543b5464e1c101fe741a40de36533aab6811468590c55792e742), root 0x48071e3a48ed733042342c44076a3ca6bc20064af054e6256dc4b175c9abbf21
+deposit 4: carol eth 1000000000000000000, tx 0x9268ccbadcfd48792536cc80c29987d08c4a8f2c222ad42f020c1c0a829cbb17, gas 256602
+5 deposits, block 16 (state root 0xd3c51598f29b30bb9f4b59ca0d9819619cd6dbb8d516562a72d95d05d24a8208), root 0xaabb5eaa7f3453c1336eb3721755d302aaffa432dd240f3578728341c9655dc5
 Sextant Init (devnet header of the anvil block): pre-check accepted (1815646 cycles)
-Sextant Init (devnet header of the anvil block): block 23 tx 0 applied (095b48f91845c42e069696a3a0a01452cbcfb548279b233f3981cddb8d511dec)
-Init: pre-check accepted (64554 cycles)
-Init: block 24 tx 0 applied (237e92a4968d76b95f582f0b6911ba2332f5e00f9f5c82b2c9472a37c1c9a402)
-REGISTER ETH: pre-check accepted (87164 cycles)
-REGISTER ETH: block 25 tx 0 applied (0d3caaae723f6fafabe6c6b1fa113a4f240cb6acef6aff1f3ce943539d94594a)
-REGISTER USDT: pre-check accepted (86670 cycles)
-REGISTER USDT: block 26 tx 0 applied (f01f43dbff86900200907677a505e46340cdb3cc4dcb2b7951d756098f6285b1)
+Sextant Init (devnet header of the anvil block): block 24 tx 0 applied (6efcddef81628ff14239895415aea1668c658397a20fb71296b12249bd0a2ccf)
+Init: pre-check accepted (64456 cycles)
+Init: block 25 tx 0 applied (953354706ea34e03d4bdce5f7fcc043d2f84b657ac5c9a4814398126cc543ee7)
+REGISTER ETH: pre-check accepted (86985 cycles)
+REGISTER ETH: block 26 tx 0 applied (5b36d099b17aee22ec0d2996259e90039632a09b193d89412cf9eff8104c9173)
+REGISTER USDT: pre-check accepted (86491 cycles)
+REGISTER USDT: block 27 tx 0 applied (8d37c7159323cf12ddffb4113b1dcadcd292b2f2a54257e7f7bf71038e766be1)
 bob ATA Create Usdt: pre-check accepted (45780 cycles)
-bob ATA Create Usdt: block 27 tx 0 applied (a79a24042c4de3f1124610dac583eb174c931d589c7ed9352e4e4793d48d03d9)
-Claim deposit 0: pre-check accepted (311465 cycles)
-Claim deposit 0: block 28 tx 0 applied (a965c7c15c3b4fb5c5bdf6e22085aade0a61cb2600055802fb71a1b012f68ded)
-Claim deposit 2: pre-check accepted (288996 cycles)
-Claim deposit 2: block 29 tx 0 applied (5803e60ee937e08b97b09530b27d5b06afc7aaa1e249f7e742b958c1a1243785)
+bob ATA Create Usdt: block 28 tx 0 applied (092900d7f7dde9c2f436b152c220e04645c62a4507278b6e5e7567840933e242)
+Claim deposit 0: pre-check accepted (317923 cycles)
+Claim deposit 0: block 29 tx 0 applied (89fdac49c4f9a1b23caf79e1b69d4c9a01eb9aff842f87b1eca969d7ec266dd4)
+Claim deposit 2: pre-check accepted (295456 cycles)
+Claim deposit 2: block 30 tx 0 applied (78f3beeeb592136c800e7ffcda263e4d54b30bb8513f955cc35456bcb884036d)
 
-thread 'main' (1) panicked at src/lib.rs:362:13:
+thread 'main' (1) panicked at src/lib.rs:388:13:
 E7402: this deposit was already claimed
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 Claim deposit 0 again (replay): pre-check refused: E7402: this deposit was already claimed
-Claim deposit 0 again (replay): block 30 tx 0 reverted (937b9d366b03c71671586ceab8a997d316319e567a91cdb2780804824fb67304)
+Claim deposit 0 again (replay): block 31 tx 0 reverted (a997d06bdbca0baf8b097dace67f6b50bbcf160d2259c1f1dee5390ca84ed649)
 
-thread 'main' (1) panicked at src/lib.rs:362:13:
+thread 'main' (1) panicked at src/lib.rs:388:13:
 E7402: this deposit was already claimed
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 Claim deposit 2 again under an earlier root (replay): pre-check refused: E7402: this deposit was already claimed
-Claim deposit 2 again under an earlier root (replay): block 31 tx 0 reverted (b59a440b112e07a26244647ef4632bb86e2874bc2805bd277d626d191c68a0a6)
+Claim deposit 2 again under an earlier root (replay): block 32 tx 0 reverted (103b75a1a2f25800eef77e1e9de092e100ee1e27d18c629a8cf2a5c60a5386f8)
 
 thread 'main' (1) panicked at src/lib.rs:323:64:
 E7208: predicate not satisfied by the attested state
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 Claim the deposit never made (a root the vault never had): pre-check refused: E7208: predicate not satisfied by the attested state
-Claim the deposit never made (a root the vault never had): block 32 tx 0 reverted (6f040e90503737a40f37547bfe856b487c0c95f8426bf25774d8b588fc0c8bd3)
+Claim the deposit never made (a root the vault never had): block 33 tx 0 reverted (21cc27e8c806decffbad666865c3b8ea7baa74c1023c90a70b85ddcff0851b72)
 
-thread 'main' (1) panicked at src/lib.rs:357:13:
+thread 'main' (1) panicked at src/lib.rs:383:13:
 E7403: no such deposit under this root: check the token, amount, destination, secret and path
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 Claim deposit 3 redirected to bob: pre-check refused: E7403: no such deposit under this root: check the token, amount, destination, secret and path
-Claim deposit 3 redirected to bob: block 33 tx 0 reverted (fc365d5b9bbb7755c00c24befdc665308cd044c597e5fdfe3bc4cf1ed9feeeca)
+Claim deposit 3 redirected to bob: block 34 tx 0 reverted (c3afb7901ca76fed32628212cce9bb9eae0ca606010f47cac5829b03583b14e5)
 
-thread 'main' (1) panicked at src/lib.rs:357:13:
+thread 'main' (1) panicked at src/lib.rs:383:13:
 E7403: no such deposit under this root: check the token, amount, destination, secret and path
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 Claim deposit 3 as ETH (the wrong token): pre-check refused: E7403: no such deposit under this root: check the token, amount, destination, secret and path
-Claim deposit 3 as ETH (the wrong token): block 34 tx 0 reverted (abed9597dcd50a4c8c41b95c11ce28cfc629d36e04c0084d09a931def1b3ae9c)
-Claim deposit 1: pre-check accepted (289361 cycles)
-Claim deposit 1: block 35 tx 0 applied (edadcb0a22160a1b77cf0558092763df810260afcac4dcb1db02c8eb69aeba0e)
-Claim deposit 3: pre-check accepted (311103 cycles)
-Claim deposit 3: block 36 tx 0 applied (54bc96637a84c818e7948ed96785628883f05b1e2554c0393d3f98934be4b8d4)
-alice Burn 100000000000000000 Eth: pre-check accepted (187671 cycles)
-alice Burn 100000000000000000 Eth: block 37 tx 0 applied (0002448114f7475e1f79993b9985b0b81c545c2ba2f96b6faa77d28bbe333a76)
-bob Burn 100000000 Usdt: pre-check accepted (187408 cycles)
-bob Burn 100000000 Usdt: block 38 tx 0 applied (742b56faadb6de5ad675d7fba6f48aa766755649b52867c3247cdb925f56c7ad)
+Claim deposit 3 as ETH (the wrong token): block 35 tx 0 reverted (a3909b10aee307632cc80b46d3708144d41357f3e4de5507be0ff2f32ffeb4a5)
+Claim deposit 1: pre-check accepted (295821 cycles)
+Claim deposit 1: block 36 tx 0 applied (be8bfa9e2b0123789e3a99240ffd517f78978024b3a91d6d6856253e75ef38a8)
+Claim deposit 3: pre-check accepted (317565 cycles)
+Claim deposit 3: block 37 tx 0 applied (692f10f1ef2f10714da9f6bee242f2e72a32fc4d8714ae448a3b56560131511c)
+Claim deposit 4 privately (carol): pre-check (simulation) accepted: public part 167720 cycles; base fees exec 8 stor 8; fee at head 6412376, reserve 63066048 of the payer's 10000000000000
+Claim deposit 4 privately (carol): proving (real proving)
+Claim deposit 4 privately (carol): proved in 456.7 s, peak resident 7.32 GB, 241332 bytes
+Claim deposit 4 privately (carol): block 266 tx 0 applied (5f5dbab10d79fd0020dccf705824b64e4d6ad8abd2e067ef877db9032380bb75); block fees exec 577484 stor 224063 revenue 6412376
+{"block":266,"block_gas_exec":577484,"block_gas_stor":224063,"block_revenue_base":"6412376","carol_holding":{"balance":"1000000000000000000","definition":"FybukS9kF6nKry78jq5u6cEpPUyatsbBad6Cu5KeV1Ta","is_wrapped_eth":true},"destination_alias":"GzWvBqvo6ZSpLtjgSAJKCVuF6DfigcqfgCrkPfFvDFtz","dev_mode":false,"fee_at_head":"6412376","hash":"5f5dbab10d79fd0020dccf705824b64e4d6ad8abd2e067ef877db9032380bb75","label":"Claim deposit 4 privately (carol)","not_published":["destination","secret"],"nullifier":"0xb3efddc7ec4eff45ca888a95bccdead4c3cb70a5a78755e35f87ace32b9e9a19","nullifier_spent":true,"peak_rss_bytes":7316799488,"prove_s":456.7,"public_cycles":167720,"receipt_succinct":true,"reserve":"63066048","tx":0,"tx_bytes":241332,"verdict":"applied"}
+alice Burn 100000000000000000 Eth: pre-check accepted (188520 cycles)
+alice Burn 100000000000000000 Eth: block 267 tx 0 applied (2652059484eb59ffc16d487068c5ca7908bce9d91735825b576718f0d958d967)
+bob Burn 100000000 Usdt: pre-check accepted (188257 cycles)
+bob Burn 100000000 Usdt: block 268 tx 0 applied (b7e66a1795708bcbbfc3e4077fe0df272cd9282893d4d63250968882e6670fc8)
 
-thread 'main' (1) panicked at src/lib.rs:465:13:
+thread 'main' (1) panicked at src/lib.rs:525:13:
 E7408: burn one of the token's permitted amounts
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 bob Burn 12345 USDT units (not a denomination): pre-check refused: E7408: burn one of the token's permitted amounts
-bob Burn 12345 USDT units (not a denomination): block 39 tx 0 reverted (2d2d2c31ba234d956e35913947a0751a6be0d9a6051d063658be3240b5962e2d)
+bob Burn 12345 USDT units (not a denomination): block 269 tx 0 reverted (e6b8fe85df25b50b89a31d55314c141ed7f7577e73f8ab5ef1712151543f7594)
 
 thread 'main' (1) panicked at /src/v04/third_party/lez-programs/programs/token/src/lib.rs:102:51:
 receiver is not a token holding
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 bob Burn 0.1 ETH (bob holds no wrapped ETH): pre-check refused: Failed to execute program: Guest panicked: receiver is not a token holding
-bob Burn 0.1 ETH (bob holds no wrapped ETH): block 40 tx 0 reverted (e8f930e360667ddcec4025a0c0fda408d8cb0d79337c2ba6703b02b854ded97d)
-alice Burn 1000000000 Usdt: pre-check accepted (187423 cycles)
-alice Burn 1000000000 Usdt: block 41 tx 0 applied (78f09a98683457cb6c16e47fe42f5788929bc95b0182482ae4cc323e92de3f93)
+bob Burn 0.1 ETH (bob holds no wrapped ETH): block 270 tx 0 reverted (240e257a047a1e7b7f66029e771493238bb48649f40575378601ce2bbcf1ce40)
+alice Burn 1000000000 Usdt: pre-check accepted (188272 cycles)
+alice Burn 1000000000 Usdt: block 271 tx 0 applied (dbe940e1cdc0440a7f209977c61fc6646ada3cd61804ddce0a7cd230eede40f6)
 
 thread 'main' (1) panicked at /src/v04/third_party/lez-programs/programs/token/src/burn.rs:21:10:
 insufficient balance
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 bob Burn 1000 USDT (more than bob holds): pre-check refused: Failed to execute program: Guest panicked: insufficient balance
-bob Burn 1000 USDT (more than bob holds): block 42 tx 0 reverted (880d7b3bd0cb314710dc77a07bf4ec26d06a93bd931a8c548869ea2031fb8d4c)
-alice Burn 1000000000000000000 Eth: pre-check accepted (187584 cycles)
-alice Burn 1000000000000000000 Eth: block 43 tx 0 applied (528f33436c6fc251aa701565da0d51d56ffda04d88ccb9506794df1dbcc09c6c)
-{"balance":"900000000000000000","owner":"alice","supply":"900000000000000000","token":"eth"}
+bob Burn 1000 USDT (more than bob holds): block 272 tx 0 reverted (f960db0967d3b3c55aafd9c6d2319054c37e9840235b623d0a4a631e10b6f455)
+alice Burn 1000000000000000000 Eth: pre-check accepted (188433 cycles)
+alice Burn 1000000000000000000 Eth: block 273 tx 0 applied (8143153d6bcea056f2062acbc2322eb5cedd62aa5f2b2c814ae4c569457f6bc0)
+carol Burn 100000000000000000 Eth privately: pre-check (simulation) accepted: public part 189978 cycles; base fees exec 8 stor 8; fee at head 6590440, reserve 65202816 of the payer's 20000000000000
+carol Burn 100000000000000000 Eth privately: proving (real proving)
+carol Burn 100000000000000000 Eth privately: proved in 399.6 s, peak resident 7.34 GB, 236544 bytes
+carol Burn 100000000000000000 Eth privately: block 474 tx 0 applied (b62c2f7e00f160acede5c558ab94b8b970c87367adb682d5afac0cff447895cf); block fees exec 599742 stor 224063 revenue 6590440
+{"block":474,"block_gas_exec":599742,"block_gas_stor":224063,"block_revenue_base":"6590440","carol_holding_after":{"balance":"900000000000000000","definition":"FybukS9kF6nKry78jq5u6cEpPUyatsbBad6Cu5KeV1Ta"},"dev_mode":false,"fee_at_head":"6590440","hash":"b62c2f7e00f160acede5c558ab94b8b970c87367adb682d5afac0cff447895cf","holder_alias":"AeLBUW6GsCRGt6Vxjoz8jtzmS2CLy5Et4REfXR7KXhyy","label":"carol Burn 100000000000000000 Eth privately","not_published":["holder"],"peak_rss_bytes":7339491328,"prove_s":399.6,"public_cycles":189978,"receipt_succinct":true,"reserve":"65202816","tx":0,"tx_bytes":236544,"verdict":"applied"}
+{"balance":"900000000000000000","owner":"alice","supply":"1800000000000000000","token":"eth"}
 {"balance":"0","owner":"alice","supply":"0","token":"usdt"}
-{"balance":"0","owner":"bob","supply":"900000000000000000","token":"eth"}
+{"balance":"0","owner":"bob","supply":"1800000000000000000","token":"eth"}
 {"balance":"0","owner":"bob","supply":"0","token":"usdt"}
-blocks 23..=43, 4 applied burns, root 0xfa797ef73c48f37a4e24f680d0c93826b4f1e149a0ef2599103f27881e772f67
-release release-alice-0.1eth-not-final: reverted (NotFinal), anvil block 16, gas 94900, LEZ root 0xfa797ef7 read at block 43, final 43
-release release-alice-0.1eth: applied (applied), anvil block 17, gas 160137, LEZ root 0xfa797ef7 read at block 43, final 46
-release release-alice-0.1eth-replay: reverted (AlreadyReleased), anvil block 18, gas 71520, LEZ root 0xfa797ef7 read at block 46, final 49
-release release-bob-100usdt-redirected-to-relayer: reverted (RootNotAttested), anvil block 19, gas 107573, LEZ root 0xfa797ef7 read at block 49, final 52
-release release-bob-100usdt-as-1000usdt: reverted (RootNotAttested), anvil block 20, gas 107541, LEZ root 0xfa797ef7 read at block 52, final 55
-release release-forged-burn-committee: reverted (RootNotAttested), anvil block 21, gas 107156, LEZ root 0xfa797ef7 read at block 55, final 58
-release release-forged-burn-outsiders: reverted (RootNotAttested), anvil block 22, gas 107196, LEZ root 0xfa797ef7 read at block 58, final 61
-release release-bob-100usdt-one-member: reverted (RootNotAttested), anvil block 23, gas 100032, LEZ root 0xfa797ef7 read at block 61, final 64
-release release-bob-100usdt-by-relayer: applied (applied), anvil block 24, gas 167758, LEZ root 0xfa797ef7 read at block 64, final 67
-release release-alice-1000usdt: applied (applied), anvil block 25, gas 146352, LEZ root 0xfa797ef7 read at block 67, final 70
-release release-alice-1eth: applied (applied), anvil block 26, gas 143549, LEZ root 0xfa797ef7 read at block 70, final 73
-# releases: 11
-# done: /tmp/portage-v04-rel/manifest.tsv, /tmp/portage-v04-rel/releases.tsv, /tmp/portage-v04-rel/blocks/
+{"owner": "carol", "token": "eth", "private_balance": "900000000000000000"}
+blocks 24..=474, 5 applied burns, root 0x439c3e4e9573b43e5c73a6e50faa83d14166f47087e393a58d640890fa8d299f
+release release-alice-0.1eth-not-final: reverted (NotFinal), anvil block 17, gas 94960, LEZ root 0x439c3e4e read at block 474, final 474
+release release-alice-0.1eth: applied (applied), anvil block 18, gas 160213, LEZ root 0x439c3e4e read at block 474, final 477
+release release-alice-0.1eth-replay: reverted (AlreadyReleased), anvil block 19, gas 71580, LEZ root 0x439c3e4e read at block 477, final 480
+release release-bob-100usdt-redirected-to-relayer: reverted (RootNotAttested), anvil block 20, gas 107621, LEZ root 0x439c3e4e read at block 480, final 483
+release release-bob-100usdt-as-1000usdt: reverted (RootNotAttested), anvil block 21, gas 107565, LEZ root 0x439c3e4e read at block 483, final 486
+release release-forged-burn-committee: reverted (RootNotAttested), anvil block 22, gas 107200, LEZ root 0x439c3e4e read at block 486, final 489
+release release-forged-burn-outsiders: reverted (RootNotAttested), anvil block 23, gas 107244, LEZ root 0x439c3e4e read at block 489, final 492
+release release-bob-100usdt-one-member: reverted (RootNotAttested), anvil block 24, gas 100068, LEZ root 0x439c3e4e read at block 492, final 495
+release release-bob-100usdt-by-relayer: applied (applied), anvil block 25, gas 167774, LEZ root 0x439c3e4e read at block 495, final 498
+release release-alice-1000usdt: applied (applied), anvil block 26, gas 146368, LEZ root 0x439c3e4e read at block 498, final 501
+release release-alice-1eth: applied (applied), anvil block 27, gas 143553, LEZ root 0x439c3e4e read at block 501, final 504
+release release-carol-0.1eth-private-burn-by-relayer: applied (applied), anvil block 28, gas 145680, LEZ root 0x439c3e4e read at block 504, final 507
+# releases: 12
+# done: /tmp/portage-v04-real/manifest.tsv, /tmp/portage-v04-real/releases.tsv, /tmp/portage-v04-real/blocks/

@@ -191,3 +191,94 @@ pub fn deploy_steps(name: &str, bin: &[u8], seed: u16) -> (AccountId, Vec<(Strin
     steps.push((format!("deploy {name} header"), Actor::new(header_id, PROGRAM_LOADER_ACCOUNT_ID), header, LoaderMessage::CreateHeader { first_segment: first, immutable: true }));
     (header_id, steps)
 }
+
+// ---- the private claim (src/private.rs): what it needs from the sequencer ----
+
+impl Rpc {
+    /// The base fees the sequencer quotes now (execution, storage).
+    pub fn fee_quote(&mut self) -> (u64, u64) {
+        let q = self.call("getFeeState", json!([])).expect("getFeeState");
+        (q["base_fee_exec"].as_u64().expect("base_fee_exec"), q["base_fee_stor"].as_u64().expect("base_fee_stor"))
+    }
+
+    /// The genesis credit pending for the private `payer`: the message, its
+    /// amount and its path in the message tree.
+    pub fn genesis_credit(&mut self, payer: AccountId) -> (lee_core::program::MessageBody, u128, lee_core::MembershipProof) {
+        let v = self.call("getPublications", json!([0, 1000])).expect("getPublications");
+        let pubs: Vec<(u64, lee::Publication)> = serde_json::from_value(v).expect("publications");
+        let (pos, body, amount) = pubs
+            .into_iter()
+            .find_map(|(pos, p)| match p {
+                lee::Publication::Clear { body, .. } if body.to == Actor::native_balance(payer) => match borsh::from_slice(&body.message) {
+                    Ok(lee_core::native_token::Message::Credit(a)) => Some((pos, body, a)),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("a genesis credit for the private fee payer (networks/local.json funds it)");
+        let path: Option<lee_core::MembershipProof> = serde_json::from_value(self.call("getMessagePath", json!([pos])).expect("getMessagePath")).expect("a path");
+        (body, amount, path.expect("the credit is in the message tree"))
+    }
+
+    /// One public actor's state, as the proof's simulation assumes it.
+    pub fn actor_view(&mut self, a: Actor) -> lee_core::account::ActorState {
+        let v = self.call("getAccountView", json!([a])).expect("getAccountView");
+        if v.is_null() {
+            return Vec::<u8>::new().into();
+        }
+        let acct: Account = serde_json::from_value(v).expect("an account");
+        acct.data.actor_state(a.program_account_id).clone()
+    }
+}
+
+/// Submit a proven privacy-preserving transaction and wait for its block.
+pub fn submit_private(rpc: &mut Rpc, label: &str, tx: &lee::PrivacyPreservingTransaction) -> Result<Landed, String> {
+    let tx = LeeTransaction::PrivacyPreserving(tx.clone());
+    let want = tx.hash();
+    let h = rpc.call("sendTransaction", json!([tx])).map_err(|e| format!("{label}: sendTransaction refused: {e}"))?;
+    let h: HashType = serde_json::from_value(h).map_err(|e| e.to_string())?;
+    if h != want {
+        return Err(format!("{label}: the sequencer returned another hash"));
+    }
+    let start = Instant::now();
+    loop {
+        let v = rpc.call("getTransaction", json!([h]))?;
+        if !v.is_null() {
+            let block = v[1].as_u64().ok_or("a block id")?;
+            let (_, b) = rpc.block(block).ok_or("the block")?;
+            let index = b.body.transactions.iter().position(|t| t.hash() == h).ok_or("in its block")?;
+            return Ok(Landed { block, index, hash: h, reverted: b.body.is_reverted(index) });
+        }
+        if start.elapsed() > Duration::from_secs(600) {
+            return Err(format!("{label}: not included after 600 s"));
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+}
+
+/// `fee_core::Message::Distribute`, the block's forced fee transaction, mirrored.
+#[derive(borsh::BorshDeserialize)]
+#[allow(dead_code)]
+enum FeeMessage {
+    Distribute { summary: FeeSummary, payout: u128, producer: AccountId },
+}
+
+#[derive(borsh::BorshDeserialize, Debug, Clone, Copy, Default)]
+pub struct FeeSummary {
+    pub gas_used_exec: u64,
+    pub gas_used_stor: u64,
+    pub revenue_base: u128,
+    pub revenue_tip: u128,
+}
+
+/// The fee summary a block's forced fee transaction carries.
+#[must_use]
+pub fn block_fees(b: &Block) -> Option<FeeSummary> {
+    b.body.transactions.iter().find_map(|t| match t {
+        LeeTransaction::Public(p) => match borsh::from_slice::<FeeMessage>(&p.message.execution.root.message) {
+            Ok(FeeMessage::Distribute { summary, .. }) => Some(summary),
+            Err(_) => None,
+        },
+        LeeTransaction::PrivacyPreserving(_) => None,
+    })
+}

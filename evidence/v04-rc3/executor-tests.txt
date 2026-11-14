@@ -1,6 +1,6 @@
 test tests::only_a_burn_root_call_to_this_deployments_tree_counts ... ok
-test tests::the_hash_is_over_the_hashable_data_including_the_reverted_list ... ok
 test tests::a_public_burn_counts_unless_it_reverted ... ok
+test tests::the_hash_is_over_the_hashable_data_including_the_reverted_list ... ok
 test tests::a_private_transactions_public_root_burn_counts_unless_it_reverted ... ok
 test tests::unsorted_sets_and_bad_reverted_lists_are_refused ... ok
 test tests::blocks_chain_and_the_tree_grows ... ok
@@ -20,23 +20,23 @@ test a_deposit_is_minted_once_to_its_committed_destination ...
 test cycles_per_transaction ... | transaction | cycles | applied |
 |---|---:|---|
 | Init (sextant_lc) | 1815646 | true |
-| Init | 64554 | true |
-| Register | 87164 | true |
-| Register | 86670 | true |
+| Init | 64456 | true |
+| Register | 86985 | true |
+| Register | 86491 | true |
 | ATA Create | 45776 | true |
-| Claim | 294856 | true |
-| Burn | 187671 | true |
+| Claim | 295139 | true |
+| Burn | 188520 | true |
 test freezes_and_the_cap_hold ... 
 test only_the_admin_registers_and_a_token_registers_once ... 
 test register_creates_a_zero_supply_definition_minted_only_by_the_entry ... ok
 test the_root_is_attested_by_sextant ... 
 test the_token_mirror_and_burn_layout_are_pinned ... ok
-test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.73s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.42s
 test a_block_whose_reverted_list_is_tampered_does_not_hash ... ok
 test applied_public_burns_and_only_those_are_derived_from_the_blocks ... ok
 test the_mirror_is_lezs_v04_block_layout_on_real_blocks ... ok
 test the_reverted_list_is_what_the_sequencer_reverted ... ok
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 test an_erc20_burn_is_refused_for_the_wrong_amount_or_token ... 
 test an_erc20_burn_takes_the_wrapped_token_out_and_appends_its_leaf ... ok
 test an_erc20_claim_is_refused_for_the_wrong_token ... 
@@ -46,15 +46,20 @@ test an_erc20_freeze_and_cap_are_its_own ...
 test erc20_cycles ... | transaction (ERC-20: USDT, 6 decimals) | cycles | applied |
 |---|---:|---|
 | Init (sextant_lc) | 1815646 | true |
-| Init | 64554 | true |
-| Register | 87164 | true |
-| Register | 86670 | true |
+| Init | 64456 | true |
+| Register | 86985 | true |
+| Register | 86491 | true |
 | ATA Create | 45780 | true |
-| Claim | 294491 | true |
-| Burn | 187459 | true |
+| Claim | 294776 | true |
+| Burn | 188308 | true |
 test one_account_holds_several_wrapped_tokens ... ok
 test the_erc20_entry_is_its_own_wrapped_token ... ok
-test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.45s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.24s
+test a_private_claim_lands_once_and_blocks_the_public_claim ... WARNING: proving in dev mode. This will not generate valid, secure proofs.
+test a_private_claim_mints_to_a_private_account_and_publishes_no_opening ... WARNING: proving in dev mode. This will not generate valid, secure proofs.
+test a_private_holder_burns_with_a_public_root_and_stays_hidden ... WARNING: proving in dev mode. This will not generate valid, secure proofs.
+test a_refused_private_claim_never_proves ... 
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.30s
 test sextant_on_v04_attests_the_sepolia_vault_roots_a_claim_asks_for ... vault root 0 attested: Ok(158412) cycles
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

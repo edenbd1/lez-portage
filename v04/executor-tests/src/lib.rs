@@ -21,6 +21,7 @@
 //! light client itself. The storage proofs, the deposits' leaves and paths,
 //! the nullifiers and the mints are checked exactly as on v0.3.
 
+pub mod private;
 pub mod seq;
 
 use std::borrow::Cow;
@@ -529,7 +530,7 @@ pub fn claim(ch: &mut Chain, cfg: &Config, c: &wrap_bridge_v04::Claim) -> Result
 }
 
 pub fn burn_message(cfg: &Config, eth_token: [u8; 20], amount: u128, eth_commitment: H256, holder: AccountId) -> wrap_bridge_v04::Message {
-    wrap_bridge_v04::Message::Burn { eth_token, amount, eth_commitment, salt: SALT, holder, config: cfg.clone() }
+    wrap_bridge_v04::Message::Burn { eth_token, amount, eth_commitment, salt: SALT, holder, config: cfg.clone(), own_holding: false }
 }
 
 pub fn burn_actors(cfg: &Config, eth_token: &[u8; 20], holder: AccountId) -> Vec<Actor> {
@@ -573,7 +574,13 @@ pub struct World {
 /// configured, ETH and USDT registered.
 #[must_use]
 pub fn world() -> World {
-    let a = anvil();
+    world_on(anvil())
+}
+
+/// The same world on other anvil vectors (vectors/anvil-v04: five deposits,
+/// the last committed to carol's v0.4 private account).
+#[must_use]
+pub fn world_on(a: Anvil) -> World {
     let mut ch = Chain::new();
     init_light_client(&mut ch, &devnet(&a.block, SLOT)).expect("Sextant's Init from the devnet checkpoint");
     let cfg = config(a.vault);

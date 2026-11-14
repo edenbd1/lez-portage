@@ -28,6 +28,12 @@ sextant-core = { git = "https://github.com/edenbd1/lez-sextant", rev = "1e55629a
 lee        = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.4.0-rc3" }
 lee_core   = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.4.0-rc3", features = ["host"] }
 common     = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.4.0-rc3" }
+# The private claim's fee leg (v0.4 pays a privacy-preserving transaction's fee
+# inside its proof): the fee inbox and its pricing, the local network's private
+# fee payers' keys, and the prover's peak memory.
+key_protocol = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.4.0-rc3" }
+fee_core   = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.4.0-rc3" }
+libc = "0.2"
 borsh = { version = "1.5", features = ["derive"] }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }

@@ -1,4 +1,5 @@
-{"balance":"900000000000000000","owner":"alice","supply":"900000000000000000","token":"eth"}
+{"balance":"900000000000000000","owner":"alice","supply":"1800000000000000000","token":"eth"}
 {"balance":"0","owner":"alice","supply":"0","token":"usdt"}
-{"balance":"0","owner":"bob","supply":"900000000000000000","token":"eth"}
+{"balance":"0","owner":"bob","supply":"1800000000000000000","token":"eth"}
 {"balance":"0","owner":"bob","supply":"0","token":"usdt"}
+{"owner": "carol", "token": "eth", "private_balance": "900000000000000000"}

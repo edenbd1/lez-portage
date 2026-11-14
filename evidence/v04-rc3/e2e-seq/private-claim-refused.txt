@@ -1,0 +1,1 @@
+wrap: deposit 1 is committed to a public account: only carol's (deposit 4) is claimed privately

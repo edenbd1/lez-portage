@@ -1,6 +1,6 @@
 | input | blocks | bytes | burns counted | user cycles | total cycles | segments | user cycles/byte |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| real v0.4.0-rc3 blocks 23-43 (sequencer) | 21 | 86772 | 4 | 548491 | 1048576 | 1 | 6.32 |
+| real v0.4.0-rc3 blocks 24-474 (sequencer) | 451 | 871211 | 5 | 3744362 | 5242880 | 5 | 4.30 |
 | 1 x (18 public burns, 1 reverted) | 1 | 23227 | 17 | 1248529 | 1572864 | 2 | 53.75 |
 | 10 x (18 public burns, 1 reverted) | 10 | 232270 | 170 | 12019399 | 12845056 | 13 | 51.75 |
 | 50 x (18 public burns, 1 reverted) | 50 | 1161110 | 850 | 59842701 | 63963136 | 61 | 51.54 |

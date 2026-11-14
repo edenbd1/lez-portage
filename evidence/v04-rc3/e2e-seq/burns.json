@@ -42,5 +42,16 @@
     "owner": "alice",
     "recipient": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
     "token": "0x0000000000000000000000000000000000000000"
+  },
+  {
+    "amount": "100000000000000000",
+    "blinding": "0x742f5c6e5fd7bd148ec134e62d75649771402498e8437cef7fc14f09c0042cf1",
+    "eth_commitment": "0xdd54153ae7b60850b91cdcf3519dad29cfc2cb5624571790bc9c3ab1ebdba62b",
+    "fee": "0",
+    "index": 4,
+    "leaf": "0xc6bd381eb97baf3a9bdce9f59a058a5b5562f107432831b9b0f0ef52f8e7545b",
+    "owner": "carol",
+    "recipient": "0x90f79bf6eb2c4f870365e785982e1f101e93b906",
+    "token": "0x0000000000000000000000000000000000000000"
   }
 ]

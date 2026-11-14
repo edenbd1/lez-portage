@@ -1,0 +1,5 @@
+carol Burn 100000000000000000 Eth privately: pre-check (simulation) accepted: public part 189978 cycles; base fees exec 8 stor 8; fee at head 6590440, reserve 65202816 of the payer's 20000000000000
+carol Burn 100000000000000000 Eth privately: proving (real proving)
+carol Burn 100000000000000000 Eth privately: proved in 399.6 s, peak resident 7.34 GB, 236544 bytes
+carol Burn 100000000000000000 Eth privately: block 474 tx 0 applied (b62c2f7e00f160acede5c558ab94b8b970c87367adb682d5afac0cff447895cf); block fees exec 599742 stor 224063 revenue 6590440
+{"block":474,"block_gas_exec":599742,"block_gas_stor":224063,"block_revenue_base":"6590440","carol_holding_after":{"balance":"900000000000000000","definition":"FybukS9kF6nKry78jq5u6cEpPUyatsbBad6Cu5KeV1Ta"},"dev_mode":false,"fee_at_head":"6590440","hash":"b62c2f7e00f160acede5c558ab94b8b970c87367adb682d5afac0cff447895cf","holder_alias":"AeLBUW6GsCRGt6Vxjoz8jtzmS2CLy5Et4REfXR7KXhyy","label":"carol Burn 100000000000000000 Eth privately","not_published":["holder"],"peak_rss_bytes":7339491328,"prove_s":399.6,"public_cycles":189978,"receipt_succinct":true,"reserve":"65202816","tx":0,"tx_bytes":236544,"verdict":"applied"}

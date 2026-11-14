@@ -7,8 +7,10 @@ first tag of that line; **branch `v0.4-spike` now runs on `v0.4.0-rc3`**
 Sextant's real light client ported to v0.4**, which replaces the spike's
 pinned-key stand-in (section 0), **with the ERC-20 path, a v0.4 client and
 reproducible builds of every v0.4 binary** (section 0.1), **the release
-of v0.4 burns on Ethereum** (section 0.2) **and the actor-model ATA program,
-so one account holds several wrapped tokens** (section 0.3). This document lists what v0.4 changes for each
+of v0.4 burns on Ethereum** (section 0.2) **the actor-model ATA program,
+so one account holds several wrapped tokens** (section 0.3), **and the private
+claim and private burn, with real proofs and the fee paid inside the proof**
+(section 0.4). This document lists what v0.4 changes for each
 part of Portage, citing upstream files and lines, and records the port and its
 measurements. Nothing here is merged into `main`; the v0.3.1 stack on `main`
 is unchanged.
@@ -142,12 +144,12 @@ CI's `reproduce-v04` job rebuilds each on a clean runner and `cmp`s it against
 |---|---:|---|
 | token | 230,252 | `1d13b4592b0d51539e495ebc9e8e8a87f08300fa6324228aafe6a8a59e29c41a` (lez-programs `064b73f`, section 0.3) |
 | ata | 266,796 | `e47d5152b0c882a408b14cf6e44aad836b2e73a791006df2fc6a56f587308940` (lez-programs `064b73f`, section 0.3) |
-| wrap_bridge | 417,728 | `9528e0b847872508e0e5efd853381b60a91c88dd654a98e15185006424711170` (ATA holdings, section 0.3) |
+| wrap_bridge | 434,292 | `4e57ff6c79c13a2793b36f2c5ea4aa7e3ea7a6b4525c9f7761171f5f94233f02` (ATA holdings, section 0.3; the private paths, section 0.4) |
 | lez_chain_v04 | 291,496 | `9da6eb51f279f827a6b6f04f524c1c958f0fdfe2ff711aa34b36e6bfb3ae5c2c` |
 | sextant_lc | 616,172 | `bf3df59e28d180ca1109cc39b0a5fd479106d007b49f1d1dc5e48aa8fc6e530a` (unchanged, lez-sextant `1e55629`) |
 
-None contains a build-machine path. Replaced: the earlier Docker builds
-without the ATA (token `5a238c49` from lez-programs `2801ea1`, wrap_bridge
+None contains a build-machine path. Replaced: wrap_bridge `9528e0b8` (the
+ATA, before the private paths), the earlier Docker builds without the ATA (token `5a238c49` from lez-programs `2801ea1`, wrap_bridge
 `5658d689`) and the local-toolchain builds before them (token `7b551db2`,
 wrap_bridge `eed96b93`, lez_chain_v04 `23396bb9`).
 
@@ -155,7 +157,7 @@ wrap_bridge `eed96b93`, lez_chain_v04 `23396bb9`).
 
 ```console
 cargo test --release --manifest-path chain/v04/Cargo.toml                # 7
-cargo test --release --manifest-path v04/executor-tests/Cargo.toml        # bridge 11, erc20 9, chain_v04 4, sepolia 1
+cargo test --release --manifest-path v04/executor-tests/Cargo.toml        # bridge 11, erc20 9, private 4, chain_v04 4, sepolia 1
 cargo run --release --manifest-path v04/executor-tests/Cargo.toml --bin measure_chain
 DOCKER=1 v04/scripts/build-guests.sh token ata wrap_bridge lez_chain_v04 sextant
 # a local rc3 sequencer (logos-execution-zone v0.4.0-rc3, cargo build --release --features standalone -p sequencer_service) and anvil:
@@ -180,27 +182,29 @@ Each of the three members (anvil accounts 5, 6, 7; 2 of 3) reads the root from
 the local rc3 sequencer itself, between two equal reads of the tip, and signs
 the verifier's `attestationDigest` of the root *it read*; "final" is the
 standalone sequencer's tip 3 blocks above the block read (no Bedrock in this
-run, stated in the manifest). evidence/v04-rc3/e2e-seq/releases.tsv, 11
-releases, each verdict equal to its `eth_call` (the run with the ATA of
-section 0.3; in the first run, before it, the 1,000 USDT were bob's, and every
-gas figure was within 60 of these):
+run, stated in the manifest). evidence/v04-rc3/e2e-seq/releases.tsv, 12
+releases, each verdict equal to its `eth_call` (the final run, with the ATA of
+section 0.3 and the private paths of section 0.4; in the first run the 1,000
+USDT were bob's, there was no private burn, and every gas figure was within
+120 of these):
 
 | release | verdict | gas |
 |---|---|---:|
-| alice 0.1 ETH, the root's block named final | refused `NotFinal` | 94,900 |
-| alice 0.1 ETH | applied | 160,137 |
-| alice 0.1 ETH again | refused `AlreadyReleased` | 71,520 |
-| bob 100 USDT redirected to the relayer | refused `RootNotAttested` | 107,573 |
-| bob 100 USDT as 1,000 USDT | refused `RootNotAttested` | 107,541 |
-| a burn that never happened, committee signatures | refused `RootNotAttested` | 107,156 |
-| the same, signed by two outsiders | refused `RootNotAttested` | 107,196 |
-| bob 100 USDT, one member's signature | refused `RootNotAttested` | 100,032 |
-| bob 100 USDT, sent by a relayer | applied | 167,758 |
-| alice 1,000 USDT | applied | 146,352 |
-| alice 1 ETH | applied | 143,549 |
+| alice 0.1 ETH, the root's block named final | refused `NotFinal` | 94,960 |
+| alice 0.1 ETH | applied | 160,213 |
+| alice 0.1 ETH again | refused `AlreadyReleased` | 71,580 |
+| bob 100 USDT redirected to the relayer | refused `RootNotAttested` | 107,621 |
+| bob 100 USDT as 1,000 USDT | refused `RootNotAttested` | 107,565 |
+| a burn that never happened, committee signatures | refused `RootNotAttested` | 107,200 |
+| the same, signed by two outsiders | refused `RootNotAttested` | 107,244 |
+| bob 100 USDT, one member's signature | refused `RootNotAttested` | 100,068 |
+| bob 100 USDT, sent by a relayer | applied | 167,774 |
+| alice 1,000 USDT | applied | 146,368 |
+| alice 1 ETH | applied | 143,553 |
+| carol 0.1 ETH (her private burn, section 0.4), sent by a relayer | applied | 145,680 |
 
-The vault paid out exactly 1.1 ETH and 1,100 USDT (alice +1,000 USDT, bob
-+100 USDT), and recorded the four burn nullifiers spent; the e2e script fails otherwise.
+The vault paid out exactly 1.2 ETH and 1,100 USDT (alice +1,000 USDT, bob
++100 USDT), and recorded the five burn nullifiers spent; the e2e script fails otherwise.
 **What this does not show:** the zero-knowledge releases on v0.4
 (`ZkBurnVerifier` needs only the opening and would work as is;
 `ZkChainBurnVerifier` and `ZkBedrockBurnVerifier` need the v0.4 chain guest in
@@ -249,14 +253,105 @@ deposits into one account, two ATA holdings, and burns each). The wrong-token
 burns are refused by the token program at the holding the ATA derives (the
 holder has no holding of that definition), no longer by an escrow.
 
-Cycles (evidence/v04-rc3/cycles.md, sequencer pre-checks): a claim that
-creates its destination's holding 311,465 (1 ETH) and 311,103 (1,000 USDT);
-into an existing holding 288,996 to 294,856; `ATA Create` alone 45,780; a burn
-187,408 to 187,671 (it was 199,311 with the escrow).
+Cycles (evidence/v04-rc3/cycles.md and the sequencer pre-checks, with the
+final wrap_bridge `4e57ff6c` of section 0.4; the ATA-only build `9528e0b8`
+was within 2.1% of these): a claim that creates its destination's holding
+317,923 (1 ETH) and 317,565 (1,000 USDT); into an existing holding 294,776 to
+295,821; `ATA Create` alone 45,780; a burn 188,257 to 188,520 (it was 199,311
+with the escrow).
 
 The sequencer run (section 4.2) now has alice receive wrapped ETH and wrapped
 USDT in the same account (her two holdings created by her claims), bob's
 holding opened by the payer with `ATA Create`, and every burn through the ATA.
+
+## 0.4 2026-11-14 (later): the private claim and the private burn, with real proofs
+
+**`wrap claim 4 --private` works on the local rc3 sequencer with a real
+proof**, and so does the private burn after it; carol's burn is then released
+on anvil. Both are privacy-preserving transactions whose fee is paid inside
+the proof by a funded private account (the fee leg of lez-sextant's private
+update, branch `v0.4`, `seq_drive private`, reused: the payers are the two
+private accounts `networks/local.json` funds at genesis, each transaction
+claims its payer's pending genesis credit, and the fee is presented under a
+fresh blinded alias whose recovery entry lets settlement refund the unspent
+reserve). Code: `v04/executor-tests/src/private.rs` and `wrap`
+(`claim --private`, `burn --private`).
+
+**The private claim** (`Message::ClaimPrivate`, new in wrap_bridge): the
+root call goes to **the destination's own wrap_bridge actor**, run privately,
+so the opening (destination, secret, commitment, leaf, path) is checked inside
+the proof and never published; the program also checks that the receiver *is*
+the committed destination (`E7490` otherwise). Its public part: `Attest` to
+Sextant's header record (the vault root and slot), `CheckLive`, `Spend` to the
+deposit's nullifier PDA (new `Internal::Spend`; the same PDA the public claim
+writes, so a deposit is claimed once across both paths), and `Mint` to the
+entry for a **blinded alias** of the destination
+(`AccountId::blinded`, factor derived from the deposit secret). The
+destination's own token actor runs privately: it is initialized
+(`InitializeHolding`, the definition's reply addressed to the alias) and the
+mint's `IncreaseBalance` credit is **promoted** into the same transaction, so
+carol's new holding is an encrypted note only her keys open. The deposit
+must be committed to a v0.4 private account id
+(`AccountId::for_regular_private_account`); the run's plan has carol's.
+
+**The private burn**: a **public root call** (`Burn` to the burn tree, so the
+leaf is in the block and chain/v04 counts it), whose `holder` is a fresh
+blinded alias of carol and which sets the new `own_holding` flag: the entry
+asks the holder's own token actor (carol, an update of her committed account,
+run privately) to move the tokens into the entry's escrow, which refuses any
+other definition's, then burns them. The ATA path is for public holders: ATA
+holdings are public PDAs, even for private owners.
+
+The run (evidence/v04-rc3/e2e-seq: private-claim.json, private-burn.json,
+`/usr/bin/time -l` in private-claim-time.txt and private-burn-time.txt;
+Apple M4 Pro, 14 cores, 24 GiB; `RISC0_DEV_MODE=0` on the sequencer and the
+prover; one proof at a time; an earlier real run of the claim alone, before
+the private burn was added, took 527.7 s and 6.73 GB for a transaction of the
+same 241,332 bytes):
+
+| | private claim (1 ETH) | private burn (0.1 ETH) |
+|---|---:|---:|
+| proving, wall | 456.7 s | 399.6 s |
+| peak resident memory (prover child) | 7.32 GB | 7.34 GB |
+| transaction size | 241,332 bytes | 236,544 bytes |
+| receipt | a succinct STARK (dev mode off) | a succinct STARK (dev mode off) |
+| public part (simulated cycles) | 167,720 | 189,978 |
+| fee at head / reserve sent | 6,412,376 / 63,066,048 | 6,590,440 / 65,202,816 |
+| block execution gas (its block) | 577,484 | 599,742 |
+| verdict | applied, block 266 | applied, block 474 |
+
+After the claim the nullifier PDA is spent and carol's wallet decrypts
+1,000,000,000,000,000,000 wei of wrapped ETH (the registered
+definition); after the burn, 900,000,000,000,000,000. Neither
+transaction contains carol's account id or the deposit secret (the client
+checks the bytes before sending; `tests/private.rs` checks the commitment, the
+leaf and the path too). The burn's leaf is in the program's burn tree, and
+`release-carol-0.1eth-private-burn-by-relayer` releases it from WrapVault on
+anvil through the committee verifier (applied, gas 145,680), sent by a
+relayer, not by carol's Ethereum address. Both private transactions are in
+vectors/lez-blocks-v04, which chain_v04 decodes with LEZ's own block type
+(the gap "a private transaction in real v0.4 blocks" is closed).
+
+`tests/private.rs` (**4 passed**, `RISC0_DEV_MODE=1` in process: the programs
+and the privacy circuit execute in full, the receipt is a stand-in; the anvil
+deposits of vectors/anvil-v04, five deposits, the last committed to carol's
+v0.4 private account): the claim publishes no opening and declares only the
+header, the bridge's own actors, the nullifier and the definition; it lands
+once (a second proof of the same opening does not settle, the public claim
+after it is refused); refused claims never prove (the opening at another
+account's actor `E7490`, a forged amount `E7403`, a root the vault never had);
+the private holder burns with a public root and stays hidden, the escrow
+burns what it received, carol decrypts 0.9. Settlement there is
+`transition_from_privacy_preserving_transaction`, without the fee leg (the
+state machine does not classify fees; the sequencer does).
+
+What is not done: a private claimant needs a **funded private account** for
+the fee (on the local network, a genesis-funded one; a wallet funding flow,
+or a relayer that pays a fee leg for a claimant, is not built); `wrap` keeps
+carol's account state in its run directory (carol.account) instead of a
+wallet syncing it from the chain; the private burn's Ethereum commitment
+(recipient, fee) is public as for any burn; the ZK release verifiers on v0.4
+(section 5).
 
 ## 1. What v0.4 changes (found at rc1, checked at rc3)
 
@@ -431,7 +526,8 @@ burn is the same proof shape as of a private one.
 
 ### 2.6 The private paths
 
-Not ported. v0.3's private claim (a privacy-preserving transaction minting to
+Ported in section 0.4 (`ClaimPrivate`, `Burn` with `own_holding`). As found
+at rc1: v0.3's private claim (a privacy-preserving transaction minting to
 a fresh private account, no public signer) and private `BurnFrom` change
 shape: the fee is paid inside the proof from a witnessed private payer
 holding native balance (`execution_state.rs`: `UnwitnessedFeePayer`,
@@ -498,15 +594,18 @@ evidence/v04-rc3/image-ids.txt).
   USDT (section 0.3).
 - `v04/executor-tests`, `tests/sepolia.rs`: **1 passed**, the real Sepolia
   attestation of section 0.
-- `v04/executor-tests`, `tests/chain_v04.rs`: **4 passed**, on 21 real
-  blocks of the local v0.4.0-rc3 sequencer (23 to 43, section 4.2): the mirror and LEZ's own
+- `v04/executor-tests`, `tests/private.rs`: **4 passed**, the private claim
+  and the private burn (section 0.4).
+- `v04/executor-tests`, `tests/chain_v04.rs`: **4 passed**, on 451 real
+  blocks of the local v0.4.0-rc3 sequencer (24 to 474, section 4.2, the two
+  privacy-preserving transactions included): the mirror and LEZ's own
   `common::block::Block` both decode every block and re-encode it to the same
   bytes; LEZ's `recompute_hash`, the header and `content_hash` agree; the
   reverted list is exactly the eight transactions the sequencer reverted;
-  **seven burns (ETH and USDT) are in the blocks, four applied and three
-  reverted, and the tree rebuilt from the blocks alone holds the four applied
-  ones, with the root of the program's own burn tree read back from the
-  sequencer** (`0xfa797ef7…`); un-listing a reverted burn breaks the block hash.
+  **eight burns (ETH and USDT, one of them carol's private burn with its
+  public root) are in the blocks, five applied and three reverted, and the
+  tree rebuilt from the blocks alone holds the five applied ones, with the root of the program's own burn tree read back from the
+  sequencer** (`0x439c3e4e…`); un-listing a reverted burn breaks the block hash.
 - `chain/v04` (crate `lez-chain-v04`): **7 passed**, and `chain` (v0.3.1, unchanged) 10 as before. The v0.4 tests:
   the hash covers the reverted list; public and private-root burns count
   unless reverted; other accounts, programs, variants and private roots do
@@ -515,37 +614,43 @@ evidence/v04-rc3/image-ids.txt).
 
 ### 4.2 The sequencer run (evidence/v04-rc3/e2e-seq/manifest.tsv)
 
-On a local standalone v0.4.0-rc3 sequencer, `RISC0_DEV_MODE=0`, 2026-11-14,
-driven entirely by the v0.4 client `wrap` (v04/scripts/e2e-seq.sh;
-transcript.txt): 19 program-loader transactions (token, ata, sextant_lc,
+On a local standalone v0.4.0-rc3 sequencer, `RISC0_DEV_MODE=0` on the
+sequencer and the prover, 2026-11-14, driven entirely by the v0.4 client
+`wrap` (v04/scripts/e2e-seq.sh under the machine's heavy-job lock;
+transcript.txt): 21 program-loader transactions (token, ata, sextant_lc,
 wrap_bridge, the Docker builds), anvil with WrapVault at this deployment's
-pairing, the USDT-shaped ERC-20 and four deposits (alice 1 ETH twice and
-1,000 USDT, bob 100 USDT), then 21 transactions in blocks 23 to 43, **each
-pre-checked on rc3's state machine, and every chain verdict equal to its
-pre-check**:
+pairing, the USDT-shaped ERC-20 and five deposits (alice 1 ETH twice and
+1,000 USDT, bob 100 USDT, carol 1 ETH to her v0.4 private account), then 23
+transactions in blocks 24 to 474 (15 applied, 8 reverted), **each pre-checked
+on rc3's state machine (the two private ones by simulating them), and every
+chain verdict equal to its pre-check**:
 
 - applied: Sextant's `Init` on the devnet header of the anvil block, the
   bridge's Init, Register ETH, Register USDT, bob's USDT holding opened by the
-  payer (`ATA Create`), the four claims (each attested by Sextant; alice's
-  wrapped-ETH and wrapped-USDT holdings, in one account, created by her
-  claims), burns of 0.1 ETH, 1 ETH and 1,000 USDT (alice) and of 100 USDT (bob);
+  payer (`ATA Create`), the four public claims (each attested by Sextant;
+  alice's wrapped-ETH and wrapped-USDT holdings, in one account, created by
+  her claims), **carol's private claim** (block 266, section 0.4), burns of
+  0.1 ETH, 1 ETH and 1,000 USDT (alice) and of 100 USDT (bob), and **carol's
+  private burn** of 0.1 ETH (block 474);
 - reverted (sent with `--force`, refused by the pre-check with the code
   shown): two replays (`E7402`, one under an earlier root), the deposit never
   made under a root the vault never had (`E7208`, Sextant), alice's USDT
   deposit redirected to bob and the same deposit claimed as ETH (`E7403`),
   12,345 USDT units (`E7408`), 0.1 ETH burned by bob, who holds no wrapped ETH
   (the token program: no such holding), 1,000 USDT beyond bob's balance (the
-  token program refuses the debit).
+  token program refuses the debit);
+- refused by the client before anything is built: a private claim of a
+  deposit committed to a public account (private-claim-refused.txt).
 
 Final state (balances.jsonl): alice 0.9 wrapped ETH and 0 wrapped USDT, bob 0,
-supplies 0.9 ETH and 0 USDT. The program's own burn tree, read back:
-`0xfa797ef7…`, four leaves, equal to the applied burns'; `wrap release-proof`
+carol 0.9 wrapped ETH in her private account (decrypted by her keys; no public
+holding), supplies 1.8 ETH and 0 USDT. The program's own burn tree, read back:
+`0x439c3e4e…`, five leaves, equal to the applied burns'; `wrap release-proof`
 gives each applied burn's opening against it (release-openings.jsonl), and
-each is then released from the vault on anvil (section 0.2, releases.tsv).
-`wrap claim --private` is refused by the client (private-claim.txt). The blocks are
-vectors/lez-blocks-v04. All on a local sequencer; nothing on a public network.
-(The previous rc3 run, two ETH claims and four burns by `seq_drive`, is
-replaced; the rc1 run, with the stand-in: evidence/v04-spike/e2e-seq.)
+each is then released from the vault on anvil (sections 0.2 and 0.4,
+releases.tsv: 12 releases, the vault paid exactly 1.2 ETH and 1,100 USDT). The
+blocks are vectors/lez-blocks-v04. All on a local sequencer; nothing on a
+public network. (The rc1 run, with the stand-in: evidence/v04-spike/e2e-seq.)
 
 ### 4.3 Cycles
 
@@ -556,17 +661,18 @@ block):
 | transaction | v0.4.0-rc3 cycles | v0.4.0-rc1 cycles (spike) | v0.3 gas, same machine and vectors |
 |---|---:|---:|---:|
 | Sextant `Init` (devnet checkpoint; rc1: the stand-in's Record, 24,995) | 1,815,646 | - | 1,831,160 |
-| Init | 63,520 (also creates the burn tree) | 63,464 | 27,049 |
-| Register (ETH; USDT 84,324) | 84,818 | 84,958 | 90,958 |
+| Init | 64,456 (also creates the burn tree) | 63,464 | 27,049 |
+| Register (ETH; USDT 86,491) | 86,985 | 84,958 | 90,958 |
 | ATA `Create` (rc1 and before section 0.3: the token's InitializeHolding, 31,448) | 45,776 | 30,947 | (none: ATA created in the claim) |
-| Claim, 1 ETH, into an existing holding (Attest by sextant_lc) | 294,856 | 259,022 | 297,457 |
-| Claim, 1 ETH, creating the holding (sequencer pre-check) | 311,465 | - | 297,457 |
-| Claim, 100 USDT, into an existing holding | 294,491 | - | 297,529 |
-| Burn, 0.1 ETH (through the ATA) | 187,671 | 198,834 | 228,728 (1 ETH) |
-| Burn, 100 USDT | 187,459 | - | - |
+| Claim, 1 ETH, into an existing holding (Attest by sextant_lc) | 295,139 | 259,022 | 297,457 |
+| Claim, 1 ETH, creating the holding (sequencer pre-check) | 317,923 | - | 297,457 |
+| Claim, 100 USDT, into an existing holding | 294,776 | - | 297,529 |
+| Burn, 0.1 ETH (through the ATA) | 188,520 | 198,834 | 228,728 (1 ETH) |
+| Burn, 100 USDT | 188,308 | - | - |
 
-(rc3 column: the Docker-built binaries with the ATA (section 0.3),
-evidence/v04-rc3/cycles.md; before the ATA the Claim was 263,763 and the Burn
+(rc3 column: the Docker-built binaries with the ATA and the private paths
+(sections 0.3, 0.4), evidence/v04-rc3/cycles.md; the private claim and burn
+are privacy-preserving transactions, measured in section 0.4; before the ATA the Claim was 263,763 and the Burn
 199,311. An earlier
 version of this table gave 1,672,261 for Sextant's `Init` and 261,204 for the
 Claim; the committed tests give 1,815,646 and 263,494 with the previous
@@ -587,7 +693,7 @@ evidence/v04-spike/cycles-chain-guest.md):
 
 | input | blocks | bytes | burns | user cycles | total cycles |
 |---|---:|---:|---:|---:|---:|
-| real rc3 blocks 23-43 (section 4.2) | 21 | 86,772 | 4 | 548,491 | 1,048,576 |
+| real rc3 blocks 24-474 (section 4.2; two private transactions, 420 empty blocks while proving) | 451 | 871,211 | 5 | 3,744,362 | 5,242,880 |
 | 1 x 18 public burns (1 reverted) | 1 | 23,227 | 17 | 1,248,529 | 1,572,864 |
 | 10 x 18 public burns | 10 | 232,270 | 170 | 12,019,399 | 12,845,056 |
 | 50 x 18 public burns | 50 | 1,161,110 | 850 | 59,842,701 | 63,963,136 |
@@ -610,12 +716,13 @@ optimize (batching the frontier's upper levels per block).
 | ~~Sextant's light client on v0.4~~ | done 2026-11-14 (section 0): lez-sextant `v0.4`, on rc3 | - |
 | A full Claim of the real Sepolia deposits on v0.4 | the Sextant half is shown (section 0); the mint needs the committed destination to open its holding, so a fresh Sepolia deposit to a v0.4 destination | 0.5 day |
 | ~~ATA~~ | done 2026-11-14 (section 0.3): lez-programs `064b73f`'s token and ATA programs, claims mint to (and create) the destination's ATA holding, burns through the holder's ATA actor | - |
-| Private claim and private burn (so the client's claim is public by default and `--private` is refused) | hybrid transactions (public root, private holder or destination), the in-proof fee from a funded private payer; the client's private path; re-measure proving | 3-4 days |
+| ~~Private claim and private burn~~ | done 2026-11-14 (section 0.4): `claim --private` and `burn --private` on the local rc3 sequencer with real proofs, the fee in-proof from a genesis-funded private payer; carol's burn released on anvil | - |
+| A private claimant's fee | the claimant needs a funded private account: a wallet flow to fund one (or a relayer paying a fee leg), and the client syncing private state from the chain instead of its run directory | 1-2 days |
 | ~~A release on v0.4 (committee)~~ | done 2026-11-14 (section 0.2): every applied burn released through CommitteeBurnVerifier on anvil, seven refusals | - |
 | A zero-knowledge release on v0.4 | `ZkBurnVerifier` (membership only) needs `wrap release-proof --zk` in the v0.4 client; the chain-derived verifiers, the rows below | 0.5 day (ZkBurnVerifier) |
 | zk/bedrock_anchor, burn_release, bedrock_release on v0.4 | move compose.rs to chain/v04 and the 36-word journal; re-verify bedrock/ against lb-core d480efc6; accept staked sequencer keys | 2 days |
 | Chain guest recursion and per-burn cost | prior-receipt recursion as in zk/lez_chain; batch frontier inserts | 1 day |
 | Vault verifiers | new ImageIDs and journal layout in ZkChainBurnVerifier / ZkBedrockBurnVerifier, Foundry tests and mutations | 1 day |
 | ~~Reproducible builds~~ | done 2026-11-14 (section 0.1): token, wrap_bridge, lez_chain_v04 and sextant_lc, CI `reproduce-v04` | - |
-| A private transaction in real v0.4 blocks | the scan's private path is tested on synthetic blocks in the exact layout only | with the private paths |
+| ~~A private transaction in real v0.4 blocks~~ | done (section 0.4): the private claim and burn are in vectors/lez-blocks-v04, decoded by chain_v04 | - |
 | testnet 0.4 | deploy on the public 0.4 network when it exists (needs funds) | 1 day |

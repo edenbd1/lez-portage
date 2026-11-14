@@ -24,11 +24,15 @@
 //! block's `reverted` list; the client reads that list and fails if the chain
 //! and the pre-check disagree.
 //!
-//! **Claims are public.** A private claim on v0.4 is a privacy-preserving
-//! transaction whose fee is paid inside its proof by a funded private
-//! account; the bridge's private paths are not ported yet (docs/V04-PORT.md
-//! section 2.6), so `claim --private` is refused here rather than silently
-//! sent in public. (The v0.3 client also claims publicly unless `--private`.)
+//! **Claims are public by default; `claim --private` is the private claim**
+//! (src/private.rs): one privacy-preserving transaction whose root call,
+//! `ClaimPrivate`, runs privately at the destination's own wrap_bridge actor
+//! (the opening never leaves the proof), whose public part names only a
+//! blinded alias of the destination, and whose fee is paid inside the proof
+//! by a funded private account (on the local network, one funded at genesis).
+//! It is pre-checked by simulating it (`simulate_privacy_preserving_transaction`),
+//! proven here, and measured (private-claim.json). Only a deposit committed
+//! to a private account (carol's) can be claimed privately.
 //!
 //! A run directory (`--run`) holds what the steps share: programs.json,
 //! plan.json, anvil/ (scripts/anvil_deposits.py), manifest.tsv (every
@@ -51,13 +55,17 @@ use wrap_executor_tests_v04::*;
 
 /// The deposits a run makes, in order: (depositor = destination, seed counter, token, amount).
 /// Holdings are ATA holdings, so alice receives wrapped ETH and wrapped USDT
-/// in the same account.
-const PLAN: [(Who, u64, Tok, u128); 4] = [
+/// in the same account. Deposit 4 is committed to carol's *private* account
+/// (`private::carol`), claimed with `claim 4 --private`.
+const PLAN: [(Who, u64, Tok, u128); 5] = [
     (Who::Alice, 0, Tok::Eth, 1_000_000_000_000_000_000),
     (Who::Alice, 1, Tok::Eth, 1_000_000_000_000_000_000),
     (Who::Bob, 0, Tok::Usdt, 100_000_000),
     (Who::Alice, 2, Tok::Usdt, 1_000_000_000),
+    (Who::Carol, 0, Tok::Eth, 1_000_000_000_000_000_000),
 ];
+/// Carol's wallet seed (her deposit secrets), test only.
+const CAROL_SEED: H256 = *b"carol's wallet seed, test only!!";
 /// The seed counter of the deposit alice never made.
 const PHANTOM_N: u64 = 9;
 
@@ -71,6 +79,8 @@ enum Tok {
 enum Who {
     Alice,
     Bob,
+    /// A private account (no public key): she only claims privately.
+    Carol,
 }
 
 impl Who {
@@ -78,18 +88,27 @@ impl Who {
         match self {
             Who::Alice => alice(),
             Who::Bob => bob(),
+            Who::Carol => fail("carol is a private account: she has no public key"),
+        }
+    }
+    fn id(self) -> AccountId {
+        match self {
+            Who::Carol => private::carol().account_id(),
+            w => w.key().id,
         }
     }
     fn seed(self) -> H256 {
         match self {
             Who::Alice => ALICE_SEED,
             Who::Bob => BOB_SEED,
+            Who::Carol => CAROL_SEED,
         }
     }
     fn name(self) -> &'static str {
         match self {
             Who::Alice => "alice",
             Who::Bob => "bob",
+            Who::Carol => "carol",
         }
     }
 }
@@ -157,7 +176,9 @@ enum Cmd {
         /// (the vault never had that root; its `knownRoot` slot is proven empty).
         #[arg(long)]
         phantom: bool,
-        /// A privacy-preserving claim: not on v0.4 yet (refused, see the module docs).
+        /// A privacy-preserving claim (carol's deposit 4): proven here, real
+        /// proving unless RISC0_DEV_MODE=1, its fee paid in-proof by a private
+        /// payer funded at genesis; measured into private-claim.json.
         #[arg(long)]
         private: bool,
     },
@@ -171,6 +192,11 @@ enum Cmd {
         amount: u128,
         #[arg(long, default_value_t = 0)]
         fee: u128,
+        /// Carol's private burn: a privacy-preserving transaction with a
+        /// public root call, from her private holding (real proving unless
+        /// RISC0_DEV_MODE=1), measured into private-burn.json.
+        #[arg(long)]
+        private: bool,
     },
     /// `owner`'s wrapped balance and the token's supply, as the chain holds them.
     Balance {
@@ -333,6 +359,172 @@ impl Ctx {
     }
 }
 
+/// What a proven and settled privacy-preserving transaction measured.
+struct PrivateRun {
+    tx: lee::PrivacyPreservingTransaction,
+    landed: seq::Landed,
+    record: Value,
+}
+
+impl Ctx {
+    /// The fee leg, the proof, the submission and the measurements of one
+    /// privacy-preserving transaction: `input` without its fee; `payer` (one
+    /// of the local network's genesis-funded private accounts) pays inside the
+    /// proof from its pending genesis credit, under the fresh alias `fee_alias`.
+    #[allow(clippy::too_many_arguments)]
+    fn private_tx(
+        &mut self,
+        label: &str,
+        mut input: lee::ProvingInput,
+        catalog: &lee::privacy_preserving_transaction::circuit::ProgramCatalog,
+        payer: &private::Keys,
+        fee_alias: H256,
+        present_private: impl Fn(Actor) -> Option<lee::SenderPresentation> + Clone,
+        select: impl FnMut(lee_core::execution_state::Placement, &lee_core::program::MessageBody) -> bool + Clone,
+        secrets: &[(&str, Vec<u8>)],
+    ) -> PrivateRun {
+        use lee::{SenderPresentation, Simulation};
+        use lee_core::{DummyOutput, EphemeralSecretKey, FeeTransfer, MessageWitness, PrivateAccountKind, Recipient, RecipientEncryption};
+        let inbox = Actor::native_balance(private::fee_inbox());
+        input.public_context.actors.insert(inbox);
+        let payer_id = payer.account_id();
+        let (body, credit, path) = self.rpc.genesis_credit(payer_id);
+        input.claims.push(MessageWitness { body, rho: None, membership_proof: path, filler: DummyOutput::default() });
+        input.private_witnesses.push(payer.init_witness(&[]));
+        let public: Vec<Actor> = input.public_context.actors.iter().copied().collect();
+        let states = public.iter().map(|a| (*a, self.rpc.actor_view(*a))).collect();
+        let sim = Simulation { public_actor_states: states, admitted_accounts: None };
+        let present = move |a: Actor| {
+            if a == Actor::native_balance(payer_id) {
+                SenderPresentation::Blinded(fee_alias)
+            } else {
+                present_private(a).unwrap_or(SenderPresentation::Canonical)
+            }
+        };
+        let public_cycles = lee::simulate_privacy_preserving_transaction(&input, &sim, catalog, present.clone(), select.clone())
+            .unwrap_or_else(|e| fail(format!("{label}: the transaction does not simulate (the pre-check): {e}")));
+        let (exec, stor) = self.rpc.fee_quote();
+        let fee_at_head = fee_core::assess::private_fee_required(public_cycles, exec, stor);
+        // Headroom for base fees rising while it proves: eight times the quoted
+        // base fees and half again the cycles; never more than the payer holds.
+        let reserve = fee_core::assess::private_fee_required(public_cycles + public_cycles / 2 + 100_000, exec * 8, stor * 8).min(credit).max(fee_at_head);
+        println!("{label}: pre-check (simulation) accepted: public part {public_cycles} cycles; base fees exec {exec} stor {stor}; fee at head {fee_at_head}, reserve {reserve} of the payer's {credit}");
+        input.recoveries.push(RecipientEncryption {
+            recipient: Recipient { npk: payer.npk(), vpk: payer.vpk(), kind: PrivateAccountKind::Regular, opening: Some(fee_alias) },
+            esk: EphemeralSecretKey(wrap_core::sha256(&[b"rfp022/v0.4/fee-esk", &fee_alias])),
+        });
+        input.fee = Some(FeeTransfer { payer: payer_id, recipient: private::fee_inbox(), amount: reserve, refund_to: None });
+        let dev = std::env::var("RISC0_DEV_MODE").is_ok_and(|v| v == "1" || v == "true");
+        println!("{label}: proving ({})", if dev { "RISC0_DEV_MODE=1: a fake receipt" } else { "real proving" });
+        let t = std::time::Instant::now();
+        let tx = private::prove(input, &sim, catalog, present, select).unwrap_or_else(|e| fail(format!("{label}: proving failed: {e}")));
+        let secs = t.elapsed().as_secs_f64();
+        let rss = private::peak_rss();
+        let bytes = borsh::to_vec(&common::transaction::LeeTransaction::PrivacyPreserving(tx.clone())).unwrap().len();
+        println!("{label}: proved in {secs:.1} s, peak resident {:.2} GB, {bytes} bytes", rss as f64 / 1e9);
+        let raw = borsh::to_vec(&tx).unwrap();
+        let leaked: Vec<&str> = secrets.iter().filter(|(_, v)| raw.windows(v.len()).any(|y| y == v.as_slice())).map(|(n, _)| *n).collect();
+        if !leaked.is_empty() {
+            fail(format!("{label}: the transaction carries the {leaked:?}"));
+        }
+        let l = seq::submit_private(&mut self.rpc, label, &tx).unwrap_or_else(|e| fail(e));
+        let verdict = if l.reverted { "reverted" } else { "applied" };
+        let (_, b) = self.rpc.block(l.block).expect("the block");
+        let fees = seq::block_fees(&b).unwrap_or_default();
+        println!("{label}: block {} tx {} {verdict} ({}); block fees exec {} stor {} revenue {}", l.block, l.index, l.hash, fees.gas_used_exec, fees.gas_used_stor, fees.revenue_base);
+        let line = format!("{label}\tapplied\t{verdict}\t{}\t{}\t{}\t-\n", l.block, l.index, l.hash);
+        use std::io::Write as _;
+        std::fs::OpenOptions::new().create(true).append(true).open(self.run.join("manifest.tsv")).and_then(|mut f| f.write_all(line.as_bytes())).unwrap_or_else(|e| fail(e));
+        let (_, proof) = tx.witness_set.clone().into_raw_parts();
+        let inner: Option<risc0_zkvm::InnerReceipt> = borsh::from_slice(&proof.into_inner()).ok();
+        let succinct = matches!(inner, Some(risc0_zkvm::InnerReceipt::Succinct(_)));
+        let record = json!({
+            "label": label, "verdict": verdict, "block": l.block, "tx": l.index, "hash": l.hash.to_string(), "dev_mode": dev,
+            "receipt_succinct": succinct, "prove_s": (secs * 10.0).round() / 10.0, "peak_rss_bytes": rss, "tx_bytes": bytes,
+            "public_cycles": public_cycles, "fee_at_head": fee_at_head.to_string(), "reserve": reserve.to_string(),
+            "block_gas_exec": fees.gas_used_exec, "block_gas_stor": fees.gas_used_stor, "block_revenue_base": fees.revenue_base.to_string(),
+            "not_published": secrets.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+        });
+        PrivateRun { tx, landed: l, record }
+    }
+
+    fn programs_private(p: &Programs) -> private::Programs {
+        private::Programs { token: p.token, ata: p.ata, sextant_lc: p.sextant_lc, wrap_bridge: p.wrap_bridge }
+    }
+
+    /// Carol's private account as her wallet last decrypted it (carol.account).
+    fn save_carol(&self, a: &lee_core::account::Account) {
+        std::fs::write(self.run.join("carol.account"), borsh::to_vec(a).unwrap()).unwrap();
+    }
+
+    /// The private claim of `c` to carol's private account (private.rs).
+    fn claim_private(&mut self, p: &Programs, cfg: &Config, c: &wrap_bridge_v04::Claim, label: &str) {
+        let pp = Self::programs_private(p);
+        let dest = private::carol();
+        let dest_id = dest.account_id();
+        if c.destination != dest_id {
+            fail("the private claim's destination is not carol's private account");
+        }
+        let (root, msg, public) = private::claim_call(&pp, cfg, c);
+        let alias = private::claim_alias(&c.secret);
+        let input = private::claim_input(root, msg, &public, &dest, alias);
+        let present = move |a: Actor| (a.account_id == dest_id).then_some(lee::SenderPresentation::Blinded(alias));
+        let fee_alias = wrap_core::sha256(&[b"rfp022/v0.4/fee-alias/claim", &c.secret]);
+        let payer = &private::fee_payers()[0];
+        let run = self.private_tx(label, input, &pp.catalog(), payer, fee_alias, present, private::promote_alias(dest_id.blinded(&alias)),
+            &[("destination", dest_id.value().to_vec()), ("secret", c.secret.to_vec())]);
+        let held = private::private_balance(&dest, &run.tx, p.token);
+        let ca = wrap_bridge_v04::config_account(&p.wrap_bridge, cfg);
+        let def = wrap_bridge_v04::definition_account(&p.wrap_bridge, &ca, &c.eth_token, &c.salt).0;
+        let nf = wrap_core::nullifier(&wrap_bridge_v04::pairing(&p.wrap_bridge, cfg), &c.secret, c.index);
+        let spent = self.rpc.actor_state(Actor::new(wrap_bridge_v04::nullifier_account(&p.wrap_bridge, &ca, &nf), p.wrap_bridge)) == vec![1];
+        let mut out = run.record;
+        out["nullifier"] = json!(hx(&nf));
+        out["nullifier_spent"] = json!(spent);
+        out["destination_alias"] = json!(dest_id.blinded(&alias).to_string());
+        out["carol_holding"] = json!(held.map(|(d, b)| json!({"definition": d.to_string(), "is_wrapped_eth": d == def, "balance": b.to_string()})));
+        std::fs::write(self.run.join("private-claim.json"), serde_json::to_string_pretty(&out).unwrap()).unwrap();
+        println!("{out}");
+        if run.landed.reverted || !spent || held.map(|(d, b)| d == def && b == c.amount) != Some(true) {
+            fail(format!("{label}: not settled as a claim of {} to carol", c.amount));
+        }
+        self.save_carol(&dest.decrypt(&run.tx).expect("carol's note"));
+    }
+
+    /// Carol's private burn: a public root call to the burn tree naming a
+    /// fresh blinded alias of her as the holder; her own token actor runs
+    /// privately (an update of her committed account) and moves the tokens
+    /// into the entry's escrow, which burns them.
+    fn burn_private(&mut self, p: &Programs, cfg: &Config, t: [u8; 20], amount: u128, ec: H256, blinding: &H256, label: &str) -> bool {
+        let pp = Self::programs_private(p);
+        let dest = private::carol();
+        let id = dest.account_id();
+        let state: lee_core::account::Account = borsh::from_slice(&std::fs::read(self.run.join("carol.account")).unwrap_or_else(|_| fail("carol has no private account yet: claim 4 --private first"))).unwrap();
+        let commitment = lee_core::Commitment::new(&id, &state);
+        let v = self.rpc.call("getProofsAndRoot", json!([[commitment], []])).unwrap_or_else(|e| fail(e));
+        let proofs: Vec<Option<lee_core::MembershipProof>> = serde_json::from_value(v[0].clone()).unwrap_or_else(|e| fail(e));
+        let proof = proofs.into_iter().next().flatten().unwrap_or_else(|| fail("carol's account is not committed"));
+        let opening = private::burn_alias(blinding);
+        let alias = id.blinded(&opening);
+        let (root, msg, public) = private::burn_call(&pp, cfg, t, amount, ec, alias);
+        let input = private::burn_input(root, msg, &public, dest.update_witness(state, proof, &[opening]));
+        let present = move |a: Actor| (a.account_id == id).then_some(lee::SenderPresentation::Blinded(opening));
+        let fee_alias = wrap_core::sha256(&[b"rfp022/v0.4/fee-alias/burn", blinding]);
+        let payer = &private::fee_payers()[1];
+        let run = self.private_tx(label, input, &pp.catalog(), payer, fee_alias, present, |_, _| false, &[("holder", id.value().to_vec())]);
+        let held = private::private_balance(&dest, &run.tx, p.token);
+        let mut out = run.record;
+        out["holder_alias"] = json!(alias.to_string());
+        out["carol_holding_after"] = json!(held.map(|(d, b)| json!({"definition": d.to_string(), "balance": b.to_string()})));
+        std::fs::write(self.run.join("private-burn.json"), serde_json::to_string_pretty(&out).unwrap()).unwrap();
+        println!("{out}");
+        if !run.landed.reverted {
+            self.save_carol(&dest.decrypt(&run.tx).expect("carol's note"));
+        }
+        !run.landed.reverted
+    }
+}
+
 /// The refusal's first line, from its typed code if it has one.
 fn typed(e: &str) -> String {
     match refusal(e) {
@@ -345,7 +537,7 @@ fn typed(e: &str) -> String {
 }
 
 fn plan_entry(pairing: &H256, (who, n, tok, amount): (Who, u64, Tok, u128)) -> Value {
-    let c = wrap_core::commitment(pairing, who.key().id.value(), &secret(&who.seed(), n));
+    let c = wrap_core::commitment(pairing, who.id().value(), &secret(&who.seed(), n));
     json!({"from": who.name(), "token": match tok { Tok::Eth => "eth", Tok::Usdt => "usdt" }, "amount": amount.to_string(), "commitment": hx(&c), "n": n})
 }
 
@@ -446,9 +638,6 @@ fn main() {
             ctx.send(&p, &format!("{} ATA Create {token:?}", owner.name()), Actor::new(h, p.ata), &[Actor::new(h, p.token), Actor::new(def, p.token)], &[], &pdas, &m);
         }
         Cmd::Claim { index, root_after, redirect_to, as_token, phantom, private } => {
-            if private {
-                fail("a private claim is not available on LEZ v0.4 yet: its fee is paid inside the proof by a funded private account, and the bridge's private paths are not ported (docs/V04-PORT.md, section 2.6). Claim publicly (the default).");
-            }
             let p = ctx.programs();
             let a = ctx.anvil();
             let cfg = ctx.config(&p, a.vault);
@@ -471,13 +660,21 @@ fn main() {
                 if n <= index {
                     fail(format!("the tree after {n} deposits does not hold deposit {index}"));
                 }
-                claim_message(&a, &cfg, d, n, who.key().id, secret(&who.seed(), k), SLOT)
+                claim_message(&a, &cfg, d, n, who.id(), secret(&who.seed(), k), SLOT)
             };
             if let Some(r) = redirect_to {
-                c.destination = r.key().id;
+                c.destination = r.id();
             }
             if let Some(t) = as_token {
                 c.eth_token = ctx.token(&a, t);
+            }
+            if private {
+                let index = index.unwrap_or_else(|| fail("which deposit?"));
+                if PLAN[index].0 != Who::Carol {
+                    fail(format!("deposit {index} is committed to a public account: only carol's (deposit 4) is claimed privately"));
+                }
+                ctx.claim_private(&p, &cfg, &c, &format!("Claim deposit {index} privately (carol)"));
+                return;
             }
             let (to, actors, pda) = claim_actors_with(&p.wrap_bridge, &cfg, &c);
             // The destination's ATA holding, created by the claim if it is fresh.
@@ -491,7 +688,7 @@ fn main() {
             let what = if phantom { "Claim the deposit never made (a root the vault never had)".to_string() } else { format!("Claim deposit {}", index.unwrap_or_default()) };
             ctx.send(&p, &what, to, &actors, &[], &pdas, &Bm::Claim(Box::new(c)));
         }
-        Cmd::Burn { owner, token, amount, fee } => {
+        Cmd::Burn { owner, token, amount, fee, private } => {
             let p = ctx.programs();
             let a = ctx.anvil();
             let cfg = ctx.config(&p, a.vault);
@@ -512,11 +709,20 @@ fn main() {
                 let s = ctx.rpc.actor_state(Actor::new(burns, me));
                 if s.is_empty() { fail("no burn tree: init-bridge first") } else { borsh::from_slice(&s).unwrap() }
             };
-            let k = owner.key();
-            let m = Bm::Burn { eth_token: t, amount, eth_commitment: ec, salt: SALT, holder: k.id, config: cfg };
-            let h = wrap_bridge_v04::ata::holding(&p.ata, &tp, &k.id, &def);
-            let actors = [Actor::new(ca, me), Actor::new(entry, me), Actor::new(k.id, p.ata), Actor::new(h, tp), Actor::new(def, tp)];
-            let applied = ctx.send(&p, &format!("{} Burn {amount} {token:?}", owner.name()), Actor::new(burns, me), &actors, &[&k], &[], &m);
+            let label = format!("{} Burn {amount} {token:?}{}", owner.name(), if private { " privately" } else { "" });
+            let applied = if private {
+                if owner != Who::Carol {
+                    fail("only carol, whose account is private, burns privately");
+                }
+                let label = ctx.label.clone().unwrap_or(label);
+                ctx.burn_private(&p, &cfg, t, amount, ec, &blinding, &label)
+            } else {
+                let k = owner.key();
+                let m = Bm::Burn { eth_token: t, amount, eth_commitment: ec, salt: SALT, holder: k.id, config: cfg, own_holding: false };
+                let h = wrap_bridge_v04::ata::holding(&p.ata, &tp, &k.id, &def);
+                let actors = [Actor::new(ca, me), Actor::new(entry, me), Actor::new(k.id, p.ata), Actor::new(h, tp), Actor::new(def, tp)];
+                ctx.send(&p, &label, Actor::new(burns, me), &actors, &[&k], &[], &m)
+            };
             if applied {
                 record.push(json!({"owner": owner.name(), "token": hx(&t), "amount": amount.to_string(), "recipient": hx(&recipient), "fee": fee.to_string(),
                     "blinding": hx(&blinding), "eth_commitment": hx(&ec), "leaf": hx(&leaf), "index": before.next_index}));
@@ -563,7 +769,7 @@ fn main() {
             }
             println!("{}", json!({"owner": owner.name(), "token": b["token"], "amount": b["amount"], "recipient": b["recipient"], "fee": b["fee"],
                 "leaf": b["leaf"], "index": i, "path": path, "root": hx(&chain.root), "nullifier": hx(&nf), "vault": hx(&a.vault), "pairing": hx(&a.pairing),
-                "secret": b["blinding"], "burns_account": burns.to_string(), "bridge_program": p.wrap_bridge.to_string(), "lez": "v0.4", "private": false}));
+                "secret": b["blinding"], "burns_account": burns.to_string(), "bridge_program": p.wrap_bridge.to_string(), "lez": "v0.4", "private": owner == Who::Carol}));
         }
         Cmd::Finish { from } => {
             let p = ctx.programs();

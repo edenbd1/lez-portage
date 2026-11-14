@@ -155,7 +155,8 @@ jobs:
           for i in 1 2 3; do rzup install r0vm 3.0.5 && exit 0; sleep $((i * 20)); done
           exit 1
       # The committed v0.4 binaries (v04/artifacts: token, ata, sextant_lc,
-      # wrap_bridge) through lee::V03State at v0.4.0-rc3 (ETH and the ERC-20 path), a real Sepolia
+      # wrap_bridge) through lee::V03State at v0.4.0-rc3 (ETH and the ERC-20 path; the private claim
+      # and burn proven with RISC0_DEV_MODE=1 in process, tests/private.rs), a real Sepolia
       # checkpoint attesting the Sepolia vault's roots, and chain/v04 on the
       # blocks of a local v0.4.0-rc3 sequencer (vectors/lez-blocks-v04);
       # docs/V04-PORT.md.

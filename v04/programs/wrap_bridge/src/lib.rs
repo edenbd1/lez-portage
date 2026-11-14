@@ -44,6 +44,12 @@
 //!                                   → config(CheckLive)
 //!                                   → entry(Mint) → ata:ata(destination, d)(Create) → token:ata(destination, d)(InitializeHolding) (idempotent)
 //!                                                 → token:entry(Mint) → token:definition(IncreaseSupply) ⇢ token:ata(destination, d)(IncreaseBalance)
+//! ClaimPrivate (privacy-preserving transaction; `(p)` runs privately, `@` is the destination's blinded alias)
+//!           root → (p) wrap_bridge:destination(ClaimPrivate) → sextant:header(Attest)
+//!                                   → config(CheckLive)
+//!                                   → nullifier(Spend)
+//!                                   → (p) token:destination(InitializeHolding) → token:definition(RequestHolding) → (p) token:@(InitHolding)
+//!                                   → entry(Mint) → token:entry(Mint) → token:definition(IncreaseSupply) ⇢ (p) token:@(IncreaseBalance), promoted
 //! Burn      root → burns(Burn)      → config(CheckLive)
 //!                                   → entry(Burn) → ata:holder(Burn) → token:ata(holder, d)(Burn) → token:definition(DecreaseSupply)
 //! ```
@@ -161,7 +167,23 @@ pub enum Message {
     /// authorizes (signs); its ATA holding of the wrapped token is debited. The
     /// first three fields are the leaf's (chain/v04 reads them from the
     /// block without decoding the rest; pinned by a test).
-    Burn { eth_token: [u8; 20], amount: u128, eth_commitment: H256, salt: H256, holder: AccountId, config: Config },
+    ///
+    /// `own_holding`: the holding is `holder`'s own token actor (a private
+    /// holder's, minted by `ClaimPrivate`, addressed by a blinded alias), not
+    /// its ATA holding. Its tokens then move into the entry's escrow holding,
+    /// which refuses any other definition's tokens, and the escrow burns them.
+    Burn { eth_token: [u8; 20], amount: u128, eth_commitment: H256, salt: H256, holder: AccountId, config: Config, own_holding: bool },
+    /// The private claim: to the destination's own wrap_bridge actor, run
+    /// privately inside a privacy-preserving transaction (the destination is a
+    /// private account, witnessed and authorized in the proof). The opening is
+    /// checked here, so it never leaves the proof; the public part sees the
+    /// root and slot (Attest), the nullifier (spent by `Internal::Spend`), the
+    /// token and amount (`Internal::Mint`), and `alias`'s blinding of the
+    /// destination (`AccountId::blinded`) as the mint's recipient, never the
+    /// destination. The destination's own (private) token actor is initialized
+    /// if fresh and receives the mint, which the prover promotes into the same
+    /// transaction.
+    ClaimPrivate { claim: Box<Claim>, alias: H256 },
 }
 
 /// The borsh variant index of [`Message::Burn`].
@@ -194,8 +216,12 @@ pub enum Internal {
     Register { config: Config, eth_token: [u8; 20], name: String, salt: H256, policy: Policy },
     SetPolicy(Policy),
     FreezeToken { mint: bool, burn: bool },
-    Mint { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, to: AccountId },
-    Burn { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, holder: AccountId },
+    /// `ata`: mint to `to`'s ATA holding (created if fresh); otherwise to the
+    /// token actor at `to` itself (a private claim's blinded destination).
+    Mint { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, to: AccountId, ata: bool },
+    /// At a deposit's nullifier PDA, from a private claim: spend it once.
+    Spend { nullifier: H256 },
+    Burn { config: Config, eth_token: [u8; 20], salt: H256, amount: u128, holder: AccountId, own_holding: bool },
 }
 
 /// Sextant's light client on v0.4 (lez-sextant `v0.4`, sextant_lc): the
@@ -366,10 +392,36 @@ fn external(input: &ReceiveInput, m: Message) -> Response {
             Response::set_state(vec![1])
                 .send_sync(header, &attest)
                 .send_sync(own(input, ca), &Internal::CheckLive { mint: true })
-                .send_sync(own(input, entry), &Internal::Mint { config, eth_token, salt, amount, to: destination })
+                .send_sync(own(input, entry), &Internal::Mint { config, eth_token, salt, amount, to: destination, ata: true })
                 .event(event("Claimed", &Claimed { nullifier: nf }))
         }
-        Message::Burn { eth_token, amount, eth_commitment, salt, holder, config } => {
+        Message::ClaimPrivate { claim, alias } => {
+            let Claim { config, eth_token, salt, amount, slot, root, proof, index, path, destination, secret } = *claim;
+            refuse_unless(input.receiver.account_id == destination, E_ACCOUNTS, "a private claim goes to the destination's own wrap_bridge actor");
+            refuse_unless(amount > 0, E_AMOUNT, "nothing to claim");
+            let ca = config_account(&me, &config);
+            let pair = pairing(&me, &config);
+            let commitment = wrap_core::commitment(&pair, destination.value(), &secret);
+            let leaf = wrap_core::leaf(config.chain_id, &config.vault, &pair, &eth_token, amount, &commitment);
+            refuse_unless(wrap_core::root_from_path(&leaf, index, &path) == Some(root), E_PATH, "no such deposit under this root: check the token, amount, destination, secret and path");
+            refuse_unless(proof.address == config.vault, E_PROOF, "the storage proof is not the configured vault's");
+            refuse_unless(proof.slot == wrap_core::known_root_slot(&root), E_PROOF, "the storage proof is not knownRoot[root]");
+            let nf = wrap_core::nullifier(&pair, &secret, index);
+            let (nul, nseed) = nullifier_pda(&me, &ca, &nf);
+            let header = Actor::new(header_account(&config.sextant, &config.instance_id, slot), config.sextant);
+            let attest = AttestMessage::Attest { instance_id: config.instance_id, slot, query: query(&config, proof) };
+            let entry = entry_account(&me, &ca, &eth_token);
+            let def = definition_account(&me, &ca, &eth_token, &salt).0;
+            let tp = config.token_program;
+            let to = destination.blinded(&alias);
+            Response::keep_state()
+                .send_sync(header, &attest)
+                .send_sync(own(input, ca), &Internal::CheckLive { mint: true })
+                .send(SyncMessage::new(own(input, nul), &Internal::Spend { nullifier: nf }).with_pda_seeds([nseed]))
+                .send_sync(Actor::new(destination, tp), &token::Message::InitializeHolding { definition: def })
+                .send_sync(own(input, entry), &Internal::Mint { config, eth_token, salt, amount, to, ata: false })
+        }
+        Message::Burn { eth_token, amount, eth_commitment, salt, holder, config, own_holding } => {
             refuse_unless(input.from.is_none(), E_NOT_ROOT, "Burn is accepted only as a transaction's root call");
             let ca = config_account(&me, &config);
             expect_receiver(input, burns_account(&me, &ca), "Burn goes to the burn tree PDA");
@@ -380,7 +432,7 @@ fn external(input: &ReceiveInput, m: Message) -> Response {
             let entry = entry_account(&me, &ca, &eth_token);
             Response::set_state(put(&f))
                 .send_sync(own(input, ca), &Internal::CheckLive { mint: false })
-                .send_sync(own(input, entry), &Internal::Burn { config, eth_token, salt, amount, holder })
+                .send_sync(own(input, entry), &Internal::Burn { config, eth_token, salt, amount, holder, own_holding })
                 .event(event("Burned", &Burned { leaf }))
         }
     }
@@ -436,7 +488,11 @@ fn internal(input: &ReceiveInput, m: Internal) -> Response {
             e.frozen_burn = burn;
             Response::set_state(put(&e))
         }
-        Internal::Mint { config, eth_token, salt, amount, to } => {
+        Internal::Spend { nullifier } => {
+            refuse_unless(input.pre_state.is_empty(), E_CLAIMED, "this deposit was already claimed");
+            Response::set_state(vec![1]).event(event("Claimed", &Claimed { nullifier }))
+        }
+        Internal::Mint { config, eth_token, salt, amount, to, ata } => {
             let ca = config_account(&me, &config);
             let (entry, seed) = entry_pda(&me, &ca, &eth_token);
             expect_receiver(input, entry, "Mint goes to the token's entry");
@@ -446,6 +502,10 @@ fn internal(input: &ReceiveInput, m: Internal) -> Response {
             refuse_unless(outstanding.checked_add(amount).is_some_and(|o| o <= e.policy.mint_cap), E_CAP, "the token's supply cap is reached: retry later");
             e.minted += amount;
             let (tp, ap, def) = (config.token_program, config.ata_program, e.definition);
+            if !ata {
+                let mint = token::Message::Mint { definition: def, to, amount };
+                return Response::set_state(put(&e)).send(SyncMessage::new(Actor::new(entry, tp), &mint).with_pda_seeds([seed]));
+            }
             // The holding's own ATA actor creates it (any ATA actor may; this
             // one is admitted by the holding's PDA evidence even when the
             // destination account does not exist yet).
@@ -456,9 +516,9 @@ fn internal(input: &ReceiveInput, m: Internal) -> Response {
                 .send_sync(Actor::new(holding, ap), &create)
                 .send(SyncMessage::new(Actor::new(entry, tp), &mint).with_pda_seeds([seed]))
         }
-        Internal::Burn { config, eth_token, salt, amount, holder } => {
+        Internal::Burn { config, eth_token, salt, amount, holder, own_holding } => {
             let ca = config_account(&me, &config);
-            let entry = entry_account(&me, &ca, &eth_token);
+            let (entry, seed) = entry_pda(&me, &ca, &eth_token);
             expect_receiver(input, entry, "Burn goes to the token's entry");
             let mut e = entry_of(pre, &salt);
             refuse_unless(!e.frozen_burn, E_FROZEN, "burning of this token is frozen");
@@ -467,6 +527,15 @@ fn internal(input: &ReceiveInput, m: Internal) -> Response {
             // The holder's own ATA actor (it requires the holder's
             // authorization) burns from the holder's holding of this entry's
             // definition only: the burn is of the wrapped token, by construction.
+            if own_holding {
+                // The holder's own token actor (a private holder's): its tokens
+                // move into the entry's escrow holding, which refuses another
+                // definition's, then the escrow burns them.
+                let tp = config.token_program;
+                return Response::set_state(put(&e))
+                    .send_sync(Actor::new(holder, tp), &token::Message::Transfer { to: entry, amount })
+                    .send(SyncMessage::new(Actor::new(entry, tp), &token::Message::Burn { amount }).with_pda_seeds([seed]));
+            }
             let burn = ata::Message::Burn { token_program_id: config.token_program, definition: e.definition, amount };
             Response::set_state(put(&e)).send_sync(Actor::new(holder, config.ata_program), &burn)
         }
