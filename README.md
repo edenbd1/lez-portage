@@ -32,8 +32,9 @@ and a single-node Bedrock devnet. The release path has not run on a public
 network.
 
 **Branch `v0.4-spike`** (this branch; not merged into `main`) ports the LEZ
-side to LEZ v0.4.0-rc3: the actor model, the canonical token program's
-actor-model port, Sextant's light client on v0.4, blocks that list reverted
+side to LEZ v0.4.0-rc3: the actor model, the canonical token and associated
+token account programs' actor-model ports (one account holds several wrapped
+tokens), Sextant's light client on v0.4, blocks that list reverted
 transactions (so public burns are derivable from blocks), ETH and an ERC-20
 claimed and burned, a v0.4 client (`wrap`, pre-checking every transaction on
 rc3's state machine), reproducible Docker builds of every v0.4 binary, and a
@@ -359,7 +360,7 @@ job rebuilds each in Docker and `cmp`s it against the committed binary):
 cargo test --release --manifest-path chain/v04/Cargo.toml
 cargo test --release --manifest-path v04/executor-tests/Cargo.toml   # r0vm 3.0.5; bridge, erc20, sepolia, chain_v04
 cargo run --release --manifest-path v04/executor-tests/Cargo.toml --bin measure_chain
-DOCKER=1 v04/scripts/build-guests.sh token wrap_bridge lez_chain_v04 sextant   # v04/artifacts/*.bin
+DOCKER=1 v04/scripts/build-guests.sh token ata wrap_bridge lez_chain_v04 sextant   # v04/artifacts/*.bin
 ```
 
 The end-to-end run on a local v0.4.0-rc3 standalone sequencer and anvil,
@@ -393,7 +394,7 @@ docs/V04-PORT.md section 0.2).
 | [`vectors/`](vectors/) | anvil deposits and proofs, LEZ sequencer blocks, a public-testnet Bedrock anchor |
 | [`evidence/`](evidence/) | manifests, transcripts and raw measurements of each run (`testnet/`: Sepolia and the public LEZ testnet) |
 | [`docs/`](docs/) | the design and measurement write-ups; [`docs/raw/`](docs/raw/) raw outputs |
-| [`v04/`](v04/) | the LEZ v0.4.0-rc3 port: `wrap_bridge` on the actor model, the reproducible binaries of it, the token program and Sextant's light client, executor tests (ETH and ERC-20), the v0.4 client `wrap`, the sequencer run ([docs/V04-PORT.md](docs/V04-PORT.md)); `chain/v04` and `zk/lez_chain_v04` decode v0.4 blocks |
+| [`v04/`](v04/) | the LEZ v0.4.0-rc3 port: `wrap_bridge` on the actor model, the reproducible binaries of it, the token and ATA programs and Sextant's light client, executor tests (ETH and ERC-20), the v0.4 client `wrap`, the sequencer run ([docs/V04-PORT.md](docs/V04-PORT.md)); `chain/v04` and `zk/lez_chain_v04` decode v0.4 blocks |
 
 ## License
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Build the LEZ v0.4.0-rc3 programs the v0.4 port runs and the v0.4 chain guest:
-#   v04/artifacts/token.bin           lez-programs refactor/lez-v0.4.x @ 2801ea1 (the canonical
-#                                     token program's actor-model port; the branch's later commits
-#                                     change only comments in programs/token), its lee_core pin
-#                                     moved from 616256b9 to the v0.4.0-rc3 tag, built with the
-#                                     lockfile committed here (v04/locks/token-guest.Cargo.lock)
+#   v04/artifacts/token.bin           lez-programs @ 064b73f (refactor/ata-lez-v0.4.x: the canonical
+#                                     token program's actor-model port, which since 2801ea1 changed
+#                                     only comments in programs/token), its lee_core pin moved from
+#                                     616256b9 to the v0.4.0-rc3 tag, built with the lockfile
+#                                     committed here (v04/locks/token-guest.Cargo.lock)
+#   v04/artifacts/ata.bin             the associated token account program's actor-model port at
+#                                     the same commit and pin (v04/locks/ata-guest.Cargo.lock)
 #   v04/artifacts/wrap_bridge.bin     v04/programs/wrap_bridge
 #   v04/artifacts/lez_chain_v04.bin   zk/lez_chain_v04 (the chain guest on v0.4 blocks)
 #   v04/artifacts/sextant_lc.bin      Sextant's light client on v0.4: lez-sextant branch `v0.4`,
@@ -56,13 +58,15 @@ own() { # <crate dir, relative> <bin>
   if [ "${DOCKER:-0}" = 1 ]; then docker_guest "$1" "$2"; else guest "$ROOT/$1" "$2"; fi
 }
 
-token() {
+LEZ_PROGRAMS_REV=064b73fb28320aa5c14e6da12410acaed0664048
+
+lez_program() { # <program dir under programs/> <bin>
   if [ "${DOCKER:-0}" = 1 ]; then
     token_src "$ROOT/v04/third_party/lez-programs"
-    docker_guest v04/third_party/lez-programs/programs/token/methods/guest token
+    docker_guest "v04/third_party/lez-programs/programs/$1/methods/guest" "$2"
   else
     token_src "$WORK/lez-programs"
-    guest "$WORK/lez-programs/programs/token/methods/guest" token
+    guest "$WORK/lez-programs/programs/$1/methods/guest" "$2"
   fi
 }
 
@@ -74,14 +78,25 @@ token_src() {
     rm -rf "$src"; mkdir -p "$(dirname "$src")"
     git clone -q https://github.com/logos-blockchain/lez-programs.git "$src"
   fi
-  git -C "$src" fetch -q origin 2801ea19ea7fed003295eaa89f7c0dc8f01cece2 2>/dev/null || git -C "$src" fetch -q origin refactor/lez-v0.4.x
-  git -C "$src" checkout -q -f 2801ea19ea7fed003295eaa89f7c0dc8f01cece2
+  git -C "$src" fetch -q origin "$LEZ_PROGRAMS_REV" 2>/dev/null || git -C "$src" fetch -q origin refactor/ata-lez-v0.4.x
+  git -C "$src" checkout -q -f "$LEZ_PROGRAMS_REV"
   git -C "$src" clean -q -fdx -e target
-  for f in programs/token/Cargo.toml programs/token/core/Cargo.toml programs/token/methods/guest/Cargo.toml; do
+  for f in programs/token/Cargo.toml programs/token/core/Cargo.toml programs/token/methods/guest/Cargo.toml \
+           programs/ata/Cargo.toml programs/ata/core/Cargo.toml programs/ata/methods/guest/Cargo.toml programs/nft/core/Cargo.toml; do
     sed -i.bak -e 's/rev = "616256b9c9efd2c28d4f7683b7b5d2348df7314e"/tag = "v0.4.0-rc3"/' -e 's/tag = "v0.4.0-rc1"/tag = "v0.4.0-rc3"/' "$src/$f"
     rm -f "$src/$f.bak"
   done
-  cp v04/locks/token-guest.Cargo.lock "$src/programs/token/methods/guest/Cargo.lock"
+  # The committed lockfiles (UPDATE_LOCKS=1: let cargo resolve, then copy them back).
+  if [ "${UPDATE_LOCKS:-0}" != 1 ]; then
+    cp v04/locks/token-guest.Cargo.lock "$src/programs/token/methods/guest/Cargo.lock"
+    cp v04/locks/ata-guest.Cargo.lock "$src/programs/ata/methods/guest/Cargo.lock"
+  fi
+}
+
+save_lock() { # <program>
+  [ "${UPDATE_LOCKS:-0}" = 1 ] || return 0
+  local src="$WORK/lez-programs"; [ "${DOCKER:-0}" = 1 ] && src="$ROOT/v04/third_party/lez-programs"
+  cp "$src/programs/$1/methods/guest/Cargo.lock" "v04/locks/$1-guest.Cargo.lock"
 }
 
 sextant() {
@@ -97,7 +112,8 @@ sextant() {
 for t in "${@:-token wrap_bridge}"; do
   for x in $t; do
     case "$x" in
-      token) token ;;
+      token) lez_program token token; save_lock token ;;
+      ata) lez_program ata ata; save_lock ata ;;
       sextant) sextant ;;
       wrap_bridge) own v04/programs/wrap_bridge wrap_bridge ;;
       lez_chain_v04) own zk/lez_chain_v04 lez_chain_v04 ;;

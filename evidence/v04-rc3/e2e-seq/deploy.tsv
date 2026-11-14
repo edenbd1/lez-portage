@@ -1,16 +1,20 @@
-deploy token segment 2	applied	applied	2	0	f111857dc810948589b63bf114809ef802cbb92481a1b98794e8618c4272aef9	-
-deploy token segment 1	applied	applied	3	0	6befff245087d40468c27d7b1853b0106a034fb45f7fcf4068371454d5355b09	-
-deploy token segment 0	applied	applied	4	0	dd3ec76585e610e9c78b94c39af14b2b0fb308ff9d83080c08c4cb3d0bd0a50f	-
-deploy token header	applied	applied	5	0	92de67b2ff0d1b74d0f07d1a91799330694f01053e29c5fb3d29799e4d2ef0ed	-
-deploy sextant_lc segment 5	applied	applied	6	0	221c3013afcaef06894a71ce043bd268cd892db085bc833bf99ae3de3725513c	-
-deploy sextant_lc segment 4	applied	applied	7	0	d85d8a7ef08047e6e6fee4f205890bb10ab1e2d3423b7ce300dd9955b0c30f63	-
-deploy sextant_lc segment 3	applied	applied	8	0	5cab938bedac43e787406e6a93a89e1db6a83efe9cdaf6b37ab6c036d09420c2	-
-deploy sextant_lc segment 2	applied	applied	9	0	72224a9482fd747a981e5e9d684ca2dc42244fe02fc567c0f60b1d1eef62b148	-
-deploy sextant_lc segment 1	applied	applied	10	0	7a30c2e7a0feafb92b4996067a248da54cc970f4aa7af0b5d786055bd43ff7b8	-
-deploy sextant_lc segment 0	applied	applied	11	0	f7b0ce76b5ace71220670300906135a91c6748537b7b0b0a8c5e3a40440f2d51	-
-deploy sextant_lc header	applied	applied	12	0	64e317847efb06be013d42f624f9f71c2687a5f486d717e6ad7806916a2ce81c	-
-deploy wrap_bridge segment 3	applied	applied	13	0	e67f908c8ebdfbfcaa003267cbb0c7ee7045e00c0b5fbedcf8d2a92f5b4882b5	-
-deploy wrap_bridge segment 2	applied	applied	14	0	317736301cc20af86f0923822f25effd94a3dc9c2fa16adcfb8a06091bd9b7cb	-
-deploy wrap_bridge segment 1	applied	applied	15	0	b05c76e163ee2d4ae1436c50fa7409d242634deed3ae87c629047a17b075b903	-
-deploy wrap_bridge segment 0	applied	applied	16	0	d6e10a59da4acc2801bd6da51514c10e473b45d04425af766950672622730bd1	-
-deploy wrap_bridge header	applied	applied	17	0	278af80c945a42112c67554e3ded2b52ec04aef6515cdf3262fa58fb3875864a	-
+deploy token segment 2	applied	applied	2	0	450f3d48f264faf5a4b0d583bfdb9a94a4e2076dd0e1dd6b637162c2474c9801	-
+deploy token segment 1	applied	applied	3	0	3603aba073d40aa418646b2b9a105445d29ef3f821784982dae7651d6bed0a46	-
+deploy token segment 0	applied	applied	4	0	df300154c2c64a74f386a586622c6e18fa216de43f88eb6f5be7c0532db99dda	-
+deploy token header	applied	applied	5	0	228b3f6e1df9d1f9f3e8c91e230f6552fbfd1fabbf2863fa36704f137e7abc3b	-
+deploy ata segment 2	applied	applied	6	0	c44f83db794f29baf07021c1ae304eb3c72189897cba6478eb5a6c11ec2d70fc	-
+deploy ata segment 1	applied	applied	7	0	43e61aec53cd631af8a54bd5963b160d06eed0c57e7de4b3a7a8db778a745d94	-
+deploy ata segment 0	applied	applied	8	0	0c768131387fbca53b9fd5f0f3604c27c4f232c41ba172224f4d1beb6fc3f760	-
+deploy ata header	applied	applied	9	0	31155e537bcf7b046cc4dfd534acf1e7d6507f70fb8d0416f92d19e2875cda78	-
+deploy sextant_lc segment 5	applied	applied	10	0	ed8930ce67c0bd37b083a567e8ae3cf4511e694df5c2702f153e24f80b2370e4	-
+deploy sextant_lc segment 4	applied	applied	11	0	3367461c9a85cd844027797955a376c0a6900496c0fecd4fd985077efabd7344	-
+deploy sextant_lc segment 3	applied	applied	12	0	2c40a7bf008566e8ada07d76ee99a54f86015e224e07136cb6d7a7636362ce42	-
+deploy sextant_lc segment 2	applied	applied	13	0	38d9662f22c9c4320899c118929fc5577de23cdf6898a26197e03c7e25849b75	-
+deploy sextant_lc segment 1	applied	applied	14	0	995404f64a758701d9f6b475e48c2c3ed048a8ac5d41f3e0e08cc5e999d5135f	-
+deploy sextant_lc segment 0	applied	applied	15	0	e836ccd28348c0a3010d3b22989f12ec5ac189b3dd851c871f4d6e33bae69e2a	-
+deploy sextant_lc header	applied	applied	16	0	f803f3dc8b3d6b36fb7c2f4397d0cc95cdf69d7af0512e1c567d7c747197aa2a	-
+deploy wrap_bridge segment 3	applied	applied	17	0	a592873ab2e26435cbf0a79ba0385714e62c5b8354769d7a28cb1be6865c6f07	-
+deploy wrap_bridge segment 2	applied	applied	18	0	bd66075ac42c2a98f400c9da2db7417b74e476d855744be1a4d1328ab8b64e2c	-
+deploy wrap_bridge segment 1	applied	applied	19	0	306cc63739340cb0cb45c8637892b6ff395b430a888df79ce643ffaf111b5b7d	-
+deploy wrap_bridge segment 0	applied	applied	20	0	b2ae01cfe91ab97575d981bbcff327128082fb5f296d25664e107097ae512590	-
+deploy wrap_bridge header	applied	applied	21	0	1f608e962e518a92b317e6b898fcacfb394ef080a10de6f959bf9dc8ab9a4622	-

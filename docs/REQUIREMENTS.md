@@ -29,9 +29,11 @@ Test names are function names: Foundry tests in `vault/test/`, executor
 tests in `executor-tests/tests/`. Everything here runs on LEZ v0.3 (the
 public testnet is v0.3.1); a port to LEZ v0.4.0-rc3 is on the `v0.4-spike`
 branch and is not counted below: there, on a local rc3 sequencer and anvil,
-ETH and an ERC-20 are claimed (public claims only), burned, and released from
-the vault through the committee verifier ([V04-PORT.md](V04-PORT.md) sections
-0 to 0.2); the private claim and burn and the zero-knowledge releases are not
+ETH and an ERC-20 are claimed (public claims only) into the destination's
+holdings of lez-programs' actor-model ATA program (one account, several
+wrapped tokens), burned, and released from the vault through the committee
+verifier ([V04-PORT.md](V04-PORT.md) sections
+0 to 0.3); the private claim and burn and the zero-knowledge releases are not
 ported yet (section 5 there).
 
 ## Functionality
@@ -147,7 +149,7 @@ Not numbered in the RFP; counted separately.
 | Target tokens: USDC, USDT, DAI, WETH | Partial | 6- and 18-decimal tokens and a USDT-shaped token in Foundry and the local run | Registered on Sepolia (M1) |
 | Admin authority (RFP-001) | Partial | Single-account stand-ins on both halves. On the vault, loosening and role changes go through a timelock (2 days by default, 1 to 30, 14 days to run), transfer is two-step and voids the old admin's pending operations: `test_admin_rotation_is_two_step_timelocked_and_voids_the_old_admins_operations`, `test_a_matured_operation_expires_after_the_grace_period` (Foundry) | The RFP-001 account model, with renounce, and transfer on LEZ (M1) |
 | Freeze authority (RFP-002) | Partial | Single-account stand-ins on both halves (F.14). On the vault, a pause-only guardian, replaced only through the admin's timelock and never by the admin's own account: `test_the_freezer_rotates_only_through_the_timelock_and_never_to_the_admin`, `test_the_freezer_cannot_become_the_admin` (Foundry) | The RFP-002 account model (M1) |
-| Token program and ATA compatibility (LP-0013) | Partial | Mint authority by PDA seed, no stored authority; mints to the owner's ATA; public: LEZ v0.3.0's token and ATA programs loaded on the testnet, which has no builtin token program | The canonical token and ATA programs of LEZ 0.4 (M1) |
+| Token program and ATA compatibility (LP-0013) | Partial | Mint authority by PDA seed, no stored authority; mints to the owner's ATA; public: LEZ v0.3.0's token and ATA programs loaded on the testnet, which has no builtin token program | The canonical token and ATA programs of LEZ 0.4 (M1): on the `v0.4-spike` branch, lez-programs `064b73f`'s actor-model token and ATA programs are adopted and run on a local rc3 sequencer ([V04-PORT.md](V04-PORT.md) §0.3), not yet on a public 0.4 network |
 | Logos Ethereum core module | Planned in M3 | | |
 | Wallet SDK | Planned in M3 | | |
 | RISC Zero zkVM | Met | Every program and guest built in RISC Zero's pinned builder, rebuilt and `cmp`'d in CI (README, "Reproducible binaries") | |

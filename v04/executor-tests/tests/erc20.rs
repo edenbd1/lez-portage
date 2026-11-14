@@ -6,10 +6,10 @@
 //! refusals that matter for a second denomination: a double claim, a root the
 //! vault never had, and the wrong token, at the claim and at the burn.
 //!
-//! One property of v0.4 without an ATA program shows here too: an account
-//! holds one token of a token program (its single token actor), so a
-//! destination that already holds wrapped ETH cannot receive wrapped USDT
-//! (`one_wrapped_token_per_account_without_an_ata`; docs/V04-PORT.md, gaps).
+//! Holdings are ATA holdings (lez-programs' actor-model ATA program), one per
+//! owner and wrapped token, so one account holds wrapped ETH and wrapped USDT
+//! side by side (`one_account_holds_several_wrapped_tokens`; before the ATA,
+//! an account's single token actor held one token: docs/V04-PORT.md).
 
 use wrap_bridge_v04::*;
 use wrap_executor_tests_v04::*;
@@ -81,7 +81,7 @@ fn an_erc20_deposit_is_minted_once() {
     let (d, c) = usdt_claim(&w);
     let out = claim(&mut w.ch, &cfg, &c).expect("the claim lands");
     assert!(out.cycles < GAS_CAP, "{}", out.cycles);
-    assert_eq!(balance(&w.ch, alice().id), d.amount);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &usdt), d.amount);
     assert_eq!(supply(&w.ch, &cfg, &usdt), d.amount);
     assert_eq!(entry_state(&w, &usdt).minted, d.amount);
     assert_eq!(entry_state(&w, &ETH).minted, 0, "the ETH entry is untouched");
@@ -95,7 +95,7 @@ fn an_erc20_deposit_is_minted_once() {
     let early = claim_message(&w.a, &cfg, &d, 2, alice().id, secret(&ALICE_SEED, 1), SLOT);
     assert_ne!(early.root, c.root);
     assert_eq!(refused(claim(&mut w.ch, &cfg, &early)), E_CLAIMED);
-    assert_eq!(balance(&w.ch, alice().id), d.amount, "nothing more was minted");
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &usdt), d.amount, "nothing more was minted");
     assert_eq!(supply(&w.ch, &cfg, &usdt), d.amount);
 }
 
@@ -121,7 +121,7 @@ fn an_erc20_claim_needs_a_root_the_vault_had() {
     let (_, mut c) = usdt_claim(&w);
     c.proof = w.a.unknown.1.clone();
     assert_eq!(refused(claim(&mut w.ch, &cfg, &c)), E_PROOF);
-    assert_eq!(balance(&w.ch, alice().id), 0);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &usdt), 0);
     assert_eq!(supply(&w.ch, &cfg, &usdt), 0);
 }
 
@@ -153,10 +153,10 @@ fn an_erc20_claim_is_refused_for_the_wrong_token() {
     bad.salt = [0x11; 32];
     let relayer = w.ch.fresh();
     assert_eq!(refused(w.ch.send("Claim", to, &actors, &[&relayer], &[pda], &Message::Claim(Box::new(bad)))), E_UNSUPPORTED);
-    assert_eq!(balance(&w.ch, alice().id), 0);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &usdt), 0);
     // None of these spent the nullifier: the honest claim still lands.
     claim(&mut w.ch, &cfg, &good).expect("the honest claim");
-    assert_eq!(balance(&w.ch, alice().id), 100_000_000);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &usdt), 100_000_000);
 }
 
 /// Freezes are per token: USDT minting frozen does not stop ETH, and the
@@ -183,7 +183,7 @@ fn an_erc20_freeze_and_cap_are_its_own() {
     assert_eq!(refused(claim(&mut w.ch, &cfg, &c)), E_CAP);
     set(&mut w.ch, usdt_policy()).unwrap();
     claim(&mut w.ch, &cfg, &c).expect("unfrozen, under the cap");
-    assert_eq!((balance(&w.ch, alice().id), balance(&w.ch, bob().id)), (100_000_000, b.amount));
+    assert_eq!((balance(&w.ch, &cfg, alice().id, &usdt), balance(&w.ch, &cfg, bob().id, &ETH)), (100_000_000, b.amount));
 }
 
 /// F.5 outbound for an ERC-20: the holder burns a permitted USDT amount; the
@@ -197,9 +197,9 @@ fn an_erc20_burn_takes_the_wrapped_token_out_and_appends_its_leaf() {
     let ec = wrap_core::eth_commitment(&[0x42; 20], 0, &[0x46; 32]);
     let out = burn(&mut w.ch, &cfg, &alice(), usdt, amount, ec).expect("the burn lands");
     assert!(out.cycles < GAS_CAP);
-    assert_eq!(balance(&w.ch, alice().id), minted - amount);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &usdt), minted - amount);
     assert_eq!(supply(&w.ch, &cfg, &usdt), minted - amount);
-    assert_eq!(balance(&w.ch, entry(&cfg, &usdt)), 0, "the escrow burned what it received");
+    assert_eq!(raw_balance(&w.ch, entry(&cfg, &usdt)), 0, "the entry's own holding is never used");
     let e = entry_state(&w, &usdt);
     assert_eq!((e.minted, e.burned), (minted, amount));
     let leaf = wrap_core::burn_leaf(&w.a.pairing, &usdt, amount, &ec);
@@ -226,48 +226,55 @@ fn an_erc20_burn_is_refused_for_the_wrong_amount_or_token() {
     let e = burn(&mut w.ch, &cfg, &alice(), usdt, usdt_policy().denominations[1], ec).expect_err("more than held");
     assert!(refusal(&e).is_none(), "the token program refuses the debit, not the bridge: {e}");
     let m = burn_message(&cfg, usdt, usdt_policy().denominations[0], ec, alice().id);
-    reverted_with(w.ch.send("Burn", br(burns(&cfg)), &burn_actors(&cfg, &usdt, alice().id), &[&bob()], &[], &m), "sender holding must authorize");
+    reverted_with(w.ch.send("Burn", br(burns(&cfg)), &burn_actors(&cfg, &usdt, alice().id), &[&bob()], &[], &m), "ATA owner must authorize spending");
     // Wrapped USDT burned as ETH: every ETH denomination is more than alice's
     // 100 USDT units, so the admin adds a 100-wei one for the test; the ETH
-    // entry accepts the amount and its escrow refuses alice's USDT.
+    // entry accepts the amount and burns from alice's wrapped-ETH holding,
+    // which does not exist: her USDT is out of its reach.
     let mut p = eth_policy();
     p.denominations.push(100);
     w.ch.send("SetPolicy", br(admin().id), &[br(entry(&cfg, &ETH))], &[&admin()], &[], &Message::SetPolicy { config: cfg.clone(), eth_token: ETH, policy: p }).unwrap();
     let m = burn_message(&cfg, ETH, 100, ec, alice().id);
-    reverted_with(w.ch.send("Burn", br(burns(&cfg)), &burn_actors(&cfg, &ETH, alice().id), &[&alice()], &[], &m), "recipient holds another token");
-    // Wrapped ETH burned as USDT: bob claims his ETH deposit, then burns 100 USDT's worth of it.
-    open_holding(&mut w.ch, &bob(), &cfg, &ETH).unwrap();
+    let e = w.ch.send("Burn", br(burns(&cfg)), &burn_actors(&cfg, &ETH, alice().id), &[&alice()], &[], &m).expect_err("no wrapped ETH holding");
+    assert!(refusal(&e).is_none(), "{e}");
+    // Wrapped ETH burned as USDT: bob claims his ETH deposit, then burns 100
+    // USDT: the USDT entry burns from his wrapped-USDT holding, which he does not have.
     let b = w.a.deposits[2].clone();
     claim(&mut w.ch, &cfg, &claim_message(&w.a, &cfg, &b, 4, bob().id, secret(&BOB_SEED, 0), SLOT)).unwrap();
-    reverted_with(burn(&mut w.ch, &cfg, &bob(), usdt, usdt_policy().denominations[0], ec), "recipient holds another token");
+    let e = burn(&mut w.ch, &cfg, &bob(), usdt, usdt_policy().denominations[0], ec).expect_err("no wrapped USDT holding");
+    assert!(refusal(&e).is_none(), "{e}");
     // Nothing moved; the tree is empty.
-    assert_eq!(balance(&w.ch, alice().id), minted);
-    assert_eq!(balance(&w.ch, bob().id), b.amount);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &usdt), minted);
+    assert_eq!(balance(&w.ch, &cfg, bob().id, &ETH), b.amount);
     assert_eq!(supply(&w.ch, &cfg, &usdt), minted);
     assert_eq!(supply(&w.ch, &cfg, &ETH), b.amount);
     assert_eq!(tree(&w).next_index, 0);
 }
 
-/// Without an ATA program a claim mints to the destination's own token actor,
-/// and an account has one: alice, holding wrapped ETH, cannot receive her
-/// USDT deposit. The claim reverts whole (the nullifier is not spent), so it
-/// can land once she claims into an account that holds wrapped USDT; but the
-/// deposit committed to this account, so in practice a depositor commits each
-/// token to its own account until an ATA is adopted.
+/// With the ATA program, one account holds several wrapped tokens: alice
+/// claims her ETH deposit and her USDT deposit into the same account (two ATA
+/// holdings, each created by its claim), and burns each. Before the ATA, her
+/// single token actor held wrapped ETH and the USDT claim reverted ("recipient
+/// holds another token"); this test pinned that and is now its reverse.
 #[test]
-fn one_wrapped_token_per_account_without_an_ata() {
+fn one_account_holds_several_wrapped_tokens() {
     let mut w = world();
     let cfg = w.cfg.clone();
-    open_holding(&mut w.ch, &alice(), &cfg, &ETH).unwrap();
+    let usdt = w.a.usdt;
     let eth = w.a.deposits[0].clone();
-    claim(&mut w.ch, &cfg, &claim_message(&w.a, &cfg, &eth, 4, alice().id, secret(&ALICE_SEED, 0), SLOT)).unwrap();
-    // Her holding is of wrapped ETH; she cannot open a second one.
-    let e = open_holding(&mut w.ch, &alice(), &cfg, &w.a.usdt.clone()).expect_err("one token actor per account");
-    assert!(refusal(&e).is_none(), "{e}");
-    let (_, c) = usdt_claim(&w);
-    reverted_with(claim(&mut w.ch, &cfg, &c), "recipient holds another token");
-    assert!(w.ch.actor_state(claim_actors(&cfg, &c).0.account_id, BR).is_empty(), "the nullifier is not spent");
-    assert_eq!(supply(&w.ch, &cfg, &w.a.usdt), 0);
+    claim(&mut w.ch, &cfg, &claim_message(&w.a, &cfg, &eth, 4, alice().id, secret(&ALICE_SEED, 0), SLOT)).expect("wrapped ETH");
+    let (d, c) = usdt_claim(&w);
+    claim(&mut w.ch, &cfg, &c).expect("wrapped USDT, into the same account");
+    let (he, hu) = (holding(&cfg, alice().id, &ETH), holding(&cfg, alice().id, &usdt));
+    assert_ne!(he, hu, "two holdings");
+    assert!(matches!(w.ch.token_state(he), Some(token::TokenState::Holding(h)) if h.definition_id == definition(&cfg, &ETH) && h.balance == eth.amount));
+    assert!(matches!(w.ch.token_state(hu), Some(token::TokenState::Holding(h)) if h.definition_id == definition(&cfg, &usdt) && h.balance == d.amount));
+    assert!(w.ch.token_state(alice().id).is_none(), "her own token actor holds nothing");
+    burn(&mut w.ch, &cfg, &alice(), usdt, usdt_policy().denominations[0], [0x49; 32]).expect("burn the USDT");
+    burn(&mut w.ch, &cfg, &alice(), ETH, eth_policy().denominations[0], [0x4a; 32]).expect("burn 0.1 ETH");
+    assert_eq!((balance(&w.ch, &cfg, alice().id, &usdt), balance(&w.ch, &cfg, alice().id, &ETH)), (0, eth.amount - eth_policy().denominations[0]));
+    assert_eq!((supply(&w.ch, &cfg, &usdt), supply(&w.ch, &cfg, &ETH)), (0, eth.amount - eth_policy().denominations[0]));
+    assert_eq!(tree(&w).next_index, 2);
 }
 
 /// Cycles of the ERC-20 claim and burn (printed with --nocapture).

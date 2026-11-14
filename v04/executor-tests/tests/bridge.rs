@@ -47,7 +47,7 @@ fn register_creates_a_zero_supply_definition_minted_only_by_the_entry() {
         }
         other => panic!("{other:?}"),
     }
-    // The entry's token actor is the (empty) burn escrow.
+    // The entry's token actor is the zero holding NewDefinition requires; it stays empty.
     assert!(matches!(w.ch.token_state(entry(&w.cfg, &ETH)), Some(token::TokenState::Holding(h)) if h.balance == 0 && h.definition_id == definition(&w.cfg, &ETH)));
     // The burn tree exists from Init.
     let f: wrap_core::Frontier = borsh::from_slice(&w.ch.actor_state(burns(&w.cfg), BR)).unwrap();
@@ -73,7 +73,7 @@ fn a_deposit_is_minted_once_to_its_committed_destination() {
     let c = claim_message(&w.a, &cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), SLOT);
     let out = claim(&mut w.ch, &cfg, &c).expect("the claim lands");
     assert!(out.cycles < GAS_CAP, "within one block's execution gas: {}", out.cycles);
-    assert_eq!(balance(&w.ch, alice().id), d.amount);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &ETH), d.amount);
     assert_eq!(supply(&w.ch, &cfg, &ETH), d.amount);
     assert_eq!(entry_state(&w, &ETH).minted, d.amount);
     let nf = wrap_core::nullifier(&w.a.pairing, &c.secret, c.index);
@@ -86,7 +86,7 @@ fn a_deposit_is_minted_once_to_its_committed_destination() {
     let early = claim_message(&w.a, &cfg, &d, 1, alice().id, secret(&ALICE_SEED, 0), SLOT);
     assert_ne!(early.root, c.root);
     assert_eq!(refused(claim(&mut w.ch, &cfg, &early)), E_CLAIMED);
-    assert_eq!(balance(&w.ch, alice().id), d.amount, "nothing more was minted");
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &ETH), d.amount, "nothing more was minted");
 }
 
 /// Security #3: a relayer cannot redirect a claim; a wrong opening has no leaf.
@@ -102,7 +102,7 @@ fn a_claim_cannot_be_redirected_or_forged() {
     let mut c = claim_message(&w.a, &cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), SLOT);
     c.amount += 1;
     assert_eq!(refused(claim(&mut w.ch, &cfg, &c)), E_PATH);
-    assert_eq!(balance(&w.ch, bob().id), 0);
+    assert_eq!(balance(&w.ch, &cfg, bob().id, &ETH), 0);
 }
 
 /// The root must be the vault's: a proof of an unknown root fails Attest, a
@@ -132,30 +132,32 @@ fn the_root_is_attested_by_sextant() {
     // before the program runs; the claim reverts all the same.
     let c = claim_message(&w.a, &cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), SLOT + 1);
     reverted_with(claim(&mut w.ch, &cfg, &c), "violated execution rules");
-    assert_eq!(balance(&w.ch, alice().id), 0);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &ETH), 0);
 }
 
-/// The destination must have opened its holding (no ATA program on v0.4
-/// yet): a destination account that does not exist is not admitted, and one
-/// that exists without a holding of this token is refused by the token
-/// program's credit.
+/// The claim creates the destination's ATA holding (ATA `Create`, idempotent):
+/// a destination that has never transacted needs no prior transaction, a
+/// second claim lands in the same holding, and whatever the destination's own
+/// token actor holds is irrelevant.
 #[test]
-fn a_claim_needs_the_destinations_holding() {
+fn a_claim_creates_the_destinations_holding() {
     let mut w = world();
     let cfg = w.cfg.clone();
+    assert_eq!(w.ch.state.get_account_by_id(alice().id), lee_core::account::Account::default(), "alice has never transacted");
+    assert!(w.ch.token_state(holding(&cfg, alice().id, &ETH)).is_none(), "and has no holding");
     let d = w.a.deposits[0].clone();
-    let c = claim_message(&w.a, &cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), SLOT);
-    reverted_with(claim(&mut w.ch, &cfg, &c), "violated execution rules");
-    // Alice exists now and holds another token: the token program's credit refuses.
+    claim(&mut w.ch, &cfg, &claim_message(&w.a, &cfg, &d, 4, alice().id, secret(&ALICE_SEED, 0), SLOT)).expect("the claim creates the holding");
+    assert!(matches!(w.ch.token_state(holding(&cfg, alice().id, &ETH)), Some(token::TokenState::Holding(h)) if h.definition_id == definition(&cfg, &ETH) && h.balance == d.amount));
+    // Alice's own token actor now holds a token of her own; the second claim
+    // (vectors/anvil deposit 3, alice, 0.1 ETH) lands in the existing holding.
     let junk = w.ch.fresh();
     let nd = token::Message::NewDefinition { name: "junk".into(), total_supply: 1, mint_authority: None, holding: alice().id };
     w.ch.send("NewDefinition", tk(junk.id), &[tk(alice().id)], &[&junk, &alice()], &[], &nd).unwrap();
-    reverted_with(claim(&mut w.ch, &cfg, &c), "recipient holds another token");
-    assert_eq!(supply(&w.ch, &cfg, &ETH), 0, "both reverted whole: no supply was raised");
-    // The reverts dropped everything: the nullifier is not spent, so the
-    // claim lands later, to an account that holds the wrapped token.
-    let nul = claim_actors(&cfg, &c).0.account_id;
-    assert!(w.ch.actor_state(nul, BR).is_empty());
+    let d4 = w.a.deposits[3].clone();
+    claim(&mut w.ch, &cfg, &claim_message(&w.a, &cfg, &d4, 4, alice().id, secret(&ALICE_SEED, 2), SLOT)).expect("into the existing holding");
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &ETH), d.amount + d4.amount);
+    assert_eq!(supply(&w.ch, &cfg, &ETH), d.amount + d4.amount);
+    assert_eq!(raw_balance(&w.ch, alice().id), 1, "her own token actor is untouched");
 }
 
 #[test]
@@ -212,9 +214,9 @@ fn a_burn_takes_the_wrapped_token_out_and_appends_its_leaf() {
     let ec = wrap_core::eth_commitment(&[0x42; 20], 0, &[0x43; 32]);
     let out = burn(&mut w.ch, &cfg, &alice(), ETH, amount, ec).expect("the burn lands");
     assert!(out.cycles < GAS_CAP);
-    assert_eq!(balance(&w.ch, alice().id), minted - amount);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &ETH), minted - amount);
     assert_eq!(supply(&w.ch, &cfg, &ETH), minted - amount);
-    assert_eq!(balance(&w.ch, entry(&cfg, &ETH)), 0, "the escrow burned what it received");
+    assert_eq!(raw_balance(&w.ch, entry(&cfg, &ETH)), 0, "the entry's own holding is never used");
     let e = entry_state(&w, &ETH);
     assert_eq!((e.minted, e.burned), (minted, amount));
     let leaf = wrap_core::burn_leaf(&w.a.pairing, &ETH, amount, &ec);
@@ -231,15 +233,18 @@ fn a_burn_is_refused_unless_it_is_the_holders_wrapped_token_in_a_permitted_amoun
     let ec = [0x44; 32];
     // Not a denomination.
     assert_eq!(refused(burn(&mut w.ch, &cfg, &alice(), ETH, 12345, ec)), E_AMOUNT);
-    // Unsigned: bob sends alice's burn; the token program refuses the debit.
+    // Unsigned: bob sends alice's burn; her ATA actor refuses to spend.
     let m = burn_message(&cfg, ETH, eth_policy().denominations[0], ec, alice().id);
-    reverted_with(w.ch.send("Burn", br(burns(&cfg)), &burn_actors(&cfg, &ETH, alice().id), &[&bob()], &[], &m), "sender holding must authorize");
-    // Another token's holding: a worthless token bob mints himself, burned
-    // as if it were wrapped ETH. The escrow refuses another definition.
+    reverted_with(w.ch.send("Burn", br(burns(&cfg)), &burn_actors(&cfg, &ETH, alice().id), &[&bob()], &[], &m), "ATA owner must authorize spending");
+    // Another token's holding: a worthless token bob mints himself into his
+    // own token actor, burned as if it were wrapped ETH. The burn reaches
+    // only bob's ATA holding of wrapped ETH, which he does not have.
     let junk = w.ch.fresh();
     let nd = token::Message::NewDefinition { name: "junk".into(), total_supply: 10u128.pow(19), mint_authority: None, holding: bob().id };
     w.ch.send("NewDefinition", tk(junk.id), &[tk(bob().id)], &[&junk, &bob()], &[], &nd).expect("bob's own token");
-    reverted_with(burn(&mut w.ch, &cfg, &bob(), ETH, eth_policy().denominations[0], ec), "recipient holds another token");
+    let e = burn(&mut w.ch, &cfg, &bob(), ETH, eth_policy().denominations[0], ec).expect_err("bob holds no wrapped ETH");
+    assert!(refusal(&e).is_none(), "{e}");
+    assert_eq!(raw_balance(&w.ch, bob().id), 10u128.pow(19), "bob's own token is untouched");
     // A wrong salt is not this token.
     let mut m = burn_message(&cfg, ETH, eth_policy().denominations[0], ec, alice().id);
     if let Message::Burn { salt, .. } = &mut m {
@@ -247,7 +252,7 @@ fn a_burn_is_refused_unless_it_is_the_holders_wrapped_token_in_a_permitted_amoun
     }
     assert_eq!(refused(w.ch.send("Burn", br(burns(&cfg)), &burn_actors(&cfg, &ETH, alice().id), &[&alice()], &[], &m)), E_UNSUPPORTED);
     // Nothing moved; the tree is empty.
-    assert_eq!(balance(&w.ch, alice().id), minted);
+    assert_eq!(balance(&w.ch, &cfg, alice().id, &ETH), minted);
     assert_eq!(supply(&w.ch, &cfg, &ETH), minted);
     let f: wrap_core::Frontier = borsh::from_slice(&w.ch.actor_state(burns(&cfg), BR)).unwrap();
     assert_eq!(f.next_index, 0);

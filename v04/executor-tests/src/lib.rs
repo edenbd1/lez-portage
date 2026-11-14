@@ -1,5 +1,6 @@
-//! A one-node LEZ v0.4.0-rc3 chain in memory with three actor-model programs
-//! deployed: the canonical token program (lez-programs' actor-model port),
+//! A one-node LEZ v0.4.0-rc3 chain in memory with four actor-model programs
+//! deployed: the canonical token program and the associated token account
+//! program (lez-programs' actor-model ports, 064b73f),
 //! Sextant's light client on v0.4 (`sextant_lc`, lez-sextant branch `v0.4`,
 //! `v04/programs/sextant`), and `wrap_bridge` (`v04/programs/wrap_bridge`).
 //!
@@ -44,6 +45,8 @@ use wrap_core::H256;
 pub const GAS_CAP: u64 = 10_000_000;
 
 pub const TOKEN: AccountId = AccountId::new(*b"token/v0.4/test/header/000000001");
+/// The associated token account program (`ata.bin`, lez-programs 064b73f).
+pub const ATA: AccountId = AccountId::new(*b"ata/v0.4/test/header/00000000001");
 /// Sextant's light client (`sextant_lc.bin`, lez-sextant branch `v0.4`).
 pub const LC: AccountId = AccountId::new(*b"sextant_lc/v0.4/test/header/0001");
 /// The light-client instance the bridge's claims attest against.
@@ -127,7 +130,12 @@ pub struct Chain {
 impl Chain {
     #[must_use]
     pub fn new() -> Self {
-        let state = V03State::new().with_named_programs([(TOKEN, program("token.bin")), (LC, program("sextant_lc.bin")), (BR, program("wrap_bridge.bin"))]);
+        let state = V03State::new().with_named_programs([
+            (TOKEN, program("token.bin")),
+            (ATA, program("ata.bin")),
+            (LC, program("sextant_lc.bin")),
+            (BR, program("wrap_bridge.bin")),
+        ]);
         Self { state, block: 10, now: 1_760_000_000_000, log: vec![], next_key: 1000 }
     }
 
@@ -395,6 +403,7 @@ pub fn config(vault: [u8; 20]) -> Config {
         chain_id: ANVIL_CHAIN_ID,
         vault,
         token_program: TOKEN,
+        ata_program: ATA,
         admin: admin().id,
         freezer: freezer().id,
     }
@@ -426,6 +435,13 @@ pub fn definition(cfg: &Config, t: &[u8; 20]) -> AccountId {
 pub fn burns(cfg: &Config) -> AccountId {
     wrap_bridge_v04::burns_account(&BR, &ca(cfg))
 }
+/// `owner`'s holding of the wrapped `t`: the token actor of its ATA PDA.
+pub fn holding(cfg: &Config, owner: AccountId, t: &[u8; 20]) -> AccountId {
+    wrap_bridge_v04::ata::holding(&cfg.ata_program, &cfg.token_program, &owner, &definition(cfg, t))
+}
+pub fn ata_seed(cfg: &Config, owner: AccountId, t: &[u8; 20]) -> lee_core::program::PdaSeed {
+    wrap_bridge_v04::ata::seed(&cfg.token_program, &owner, &definition(cfg, t))
+}
 
 pub fn init_bridge(c: &mut Chain, cfg: &Config) -> Result<Outcome, String> {
     let (cfg_id, seed) = wrap_bridge_v04::config_pda(&BR, cfg);
@@ -439,10 +455,16 @@ pub fn register(c: &mut Chain, signer: &Key, cfg: &Config, eth_token: [u8; 20], 
     c.send("Register", br(signer.id), &actors, &[signer], &[], &m)
 }
 
-/// The holder opens its holding of the wrapped `eth_token` (holding -> definition -> holding).
+/// Anyone (a fresh relayer) opens `holder`'s ATA holding of the wrapped
+/// `eth_token` (ATA `Create`, permissionless and idempotent: ata -> holding
+/// -> definition -> holding). A claim does the same itself; this is for a
+/// holder who wants the holding before any claim.
 pub fn open_holding(c: &mut Chain, holder: &Key, cfg: &Config, eth_token: &[u8; 20]) -> Result<Outcome, String> {
     let def = definition(cfg, eth_token);
-    c.send("InitializeHolding", tk(holder.id), &[tk(def)], &[holder], &[], &token::Message::InitializeHolding { definition: def })
+    let h = holding(cfg, holder.id, eth_token);
+    let relayer = c.fresh();
+    let m = wrap_bridge_v04::ata::Message::Create { token_program_id: cfg.token_program, owner: holder.id, definition: def };
+    c.send("ATA Create", Actor::new(h, cfg.ata_program), &[tk(h), tk(def)], &[&relayer], &[(cfg.ata_program, ata_seed(cfg, holder.id, eth_token))], &m)
 }
 
 pub fn claim_message(a: &Anvil, cfg: &Config, d: &Deposit, n: usize, destination: AccountId, secret: H256, slot: u64) -> wrap_bridge_v04::Claim {
@@ -476,23 +498,34 @@ pub fn claim_actors_with(me: &AccountId, cfg: &Config, c: &wrap_bridge_v04::Clai
     let hdr = wrap_bridge_v04::header_account(&cfg.sextant, &cfg.instance_id, c.slot);
     let entry = wrap_bridge_v04::entry_account(me, &cfg_id, &c.eth_token);
     let def = wrap_bridge_v04::definition_account(me, &cfg_id, &c.eth_token, &c.salt).0;
-    let tp = cfg.token_program;
+    let (tp, ap) = (cfg.token_program, cfg.ata_program);
+    let h = wrap_bridge_v04::ata::holding(&ap, &tp, &c.destination, &def);
     let actors = vec![
         Actor::new(hdr, cfg.sextant),
         Actor::new(cfg_id, *me),
         Actor::new(entry, *me),
         Actor::new(entry, tp),
         Actor::new(def, tp),
-        Actor::new(c.destination, tp),
+        Actor::new(h, ap),
+        Actor::new(h, tp),
     ];
     (Actor::new(nul, *me), actors, (*me, seed))
+}
+
+/// The evidence admitting the destination's ATA holding, fresh or not.
+pub fn claim_holding_pda(cfg: &Config, c: &wrap_bridge_v04::Claim) -> (AccountId, lee_core::program::PdaSeed) {
+    (cfg.ata_program, wrap_bridge_v04::ata::seed(&cfg.token_program, &c.destination, &wrap_bridge_v04::definition_account(&BR, &config_account(&BR, cfg), &c.eth_token, &c.salt).0))
 }
 
 /// A claim sent by a brand-new relayer account.
 pub fn claim(ch: &mut Chain, cfg: &Config, c: &wrap_bridge_v04::Claim) -> Result<Outcome, String> {
     let (to, actors, pda) = claim_actors(cfg, c);
     let relayer = ch.fresh();
-    ch.send("Claim", to, &actors, &[&relayer], &[pda], &wrap_bridge_v04::Message::Claim(Box::new(c.clone())))
+    let mut pdas = vec![pda];
+    if ch.state.get_account_by_id(actors[5].account_id) == lee_core::account::Account::default() {
+        pdas.push(claim_holding_pda(cfg, c));
+    }
+    ch.send("Claim", to, &actors, &[&relayer], &pdas, &wrap_bridge_v04::Message::Claim(Box::new(c.clone())))
 }
 
 pub fn burn_message(cfg: &Config, eth_token: [u8; 20], amount: u128, eth_commitment: H256, holder: AccountId) -> wrap_bridge_v04::Message {
@@ -500,7 +533,8 @@ pub fn burn_message(cfg: &Config, eth_token: [u8; 20], amount: u128, eth_commitm
 }
 
 pub fn burn_actors(cfg: &Config, eth_token: &[u8; 20], holder: AccountId) -> Vec<Actor> {
-    vec![br(ca(cfg)), br(entry(cfg, eth_token)), tk(holder), tk(entry(cfg, eth_token)), tk(definition(cfg, eth_token))]
+    let h = holding(cfg, holder, eth_token);
+    vec![br(ca(cfg)), br(entry(cfg, eth_token)), Actor::new(holder, cfg.ata_program), tk(h), tk(definition(cfg, eth_token))]
 }
 
 /// `holder` burns `amount` of the wrapped `eth_token`, signing as the holder.
@@ -509,8 +543,14 @@ pub fn burn(ch: &mut Chain, cfg: &Config, holder: &Key, eth_token: [u8; 20], amo
     ch.send("Burn", br(burns(cfg)), &burn_actors(cfg, &eth_token, holder.id), &[holder], &[], &m)
 }
 
-pub fn balance(ch: &Chain, holder: AccountId) -> u128 {
-    match ch.token_state(holder) {
+/// `owner`'s balance of the wrapped `t` (its ATA holding).
+pub fn balance(ch: &Chain, cfg: &Config, owner: AccountId, t: &[u8; 20]) -> u128 {
+    raw_balance(ch, holding(cfg, owner, t))
+}
+
+/// The balance of the token actor at `id` itself (the entry's zero holding).
+pub fn raw_balance(ch: &Chain, id: AccountId) -> u128 {
+    match ch.token_state(id) {
         Some(token::TokenState::Holding(h)) => h.balance,
         _ => 0,
     }

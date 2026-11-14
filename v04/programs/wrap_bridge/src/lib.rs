@@ -23,12 +23,16 @@
 //! - **config** `sha256("config" ‖ borsh(Config))`: the global freeze flags.
 //! - **burns** `sha256("burns" ‖ config)`: the burn tree's frontier, created by Init.
 //! - **entry** `sha256("token" ‖ config ‖ eth_token)`: one registered token. The
-//!   same account's *token* actor is the wrapped token's **mint authority** and
-//!   its **burn escrow** (a holding of the wrapped token, empty at rest).
+//!   same account's *token* actor is the wrapped token's **mint authority** (and
+//!   the zero holding the token program's `NewDefinition` requires).
 //! - **nullifier** `sha256("nullifier" ‖ config ‖ nf)`: written once per claimed deposit.
 //!
 //! and in the token program, the **definition** `sha256("definition" ‖ config ‖
 //! eth_token ‖ salt)` (a PDA of this program, created by Register with zero supply).
+//! Holdings are **associated token accounts** (lez-programs' ATA program on
+//! the actor model, [`ata`]): owner `o`'s holding of definition `d` is the
+//! token actor of the ATA program's PDA `sha256(token_program ‖ o ‖ d)`,
+//! written `ata(o, d)` below, so one account holds every wrapped token.
 //!
 //! Message flow (`→` sync, `⇢` async; every actor is declared by the transaction):
 //!
@@ -38,17 +42,25 @@
 //!                                  → entry(Register) → token:definition(NewDefinition) → token:entry(InitHolding)
 //! Claim     root → nullifier(Claim) → sextant:header(Attest)
 //!                                   → config(CheckLive)
-//!                                   → entry(Mint) → token:entry(Mint) → token:definition(IncreaseSupply) ⇢ token:destination(IncreaseBalance)
+//!                                   → entry(Mint) → ata:ata(destination, d)(Create) → token:ata(destination, d)(InitializeHolding) (idempotent)
+//!                                                 → token:entry(Mint) → token:definition(IncreaseSupply) ⇢ token:ata(destination, d)(IncreaseBalance)
 //! Burn      root → burns(Burn)      → config(CheckLive)
-//!                                   → entry(Burn) → token:holder(Transfer) ⇢ token:entry(IncreaseBalance)
-//!                                                 → token:entry(Burn) → token:definition(DecreaseSupply)
+//!                                   → entry(Burn) → ata:holder(Burn) → token:ata(holder, d)(Burn) → token:definition(DecreaseSupply)
 //! ```
+//!
+//! The claim creates the destination's holding itself (the ATA's `Create` is
+//! permissionless and idempotent), so a fresh destination needs no prior
+//! transaction. A burn reaches the holder's holding only through the holder's
+//! own ATA actor, which requires the holder's authorization, and only its
+//! holding of this entry's definition: the burn is of the wrapped token by
+//! construction.
 //!
 //! Burn is accepted **only as a transaction's root call** (`from == None`): its
 //! leaf is then a function of the root message alone, which a block carries,
 //! and the block's `reverted` list says whether it took effect. That is what
 //! makes a public burn derivable from LEZ blocks on v0.4 (chain/v04).
 
+pub mod ata;
 pub mod token;
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -99,10 +111,12 @@ pub struct Config {
     pub instance_id: H256,
     pub chain_id: u64,
     pub vault: [u8; 20],
-    /// The canonical token program (lez-programs). No ATA program: it has no
-    /// actor-model port yet, so a claim mints to the committed account's own
-    /// token actor (one token per account per token program, as on v0.3).
+    /// The canonical token program (lez-programs).
     pub token_program: AccountId,
+    /// The associated token account program (lez-programs' actor-model ATA):
+    /// a claim mints to the destination's ATA holding, a burn spends the
+    /// holder's.
+    pub ata_program: AccountId,
     pub admin: AccountId,
     pub freezer: AccountId,
 }
@@ -144,7 +158,7 @@ pub enum Message {
     /// To this deposit's nullifier PDA. Anyone (a relayer) may send it.
     Claim(Box<Claim>),
     /// To the burn tree PDA, as the transaction's root call only. `holder`
-    /// authorizes (signs); its token actor must hold the wrapped token. The
+    /// authorizes (signs); its ATA holding of the wrapped token is debited. The
     /// first three fields are the leaf's (chain/v04 reads them from the
     /// block without decoding the rest; pinned by a test).
     Burn { eth_token: [u8; 20], amount: u128, eth_commitment: H256, salt: H256, holder: AccountId, config: Config },
@@ -164,7 +178,8 @@ pub struct Claim {
     pub proof: AccountStorageProof,
     pub index: u64,
     pub path: Vec<H256>,
-    /// The account the deposit committed to: its token actor receives the mint.
+    /// The account the deposit committed to: its ATA holding of the wrapped
+    /// token receives the mint (created by the claim if it does not exist).
     pub destination: AccountId,
     pub secret: H256,
 }
@@ -430,24 +445,30 @@ fn internal(input: &ReceiveInput, m: Internal) -> Response {
             let outstanding = e.minted - e.burned;
             refuse_unless(outstanding.checked_add(amount).is_some_and(|o| o <= e.policy.mint_cap), E_CAP, "the token's supply cap is reached: retry later");
             e.minted += amount;
-            let mint = token::Message::Mint { definition: e.definition, to, amount };
-            Response::set_state(put(&e)).send(SyncMessage::new(Actor::new(entry, config.token_program), &mint).with_pda_seeds([seed]))
+            let (tp, ap, def) = (config.token_program, config.ata_program, e.definition);
+            // The holding's own ATA actor creates it (any ATA actor may; this
+            // one is admitted by the holding's PDA evidence even when the
+            // destination account does not exist yet).
+            let holding = ata::holding(&ap, &tp, &to, &def);
+            let create = ata::Message::Create { token_program_id: tp, owner: to, definition: def };
+            let mint = token::Message::Mint { definition: def, to: holding, amount };
+            Response::set_state(put(&e))
+                .send_sync(Actor::new(holding, ap), &create)
+                .send(SyncMessage::new(Actor::new(entry, tp), &mint).with_pda_seeds([seed]))
         }
         Internal::Burn { config, eth_token, salt, amount, holder } => {
             let ca = config_account(&me, &config);
-            let (entry, seed) = entry_pda(&me, &ca, &eth_token);
+            let entry = entry_account(&me, &ca, &eth_token);
             expect_receiver(input, entry, "Burn goes to the token's entry");
             let mut e = entry_of(pre, &salt);
             refuse_unless(!e.frozen_burn, E_FROZEN, "burning of this token is frozen");
             refuse_unless(e.policy.denominations.contains(&amount), E_AMOUNT, "burn one of the token's permitted amounts");
             e.burned += amount;
-            let tp = config.token_program;
-            // The holder's tokens move into the entry's escrow holding, which
-            // refuses any other definition's tokens, then the escrow burns
-            // them: the burn is of the wrapped token, by construction.
-            Response::set_state(put(&e))
-                .send_sync(Actor::new(holder, tp), &token::Message::Transfer { to: entry, amount })
-                .send(SyncMessage::new(Actor::new(entry, tp), &token::Message::Burn { amount }).with_pda_seeds([seed]))
+            // The holder's own ATA actor (it requires the holder's
+            // authorization) burns from the holder's holding of this entry's
+            // definition only: the burn is of the wrapped token, by construction.
+            let burn = ata::Message::Burn { token_program_id: config.token_program, definition: e.definition, amount };
+            Response::set_state(put(&e)).send_sync(Actor::new(holder, config.ata_program), &burn)
         }
     }
 }

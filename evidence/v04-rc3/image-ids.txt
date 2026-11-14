@@ -1,12 +1,16 @@
 # v04/artifacts at LEZ v0.4.0-rc3 (bafd07be), 2026-11-14: every binary a reproducible Docker build
-# in RISC Zero's pinned builder image r0.1.91.1 (DOCKER=1 v04/scripts/build-guests.sh token wrap_bridge
+# in RISC Zero's pinned builder image r0.1.91.1 (DOCKER=1 v04/scripts/build-guests.sh token ata wrap_bridge
 # lez_chain_v04 sextant); CI's reproduce-v04 job rebuilds each on a clean runner and cmp's it.
-# token: lez-programs refactor/lez-v0.4.x @ 2801ea1, lee_core pin moved to the v0.4.0-rc3 tag, lockfile v04/locks/token-guest.Cargo.lock
-# wrap_bridge: v04/programs/wrap_bridge
+# token: lez-programs 064b73f (refactor/ata-lez-v0.4.x), lee_core pin moved to the v0.4.0-rc3 tag, lockfile v04/locks/token-guest.Cargo.lock
+#        (its source differs from 2801ea1 in comments only; the panic locations move, so the bytes and ImageID change)
+# ata: lez-programs 064b73f, the associated token account program's actor-model port, same pin, lockfile v04/locks/ata-guest.Cargo.lock
+# wrap_bridge: v04/programs/wrap_bridge (claims mint to the destination's ATA holding, burns go through the holder's ATA actor)
 # lez_chain_v04: zk/lez_chain_v04 (the v0.4 chain guest; not deployed on LEZ, proven off chain)
 # sextant_lc: lez-sextant 1e55629a80117bc9e8caed35439df86ec6433dff, built by that repository's own script (unchanged)
-# The earlier local-toolchain builds (token 7b551db2, wrap_bridge eed96b93, lez_chain_v04 23396bb9) are replaced.
-token 230252 bytes, ImageID 5a238c4922c0eea070a29d9e2438cff6a03bd56a4293e3488570a46418fba9d1
-wrap_bridge 411136 bytes, ImageID 5658d68962190df5dc84f54a18cb22b5431c630e717b997ae71705c0afbc2df3
+# Replaced: token 5a238c49 (lez-programs 2801ea1), wrap_bridge 5658d689 (no ATA); earlier local-toolchain builds
+# (token 7b551db2, wrap_bridge eed96b93, lez_chain_v04 23396bb9).
+token 230252 bytes, ImageID 1d13b4592b0d51539e495ebc9e8e8a87f08300fa6324228aafe6a8a59e29c41a
+ata 266796 bytes, ImageID e47d5152b0c882a408b14cf6e44aad836b2e73a791006df2fc6a56f587308940
+wrap_bridge 417728 bytes, ImageID 9528e0b847872508e0e5efd853381b60a91c88dd654a98e15185006424711170
 lez_chain_v04 291496 bytes, ImageID 9da6eb51f279f827a6b6f04f524c1c958f0fdfe2ff711aa34b36e6bfb3ae5c2c
 sextant_lc 616172 bytes, ImageID bf3df59e28d180ca1109cc39b0a5fd479106d007b49f1d1dc5e48aa8fc6e530a

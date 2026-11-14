@@ -2,12 +2,13 @@
 //! v0.4.0-rc3 sequencer (v04/scripts/e2e-seq.sh runs a local standalone one).
 //! The v0.3 client (cli/, `wrap` on LEZ v0.3) drives the same steps on v0.3.
 //!
-//! It loads the three committed programs (v04/artifacts: token, sextant_lc,
-//! wrap_bridge) through the program loader, writes the deposit plan the vault
+//! It loads the four committed programs (v04/artifacts: token, ata,
+//! sextant_lc, wrap_bridge) through the program loader, writes the deposit plan the vault
 //! is deployed and funded with (scripts/anvil_deposits.py), initialises
 //! Sextant's light client on a devnet beacon header around the anvil block,
 //! initialises the bridge, registers ETH and the ERC-20 (a USDT-shaped token),
-//! opens holdings, sends claims and burns, reads balances, and gives a burn's
+//! opens ATA holdings (a claim also creates its destination's), sends claims
+//! and burns, reads balances, and gives a burn's
 //! release opening, against the deposits made into WrapVault on that anvil
 //! chain.
 //!
@@ -49,13 +50,13 @@ use wrap_executor_tests_v04::seq::{self, Rpc};
 use wrap_executor_tests_v04::*;
 
 /// The deposits a run makes, in order: (depositor = destination, seed counter, token, amount).
-/// Each account holds one wrapped token (no ATA program on v0.4 yet), so
-/// alice's deposits are ETH and bob's are USDT.
+/// Holdings are ATA holdings, so alice receives wrapped ETH and wrapped USDT
+/// in the same account.
 const PLAN: [(Who, u64, Tok, u128); 4] = [
     (Who::Alice, 0, Tok::Eth, 1_000_000_000_000_000_000),
     (Who::Alice, 1, Tok::Eth, 1_000_000_000_000_000_000),
     (Who::Bob, 0, Tok::Usdt, 100_000_000),
-    (Who::Bob, 1, Tok::Usdt, 1_000_000_000),
+    (Who::Alice, 2, Tok::Usdt, 1_000_000_000),
 ];
 /// The seed counter of the deposit alice never made.
 const PHANTOM_N: u64 = 9;
@@ -118,7 +119,7 @@ enum Cmd {
     Pubkey,
     /// Size and ImageID of each committed v0.4 binary.
     ImageId,
-    /// Load token, sextant_lc, wrap_bridge through the program loader (programs.json).
+    /// Load token, ata, sextant_lc, wrap_bridge through the program loader (programs.json).
     Deploy,
     /// The pairing the vault is deployed with and each deposit's commitment (plan.json).
     Plan,
@@ -131,7 +132,8 @@ enum Cmd {
         #[arg(value_enum)]
         token: Tok,
     },
-    /// `owner` opens its holding of the wrapped `token` (one per account).
+    /// Open `owner`'s ATA holding of the wrapped `token` (ATA `Create`,
+    /// permissionless, relayed by the payer; a claim does it too).
     OpenHolding {
         #[arg(value_enum)]
         owner: Who,
@@ -211,6 +213,7 @@ fn fail(msg: impl std::fmt::Display) -> ! {
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy)]
 struct Programs {
     token: AccountId,
+    ata: AccountId,
     sextant_lc: AccountId,
     wrap_bridge: AccountId,
 }
@@ -252,6 +255,7 @@ impl Ctx {
             chain_id: ANVIL_CHAIN_ID,
             vault,
             token_program: p.token,
+            ata_program: p.ata,
             admin: admin().id,
             freezer: freezer().id,
         }
@@ -273,7 +277,12 @@ impl Ctx {
             }
         }
         let state = V03State::new()
-            .with_named_programs([(p.token, program("token.bin")), (p.sextant_lc, program("sextant_lc.bin")), (p.wrap_bridge, program("wrap_bridge.bin"))])
+            .with_named_programs([
+                (p.token, program("token.bin")),
+                (p.ata, program("ata.bin")),
+                (p.sextant_lc, program("sextant_lc.bin")),
+                (p.wrap_bridge, program("wrap_bridge.bin")),
+            ])
             .with_public_accounts(accounts);
         let block = self.rpc.last_block() + 1;
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
@@ -347,7 +356,7 @@ fn main() {
     match cli.cmd {
         Cmd::Pubkey => println!("{}", hex::encode(seq::payer().pk.value())),
         Cmd::ImageId => {
-            for n in ["token", "sextant_lc", "wrap_bridge", "lez_chain_v04"] {
+            for n in ["token", "ata", "sextant_lc", "wrap_bridge", "lez_chain_v04"] {
                 let b = bin(&format!("{n}.bin"));
                 println!("{n} {} bytes, ImageID {}", b.len(), hex::encode(image_id(&format!("{n}.bin"))));
             }
@@ -355,7 +364,7 @@ fn main() {
         Cmd::Deploy => {
             let mut ids = Vec::new();
             let mut log = String::new();
-            for (name, seed) in [("token", 2000u16), ("sextant_lc", 2100), ("wrap_bridge", 2200)] {
+            for (name, seed) in [("token", 2000u16), ("ata", 2050), ("sextant_lc", 2100), ("wrap_bridge", 2200)] {
                 let (header, steps) = seq::deploy_steps(name, &bin(&format!("{name}.bin")), seed);
                 for (label, to, key, m) in steps {
                     let tx = seq::transaction(&mut ctx.rpc, to, &[], &[&key], &[], &m, true);
@@ -368,10 +377,10 @@ fn main() {
                 }
                 ids.push(header);
             }
-            let p = Programs { token: ids[0], sextant_lc: ids[1], wrap_bridge: ids[2] };
+            let p = Programs { token: ids[0], ata: ids[1], sextant_lc: ids[2], wrap_bridge: ids[3] };
             std::fs::write(ctx.run.join("programs.json"), serde_json::to_string(&p).unwrap()).unwrap();
             std::fs::write(ctx.run.join("deploy.tsv"), log).unwrap();
-            println!("token {}\nsextant_lc {}\nwrap_bridge {}", p.token, p.sextant_lc, p.wrap_bridge);
+            println!("token {}\nata {}\nsextant_lc {}\nwrap_bridge {}", p.token, p.ata, p.sextant_lc, p.wrap_bridge);
         }
         Cmd::Plan => {
             let p = ctx.programs();
@@ -430,8 +439,11 @@ fn main() {
             let ca = wrap_bridge_v04::config_account(&p.wrap_bridge, &cfg);
             let def = wrap_bridge_v04::definition_account(&p.wrap_bridge, &ca, &t, &SALT).0;
             let k = owner.key();
-            let m = wrap_bridge_v04::token::Message::InitializeHolding { definition: def };
-            ctx.send(&p, &format!("{} InitializeHolding {token:?}", owner.name()), Actor::new(k.id, p.token), &[Actor::new(def, p.token)], &[&k], &[], &m);
+            let h = wrap_bridge_v04::ata::holding(&p.ata, &p.token, &k.id, &def);
+            let seed = wrap_bridge_v04::ata::seed(&p.token, &k.id, &def);
+            let pdas: Vec<(AccountId, PdaSeed)> = if ctx.rpc.account(h).is_some() { vec![] } else { vec![(p.ata, seed)] };
+            let m = wrap_bridge_v04::ata::Message::Create { token_program_id: p.token, owner: k.id, definition: def };
+            ctx.send(&p, &format!("{} ATA Create {token:?}", owner.name()), Actor::new(h, p.ata), &[Actor::new(h, p.token), Actor::new(def, p.token)], &[], &pdas, &m);
         }
         Cmd::Claim { index, root_after, redirect_to, as_token, phantom, private } => {
             if private {
@@ -468,8 +480,16 @@ fn main() {
                 c.eth_token = ctx.token(&a, t);
             }
             let (to, actors, pda) = claim_actors_with(&p.wrap_bridge, &cfg, &c);
+            // The destination's ATA holding, created by the claim if it is fresh.
+            let ca = wrap_bridge_v04::config_account(&p.wrap_bridge, &cfg);
+            let def = wrap_bridge_v04::definition_account(&p.wrap_bridge, &ca, &c.eth_token, &c.salt).0;
+            let h = wrap_bridge_v04::ata::holding(&p.ata, &p.token, &c.destination, &def);
+            let mut pdas = vec![pda];
+            if ctx.rpc.account(h).is_none() {
+                pdas.push((p.ata, wrap_bridge_v04::ata::seed(&p.token, &c.destination, &def)));
+            }
             let what = if phantom { "Claim the deposit never made (a root the vault never had)".to_string() } else { format!("Claim deposit {}", index.unwrap_or_default()) };
-            ctx.send(&p, &what, to, &actors, &[], &[pda], &Bm::Claim(Box::new(c)));
+            ctx.send(&p, &what, to, &actors, &[], &pdas, &Bm::Claim(Box::new(c)));
         }
         Cmd::Burn { owner, token, amount, fee } => {
             let p = ctx.programs();
@@ -494,7 +514,8 @@ fn main() {
             };
             let k = owner.key();
             let m = Bm::Burn { eth_token: t, amount, eth_commitment: ec, salt: SALT, holder: k.id, config: cfg };
-            let actors = [Actor::new(ca, me), Actor::new(entry, me), Actor::new(k.id, tp), Actor::new(entry, tp), Actor::new(def, tp)];
+            let h = wrap_bridge_v04::ata::holding(&p.ata, &tp, &k.id, &def);
+            let actors = [Actor::new(ca, me), Actor::new(entry, me), Actor::new(k.id, p.ata), Actor::new(h, tp), Actor::new(def, tp)];
             let applied = ctx.send(&p, &format!("{} Burn {amount} {token:?}", owner.name()), Actor::new(burns, me), &actors, &[&k], &[], &m);
             if applied {
                 record.push(json!({"owner": owner.name(), "token": hx(&t), "amount": amount.to_string(), "recipient": hx(&recipient), "fee": fee.to_string(),
@@ -510,7 +531,8 @@ fn main() {
             let ca = wrap_bridge_v04::config_account(&p.wrap_bridge, &cfg);
             let def = wrap_bridge_v04::definition_account(&p.wrap_bridge, &ca, &t, &SALT).0;
             let st = |s: Vec<u8>| -> Option<wrap_bridge_v04::token::TokenState> { (!s.is_empty()).then(|| borsh::from_slice(&s).expect("a token state")) };
-            let bal = match st(ctx.rpc.actor_state(Actor::new(owner.key().id, p.token))) {
+            let h = wrap_bridge_v04::ata::holding(&p.ata, &p.token, &owner.key().id, &def);
+            let bal = match st(ctx.rpc.actor_state(Actor::new(h, p.token))) {
                 Some(wrap_bridge_v04::token::TokenState::Holding(h)) if h.definition_id == def => h.balance,
                 _ => 0,
             };

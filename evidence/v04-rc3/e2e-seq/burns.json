@@ -23,13 +23,13 @@
   },
   {
     "amount": "1000000000",
-    "blinding": "0xe9673e8edc33ee56419e45460ef65b4bbb0c867f9977c02781df685de50579c4",
-    "eth_commitment": "0xba30201507a7d08dbd658b5da04207d7e25691b064738c3ae36f76f8997b5086",
+    "blinding": "0x843ab8e2bb2400c4eac450d6d9f83f55ad4008874371bdcbdc2e61dc016cddbd",
+    "eth_commitment": "0xb7f5ea1593fec755b41fa0f469fb231f4314625bc49d537c61a62a75cfb52a2d",
     "fee": "0",
     "index": 2,
-    "leaf": "0x455e330a9756671d6aea48d0e0f04aeb028c8d1a2a805bc74d3619ab8e93971c",
-    "owner": "bob",
-    "recipient": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+    "leaf": "0xbdfb3155b44e13c020a85a05e361344cc6087d8af10e037f4faf7f0567596544",
+    "owner": "alice",
+    "recipient": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
     "token": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
   },
   {
