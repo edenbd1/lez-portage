@@ -1,0 +1,18 @@
+  ok   the recorded manifest verifies (29 checks pass, 0 fail (4 applied and 2 refused public transactions, 1 privacy-preserving, 0 applied and 0 refused releases, in the manifest))
+  ok   mutation fake-hash caught: sextant-init: 603a1c2e568ee4ea… NOT FOUND on chain
+  ok   mutation refusal-as-applied caught: shared block 79190: charged 947324 exec / 12770 storage, the members imply 947324 / 12770
+  ok   mutation applied-as-refused caught: sextant-init: expected refused, charged 1834893 gas against a limit of 1863241
+  ok   mutation wrong-gas caught: sextant-init: expected applied, charged 1834893 gas (pre-checked 1834894, limit 1863241)
+  ok   mutation wrong-block caught: sextant-init: a229935353b74089… is in block 79184, recorded in 79185
+  ok   mutation swapped-hashes caught: sextant-init: aa654a7ae947c521… is in block 79187, recorded in 79184
+  ok   mutation private-fake-hash caught: claim-carol-private: 603a1c2e568ee4ea… NOT FOUND on chain
+  ok   mutation private-as-public caught: claim-carol-private: not a public transaction
+  ok   mutation private-destination caught: claim-carol-private: the private account's id 81LxQSMq5LeC… occurs in the transaction
+  ok   mutation private-size caught: claim-carol-private: 257739 bytes, recorded 257740
+  ok   mutation public-as-private caught: sextant-init: not a privacy-preserving transaction; 27060 bytes, recorded None; no hidden account recorded
+  ok   mutation final-state caught: final state of nullifier_1 (8qMCXuDKSuKr…): recorded 1 bytes 0000000000000000…, chain has 1 bytes 4bf5122f344554c5…
+  ok   mutation image-id caught: program wrap_bridge: header D6XntqqUqgFR… names ImageID 0000000000000000… (chain has 073f046ce2a6fffd6adec655f0e65e91fd1
+  ok   mutation deploy-hash caught: deploy wrap_bridge-segment4: 603a1c2e568ee4ea… resolves NOT FOUND
+  ok   mutation shared-block-gas caught: shared block 79190: charged 947324 exec / 12770 storage, the members imply 947325 / 12770
+  ok   mutation shared-block-member caught: claim-alice-replay: block 79190 holds other charged transactions; its charge is not separable
+16 of 16 mutations caught

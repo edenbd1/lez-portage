@@ -7,8 +7,12 @@ program; they go back by a burn on LEZ and a release on Ethereum.
 
 - **Inbound (Ethereum to LEZ)** is verified on LEZ by Sextant, the Ethereum
   light client for LEZ (RFP-021,
-  [edenbd1/lez-sextant](https://github.com/edenbd1/lez-sextant), `main` at
-  `8153272`), and never by a signer or a federation.
+  [edenbd1/lez-sextant](https://github.com/edenbd1/lez-sextant)), and never
+  by a signer or a federation. Two Sextant builds are involved: the local runs
+  and executor tests use the committed `sextant_lc.bin`, Sextant at
+  `8153272` (ImageID `fa229edd…`); the public run used Sextant v2, program
+  `Ebe8rifvjyvwWUXnk7bsKeTwuyCAFSRMFuPMVHE8CbUB` (ImageID `ad6fbedb…`), the
+  binary of lez-sextant `main` at `0338eb3`.
 - **Outbound (LEZ to Ethereum)** is released on a RISC Zero proof, verified on
   Ethereum as one Groth16 seal, that the burn is in a burn tree rebuilt from
   LEZ blocks and that the last of those blocks is inscribed on Bedrock by the
@@ -16,15 +20,26 @@ program; they go back by a burn on LEZ and a release on Ethereum.
   2-of-3 committee says that the top Bedrock header is canonical. **F.7 of
   the RFP is therefore not met**; see [What is still trusted](#what-is-still-trusted).
 
-**Branch `v0.4-spike`** ports the LEZ side to LEZ v0.4.0-rc1 (the actor
-model, the canonical token program, blocks that list reverted transactions,
-so public burns are derivable from blocks) and runs it on a local v0.4.0-rc1
-sequencer: [docs/V04-PORT.md](docs/V04-PORT.md), [`v04/`](v04/).
+**The inbound path ran on public networks** on 2026-11-08
+([docs/TESTNET.md](docs/TESTNET.md)). Two deposits were made into a vault on
+Sepolia. A Sextant instance on the public LEZ testnet was initialised from a
+Sepolia checkpoint finalized after them. `wrap_bridge` on the same testnet then
+minted both deposits, one by a public claim and one by a privacy-preserving
+claim into a shielded account. Each claim was attested against that header,
+by a storage proof checked on chain. `scripts/verify-testnet.sh` re-checks it.
+Everything else ran locally: anvil, a LEZ v0.3.1 sequencer, the v0.3.0 wallet,
+and a single-node Bedrock devnet. The release path has not run on a public
+network.
 
-Everything here ran locally: anvil, a LEZ v0.3.1 sequencer, the v0.3.0 wallet,
-and a single-node Bedrock devnet. Nothing is deployed on a public network.
-The one public-network input is read-only: real Bedrock testnet blocks used as
-test vectors.
+**Branch `v0.4-spike`** (this branch; not merged into `main`) ports the LEZ
+side to LEZ v0.4.0-rc3: the actor model, the canonical token program's
+actor-model port, Sextant's light client on v0.4, blocks that list reverted
+transactions (so public burns are derivable from blocks), ETH and an ERC-20
+claimed and burned, a v0.4 client (`wrap`, pre-checking every transaction on
+rc3's state machine), reproducible Docker builds of every v0.4 binary, and a
+run on a local v0.4.0-rc3 sequencer. Nothing of v0.4 is on a public network
+(there is no public 0.4 network yet). See [docs/V04-PORT.md](docs/V04-PORT.md)
+and [`v04/`](v04/); how to run it is under "Run" below.
 
 ## How it works
 
@@ -64,7 +79,8 @@ Details: [docs/OUTBOUND.md](docs/OUTBOUND.md) (burn and the four releases),
 [docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md) (how LEZ sits on Bedrock,
 what a light client would need, what was built),
 [docs/PRIVATE-CLAIM-MEASURED.md](docs/PRIVATE-CLAIM-MEASURED.md),
-[docs/LOCAL-E2E.md](docs/LOCAL-E2E.md).
+[docs/LOCAL-E2E.md](docs/LOCAL-E2E.md),
+[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) (each RFP requirement: met, partial or planned).
 
 ## What is proven and measured
 
@@ -76,6 +92,7 @@ was not measured on native x86_64.
 
 | run | result |
 |---|---|
+| [`evidence/testnet/`](evidence/testnet/), `scripts/testnet-inbound.sh`, **Sepolia and the public LEZ testnet** | 2 deposits on Sepolia; Sextant `Init` from a Sepolia checkpoint finalized after them; the public claim (451,107 gas) and the private claim (proven in 264.6 s, 257,739 B) applied; 2 refusals (a replay, a root the vault never had); `scripts/verify-testnet.sh`: 29 LEZ checks and 14 Sepolia checks, 0 fail; verifier mutation test 16 of 16; 35.4M of the testnet token |
 | [`evidence/local/`](evidence/local/), `scripts/e2e-local.sh` | PASS: 14 LEZ transactions (9 applied, 5 refused as expected), 11 zero-knowledge releases on anvil (2 applied, 9 refused as expected); verifier 81 checks, 0 fail; its mutation test 32 of 32 |
 | [`evidence/local-committee/`](evidence/local-committee/), `RELEASE_VERIFIER=committee` | PASS, releases opening the leaf: verifier 73 checks, mutation test 28 of 28 |
 | [`evidence/local-chain/`](evidence/local-chain/), `scripts/e2e-chain.sh` | PASS: 12 releases through `ZkChainBurnVerifier` (1 applied, 11 refused) |
@@ -140,8 +157,17 @@ each from a clean checkout and `cmp`s it with the committed bytes.
 | `artifacts/zk/bedrock_anchor.bin` | 431,932 | `cebe7a27…` |
 | `artifacts/zk/bedrock_release.bin` | 335,088 | `a73cc984…` |
 
-`sextant_lc.bin` is Sextant's; `token.bin` and `associated_token_account.bin`
-are LEZ v0.3.0's.
+`sextant_lc.bin` is Sextant's earlier build, lez-sextant at `8153272`
+(642,168 bytes, sha256 `d17de1ea1457c136…`, ImageID
+`fa229eddbae15b2a20126e37e03fa82a2b42c7c98f74001a7d49e93fafe205c8`), which
+the local runs and executor tests load. It is **not** the program the public
+run used: that is Sextant v2, `Ebe8rifvjyvwWUXnk7bsKeTwuyCAFSRMFuPMVHE8CbUB`
+(651,932 bytes, sha256 `58a600a4c9e1d608…`, ImageID
+`ad6fbedb983da6b6d75b287da354ce3041905d152d4e576ec318871eddfaa928`),
+`artifacts/programs/v0.3/sextant_lc.bin` of lez-sextant `main` (`0338eb3`),
+which `scripts/testnet-inbound.sh` takes from a lez-sextant checkout. Hash
+that file, not this one, against the testnet program. `token.bin` and
+`associated_token_account.bin` are LEZ v0.3.0's.
 
 ## What is still trusted
 
@@ -151,7 +177,10 @@ On the release path, in the strongest verifier (`ZkBedrockBurnVerifier`):
    says so. A header chain can be made up: checking Cryptarchia's proof of
    leadership needs note-set roots that no header commits to, so a light client
    would have to replay the note ledger
-   ([docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md), section 3). The
+   ([docs/BEDROCK-FINALITY.md](docs/BEDROCK-FINALITY.md), section 3). Measured
+   in RISC Zero, that light client costs about 240-330 billion cycles per day
+   of testnet: 34.8M cycles per leadership proof and 4.6-5.0M per note update
+   ([docs/POL-MEASURED.md](docs/POL-MEASURED.md)). The
    committee's claim is checkable by anyone with a Bedrock node in one request.
 2. **Bedrock's own checks.** The leader's block signature, and the pinned key
    being the channel's accredited key at that slot, are checked by Bedrock,
@@ -172,9 +201,10 @@ Inbound, the trusted input is the checkpoint a light client starts from. Anvil
 has no beacon chain, so the local runs wrap its block in a beacon header and
 initialise Sextant from it; everything after that (the storage proof against
 the state root, the deposit's path, the nullifier, the mint) is verified as on
-a real network.
+a real network. On Sepolia the checkpoint is a finalized header served,
+byte for byte the same, by two beacon implementations.
 
-Not built yet: deployment on Sepolia and the LEZ public testnet, a relayer, a
+Not built yet: the release path on a public network, a relayer, a
 protocol fee, a rolling-window cap on LEZ (an outstanding-supply cap instead),
 Logos modules, and a SPEL IDL (SPEL does not build v0.3 programs). A public
 claim carries the deposit's opening, so it links the claim to its deposit.
@@ -229,6 +259,35 @@ scripts/mutation-test-verifier.sh --manifest evidence/local/e2e.tsv --rpc http:/
 [docs/LOCAL-E2E.md](docs/LOCAL-E2E.md) describes each step, its ports and its
 limits; [docs/OUTBOUND.md](docs/OUTBOUND.md), section 5, the Bedrock step.
 
+The public-network inbound run is resumable by stage. Its commands are in
+[docs/TESTNET.md](docs/TESTNET.md#reproduce). To re-check the recorded run
+against the public LEZ testnet and Sepolia, with JSON-RPC only:
+
+```console
+scripts/verify-testnet.sh
+```
+
+### The LEZ v0.4.0-rc3 port (this branch)
+
+Tests (as CI's `v04` job) and the reproducible builds (CI's `reproduce-v04`
+job rebuilds each in Docker and `cmp`s it against the committed binary):
+
+```console
+cargo test --release --manifest-path chain/v04/Cargo.toml
+cargo test --release --manifest-path v04/executor-tests/Cargo.toml   # r0vm 3.0.5; bridge, erc20, sepolia, chain_v04
+cargo run --release --manifest-path v04/executor-tests/Cargo.toml --bin measure_chain
+DOCKER=1 v04/scripts/build-guests.sh token wrap_bridge lez_chain_v04 sextant   # v04/artifacts/*.bin
+```
+
+The end-to-end run on a local v0.4.0-rc3 standalone sequencer and anvil,
+driven by the v0.4 client `wrap` (`v04/executor-tests/src/bin/wrap.rs`):
+
+```console
+cd <logos-execution-zone@v0.4.0-rc3> && cargo build --release --features standalone -p sequencer_service
+SEQ=<lez@v0.4.0-rc3>/target/release/sequencer_service LEZ=<lez@v0.4.0-rc3> v04/scripts/e2e-seq.sh <run dir>
+python3 scripts/v04-run-json.py <run dir> vectors/lez-blocks-v04            # the block vectors chain_v04 reads
+```
+
 ## Layout
 
 | path | what it is |
@@ -244,9 +303,9 @@ limits; [docs/OUTBOUND.md](docs/OUTBOUND.md), section 5, the Bedrock step.
 | [`cli/`](cli/) | `wrap`, the client on a LEZ v0.3 sequencer (v0.3.0 wallet crate, a vendored v0.3.1 `common` for the block format) and the release prover |
 | [`scripts/`](scripts/) | builds, end-to-end runs, the on-chain verifier, mutation tests, anvil helpers |
 | [`vectors/`](vectors/) | anvil deposits and proofs, LEZ sequencer blocks, a public-testnet Bedrock anchor |
-| [`evidence/`](evidence/) | manifests, transcripts and raw measurements of each local run |
+| [`evidence/`](evidence/) | manifests, transcripts and raw measurements of each run (`testnet/`: Sepolia and the public LEZ testnet) |
 | [`docs/`](docs/) | the design and measurement write-ups; [`docs/raw/`](docs/raw/) raw outputs |
-| [`v04/`](v04/) | the LEZ v0.4.0-rc1 spike: `wrap_bridge` and Sextant's Attest half on the actor model, their binaries and the token program's, executor tests, the sequencer driver ([docs/V04-PORT.md](docs/V04-PORT.md)); `chain/v04` and `zk/lez_chain_v04` decode v0.4 blocks |
+| [`v04/`](v04/) | the LEZ v0.4.0-rc3 port: `wrap_bridge` on the actor model, the reproducible binaries of it, the token program and Sextant's light client, executor tests (ETH and ERC-20), the v0.4 client `wrap`, the sequencer run ([docs/V04-PORT.md](docs/V04-PORT.md)); `chain/v04` and `zk/lez_chain_v04` decode v0.4 blocks |
 
 ## License
 

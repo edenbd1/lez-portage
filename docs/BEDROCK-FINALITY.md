@@ -192,29 +192,40 @@ it with `block.timestamp`.
 |---|---|---|
 | HeaderId, body_root, Merkle path, tx hash | Blake2b-256 | no precompile; about 5-10k cycles per compression on the 32-bit machine (estimate) |
 | block signature, inscription signature | Ed25519 strict verify (SHA-512 inside) | an accelerated curve25519-dalek exists; cost not measured here |
-| epoch nonce, note ids, note-tree updates | Poseidon2 over BN254 Fr, width 3 | software, or risc0-bigint2 modular multiplication; not measured |
-| proof of leadership | Groth16 BN254: ~9 G1 scalar multiplications, 3-4 Miller loops, one final exponentiation, a G2 decompression | RISC Zero ships BN254 acceleration (`substrate-bn` fork); no published cycle count found; by analogy with the BLS12-381 pairing check measured for Sextant (7.85M cycles with accelerated blst), an estimate of 5-15M cycles |
+| epoch nonce, note ids, note-tree updates | Poseidon2 over BN254 Fr, width 3 | **measured** (docs/POL-MEASURED.md): 71,805 cycles per permutation on the risc0-bigint2 precompiles (104,080 over substrate-bn's Fr, 364,714 with the node's own jf-poseidon2/arkworks code); one note inserted or spent against a 32-level witness is 64 permutations, 4.6-5.0M cycles |
+| proof of leadership | Groth16 BN254 (arkworks 0.5 in the node): 3 point decompressions, a 9-input MSM, 3 Miller loops, one final exponentiation | **measured** (docs/POL-MEASURED.md): 34.8M cycles with RISC Zero's accelerated `substrate-bn` (risc0/paritytech-bn v0.6.0-risczero.0, on risc0-bigint2), 87.6M with the node's own arkworks code; on a real proof under the v0.5.7 key, with the 31 public-testnet headers' proofs run through the same code |
 
-These figures are estimates, not measurements, except what this prototype
-measured on LEZ blocks (section 7): about 1.5 cycles per block byte plus
-about 4,300 cycles per block for the chain guest, and about 15,000 proven
-cycles per second on this machine (an M4 Pro CPU shared with other work,
-load average 6 to 22; RISC Zero proves faster on an idle machine or a GPU).
+The Blake2b and Ed25519 figures are estimates, not measurements, except
+what this prototype measured on LEZ blocks (section 7): about 1.5 cycles per
+block byte plus about 4,300 cycles per block for the chain guest. The
+proving rate measured there was about 15,000 proven cycles per second on this
+machine (an M4 Pro CPU shared with other work, load average 6 to 22; RISC Zero
+proves faster on an idle machine or a GPU). Proving one accelerated PoL check
+gave the same rate: 47.7M cycles in 3,499 s, 13,600 cycles per second, at load 21-75 (docs/POL-MEASURED.md).
 
 What each option implies:
 
-- **Light client.** Per Bedrock block: about 0.2M cycles of Blake2b, the
-  signature checks, the nonce, the leadership proof (5-15M), and the
-  note-tree updates of its transactions (32 Poseidon2 hashes per note
-  inserted or spent). Bedrock makes one block per 20 s, 4,320 a day, so a
-  continuous light client is roughly 25-75 billion cycles a day before the
-  note updates. At the rate measured here that is 20 to 60 days of this
-  machine per day of Bedrock. It needs GPU proving or a proving market,
-  continuously.
+- **Light client.** Per Bedrock block it pays about 0.2M cycles of Blake2b,
+  the signature checks, the nonce, and the leadership proof, measured at
+  34.8M cycles. It also pays the note-tree updates of the block's
+  transactions, measured at 4.6-5.0M cycles per note inserted or spent.
+  These rates were observed on the public testnet:
+  - one block per 38.9 slots (31 headers), so 2,221 blocks a day, not the
+    nominal 4,320;
+  - 7.6-12 transactions per block;
+  - two note operations per transaction (one spent, one created).
+
+  So a continuous light client is **about 240-330 billion cycles a day**
+  (docs/POL-MEASURED.md, section 3), measured, not estimated. The
+  leadership proofs alone are 77 billion, and the note updates two to
+  three times that. At the proving rate measured for it, that is 200-280 days
+  of this machine per day of Bedrock. It needs GPU proving or a proving
+  market, continuously.
 - **Proving one inscription final, with a trusted ledger checkpoint.** At
-  least 31 headers (the block and 30 descendants), each with its leadership
-  proof and the note-set updates between them: about 0.2-0.6 billion cycles,
-  plus the checkpoint's trust.
+  least 31 headers (the block and 30 descendants). Each has its leadership
+  proof, 31 x 34.8M = 1.1 billion cycles. The note-set updates between them
+  add 31 blocks x 7.6-12 transactions x 2 x 4.8M = 2.3-3.6 billion. That is
+  about 3.4-4.7 billion cycles, plus the checkpoint's trust.
 - **The LEZ chain, as built (section 6).** A LEZ block of a few kilobytes
   costs under 10,000 cycles, and a 250 kB privacy-preserving transaction
   about 0.4M cycles. A chain of one block every 5 s, mostly small blocks, is
@@ -281,8 +292,10 @@ committee's power to "stall, or be slashed for equivocating", but not to
 that removes the committee for finality. It must replay the note ledger
 from genesis or a checkpoint, verify each block's leadership proof against
 the replayed roots, and prove density near Ethereum's time (section 3). It
-is a recursive proof that someone keeps running. Cost (section 4) puts it
-beyond an L budget on CPU proving. It also depends on Bedrock's ledger
+is a recursive proof that someone keeps running. Its cost is now measured
+(section 4, docs/POL-MEASURED.md): about 240-330 billion zkVM cycles per day of
+testnet, of which 77 billion are leadership proofs. That puts it beyond an L
+budget on CPU proving. It also depends on Bedrock's ledger
 format, which changes between testnets. Even then, (b)'s second gap
 remains: Bedrock finality says the block was inscribed, not that LEZ would
 accept it.

@@ -1,0 +1,1 @@
+{"run":{"execute_seconds":0.711675625},"segments":46,"steps":[["bn: load vk, -gamma, -delta, e(alpha,beta) (once per run)",11860431],["bn: verify [fresh-valid]",32413774]],"total_cycles":47710208,"user_cycles":44304849,"verdicts":[["fresh-valid",true]]}

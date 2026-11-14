@@ -1,0 +1,34 @@
+# 2026-11-08T19:47:19Z r0vm 3.0.5, guest sha256 6905828f0e0f235a0caf68b26b6d5f0529e1821e2e680dfe5e0a09957286aa1e
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# commit 33250a0
+# load before: load averages: 8.96 7.11 6.09
+pol-ark-1: 123183170 user cycles, 127 segments
+pol-bn-1: 44304849 user cycles, 46 segments
+pol-ark: 4577913470 user cycles, 4705 segments
+pol-bn: 1967497371 user cycles, 2011 segments
+notes-ark: 119837629 user cycles, 120 segments
+notes-bn: 35413171 user cycles, 36 segments
+notes-bigint2: 24599556 user cycles, 25 segments
+# load after: load averages: 5.72 6.56 5.97
+# prove pol-bn-1 (jobs regenerated: a fresh PoL proof differs per run, rapidsnark is randomised), load before: load averages: 5.16 6.35 5.92
+     3498.76 real     41308.17 user       274.40 sys
+         10047815680  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+            34921637  page reclaims
+                1030  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   6  messages sent
+                  39  messages received
+                   0  signals received
+                 439  voluntary context switches
+            28459309  involuntary context switches
+          1921173069  instructions retired
+           551470728  cycles elapsed
+            17514904  peak memory footprint
+pol-bn-1 proven: 47710208 total cycles, 3498.7 s
+# load after: load averages: 21.38 28.37 40.71
+# prove notes-bigint2: stopped (one proof is enough for the rate; the machine was shared)

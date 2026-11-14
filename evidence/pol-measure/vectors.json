@@ -1,0 +1,616 @@
+{
+  "cases": [
+    {
+      "inputs": [
+        "16840589578371181952164360075944064295073913193454100176911243158669314317934",
+        "135",
+        "510",
+        "461231311164145376678772994876620640618411502790001931442292117144789884",
+        "21888242866979718344067436359740790592669627091412548570671970028279195598480",
+        "16524395010779500501330992017298834046369952285388149958144954382059764408785",
+        "20834259014818668135947196643658285248830563263522051603918285129600429840356",
+        "123456",
+        "654321"
+      ],
+      "label": "fresh-valid",
+      "node_verify": true,
+      "note": "lb_pol::prove on the node's test_full_flow inputs; lb_pol::verify true",
+      "proof": "01a0bc6c930f7717f54d63db90162f32bc1a8f9b7869f46cf0f4f18c492bb6133a2d158a7c7868e2fd4f58ff8659b29a52a12831af64688f017f9f015d153d0904d3eca5d7306730e6f7c1aebb6d5431f89f65afaba5ce2b69f82e7fe32c5490338812767ad1d8dfbd9b7f6898497874c742bd467a7c5042cdfba8bf2adf0322"
+    },
+    {
+      "inputs": [
+        "16840589578371181952164360075944064295073913193454100176911243158669314317934",
+        "135",
+        "510",
+        "461231311164145376678772994876620640618411502790001931442292117144789884",
+        "21888242866979718344067436359740790592669627091412548570671970028279195598480",
+        "16524395010779500501330992017298834046369952285388149958144954382059764408785",
+        "20834259014818668135947196643658285248830563263522051603918285129600429840357",
+        "123456",
+        "654321"
+      ],
+      "label": "fresh-wrong-latest-root",
+      "node_verify": false,
+      "note": "the fresh proof with latest_root + 1; groth16_verify false",
+      "proof": "01a0bc6c930f7717f54d63db90162f32bc1a8f9b7869f46cf0f4f18c492bb6133a2d158a7c7868e2fd4f58ff8659b29a52a12831af64688f017f9f015d153d0904d3eca5d7306730e6f7c1aebb6d5431f89f65afaba5ce2b69f82e7fe32c5490338812767ad1d8dfbd9b7f6898497874c742bd467a7c5042cdfba8bf2adf0322"
+    },
+    {
+      "inputs": [
+        "3615207244038462985288634663239010134044191753483601968394763922427886922745",
+        "852908",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "66127551780970049941246505207745731703",
+        "339779751994137702125898643055765888262"
+      ],
+      "label": "testnet-00-slot-852908",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "b3408cb838a09ab8cd01cc8d5e5cd1dca951b473d646d78492b078d86f6f3f1ccfa7452f1eefa4473901a168d07b5389117a6c6cb826879285df0a9ebb985a005cf179e11a0a38f8d80b01a687a322d95684f7929daf1239951d85d4a7a4e801b20612127d199d6f6c741b118e40a9fa1fcdda00c772e608e75ef0c4eb6a3e0c"
+    },
+    {
+      "inputs": [
+        "3615207244038462985288634663239010134044191753483601968394763922427886922745",
+        "852908",
+        "13955187255749411516377601857453481686854514827536340092448578824571923228920",
+        "461231311164145376678772994876620640618411502790001931442292117144789884",
+        "21888242866979718344067436359740790592669627091412548570671970028279195598480",
+        "9632004710537414903275898870712812796867229507472840228295932832943785232633",
+        "14915535039867928940309697151281731454152168907104982947365826719222151303969",
+        "66127551780970049941246505207745731703",
+        "339779751994137702125898643055765888262"
+      ],
+      "label": "testnet-00-full-width-stand-ins",
+      "node_verify": false,
+      "note": "public-testnet header 0 with full-width stand-ins for nonce and roots and the fresh proof's lottery values; the representative cost of one real check",
+      "proof": "b3408cb838a09ab8cd01cc8d5e5cd1dca951b473d646d78492b078d86f6f3f1ccfa7452f1eefa4473901a168d07b5389117a6c6cb826879285df0a9ebb985a005cf179e11a0a38f8d80b01a687a322d95684f7929daf1239951d85d4a7a4e801b20612127d199d6f6c741b118e40a9fa1fcdda00c772e608e75ef0c4eb6a3e0c"
+    },
+    {
+      "inputs": [
+        "10788187828540665543726451048437638017967894070005831842673720045684553032917",
+        "852915",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "111278919482462156725997868475816585941",
+        "259711162650337602695355448043842550366"
+      ],
+      "label": "testnet-01-slot-852915",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "b4970b3c43276c92ad6b9159160109b4d5adfed45948a40a461e0c71e411dc0aa3daf2612ba0a4b9e42aedee9fd29c677425b2c2f3e72651f5251f4526087f2c0ec2638128a129f8cade260645379704cf68837f11799a4f3737e0225ad5f39f8998b240255e13e9f8acf9dae64733655b433c370e867d5076f59ca76242b99b"
+    },
+    {
+      "inputs": [
+        "2554421054899582884881153883199803592519376033289154301101328677895235539374",
+        "852971",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "132571403844031002680843045642403811486",
+        "104687237988838819516226209002723001787"
+      ],
+      "label": "testnet-02-slot-852971",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "d14a1cf644c894d3bc3aa8ad1a03a6924d1186490b2e1e585e47b97efd0f18113a7c09c54c42057ce2f70999a20a5fc0e72eb61ffd2b72d142dda29ab60d79046604485cff33c9bb1559c7f60781e45423b49455c55fb9a204522c7c090a370948f2ef3e178247f532973da6f36c35da2d3a66bbf7d5da13d79309649bea3611"
+    },
+    {
+      "inputs": [
+        "8290047169887963789329304506268670950516131820432045692584773443016428448430",
+        "852982",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "59831955093054155304328566960644633178",
+        "119147172649434308856771719157317168834"
+      ],
+      "label": "testnet-03-slot-852982",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "315f5d885478e94ee518469e1fa709cb338a6e5dd76bd71819bef8206385830bbd4986843c4e1ba76928d63660a4d13a2fe1683f1bc67e073b0fdc75ac91a92fa03263d28ae1dc237aa0e49bc9660c4a25dc9dd3630be5dbb2cc4d5a6d1de780d614d01d580c132da5b7375145efa843eb45dae009d2572f371f1dff37335c0d"
+    },
+    {
+      "inputs": [
+        "3794183396658820418680587834757894790350729038143136147302956289365787158716",
+        "852987",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "113116353962398349388731906374817111423",
+        "288432356007083242568251021966483832759"
+      ],
+      "label": "testnet-04-slot-852987",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "e7167fe55ba98f8f8c015be218e4fe2e05ea61fed5ec50988a4a80b39626c61ea860dff9d1d3e6d0870b00d5f79d0d5e4827d4dba0fbefaafe6705417767890109a99afef7041b4630493dc26b25255193f94b3a2a65378ef2e1d30a8252338a4803b7831705c9066aad4520cc2a5925dc801fded68d42859fbf41c7d2318a2d"
+    },
+    {
+      "inputs": [
+        "11173562935225155990818225640344399897056665158167932997551549260024326594880",
+        "853010",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "72814215134745467907601686962750505096",
+        "209106838497638434014457488450668669158"
+      ],
+      "label": "testnet-05-slot-853010",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "3f2c2cc114415aeacfe5dfb8cf9fa5e9cf34b0a3e8fec9f60c86f5a8bc9b7695525f11d07e7e1145fadcd4169a5a1f75ce2d0cad0a73ebd3b30798be1f08c4237e83b8d60d5082f403b75a63e26b1dfd7724675f4aa1a0070f50b41a256721917dafb3577d341ed313cb31d011eafa736b5dbc66222810f61101de2ed2711c09"
+    },
+    {
+      "inputs": [
+        "4252226148212095437280321299847402336639036460606131263319357193870233963679",
+        "853050",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "246978557770376624646648967474838427721",
+        "90947132177140163290796082998262429479"
+      ],
+      "label": "testnet-06-slot-853050",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "c97933220c75c0e1b93e2a82b0f2ed6861af3303d37a0a453f2a6ad3a5b3d92535f205affd42bbaaa4de8688754d2577bc04f0959f8a22e72ba27150f4cd3d30900c3da16f32ffbd547be82e31dd1de2932cbe0a9c760113d81aba3e0302b7128cf5c8799ec279de6b19899aefc750a667596e4b65e0f2273892c253be28710d"
+    },
+    {
+      "inputs": [
+        "10282278462483118139649936865995343805248339152798245994819543318399811720549",
+        "853082",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "210384171948428247732679781333200377136",
+        "78124052229388631494949668649370239717"
+      ],
+      "label": "testnet-07-slot-853082",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "7f7472fd793b9bb31e24ec45abdeb8c56f2a0a9f8d5cc37a03b7e55fc06c36223cfb145dcd0675f16a844aab470a8d20eeaa033ea353131e031b91c2eb42ff24f2c099e031c8d3b7a0eb498203ff5361d5d73f44f9317228909adf2fbeb54a826ce0d32467df67531ad68ac00f85db2551020145592b9a170da29e6e60592c86"
+    },
+    {
+      "inputs": [
+        "11720270968515091781049916577583746832427793557879620111393841329570477134688",
+        "853159",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "165027835463181361658949521443792144443",
+        "27047773584829151741160974620479816454"
+      ],
+      "label": "testnet-08-slot-853159",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "14f7e736dade7943668e032cb6e3688ed789f465ea005a5aff7f698f9382369b97bf37669565da350dde87db7786fac0033b1dff7bb8d097bc7dc46cccb53a285dc6e46c6f0882c9c583fee025ba55fc2eef61c9da6a1463b4b3aae0cfeb818d68b82805068795b1055208b255be1458fc9eb2962a2dbd22c9def19152670e0d"
+    },
+    {
+      "inputs": [
+        "1852004374627328588374106528854417369997134290563583194152090299544358457345",
+        "853237",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "132099543374102346322897578654879113239",
+        "314399303255463380472758098211919433748"
+      ],
+      "label": "testnet-09-slot-853237",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "118388aadead761568d0c1a6f8f89e0d52aec6d3978d8c7558bd89a75db363a45c188c2a141a9c4740b8227bf4fa765147de7efdb2b3b824babd6e7b5d33350715d75d95eb70dca9ff98a2ad20d259fb995192c75bc817581241574fc11a270d2c3b627856611073a9dfcfc9f1cdbc68b8b3ddeaf27334b9fb12ccaf0b48e186"
+    },
+    {
+      "inputs": [
+        "8185201280402474939572402728612174278688764309865444480691682825034849749961",
+        "853378",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "174609978932927368539874769395294867774",
+        "180057577762707547622749684847945514178"
+      ],
+      "label": "testnet-10-slot-853378",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "64a29cca544de5f1a6c72e7dc7187abfe32ee059fa1ab9dba431cec7c3bdd4ac8ec7a5ab58995001711c0b604e344d7525c16a6d59bf57fca634e19d5e11bf01145686de8fcd1ca7d5e88d1c3110d9e2025675bdf1f394a1e9b1ca38c307c18e62d09415e50e80c53968161f2731e7f4252a26382c9621d05fc674b21456b121"
+    },
+    {
+      "inputs": [
+        "18611647874504342211371337563115835153034967783718117583651520907036021488057",
+        "853392",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "129245799367034822852608342865170974225",
+        "242848822796822877985671732082573344561"
+      ],
+      "label": "testnet-11-slot-853392",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "f9ef9a949cd79b936fad608b928d8479e2439047066e872bd68484d7bb863b90a422708afd473bec8d7ed260729250b9d6ac315d21f5b304990b86794c4b2a0a50639eb725413771d486a370e14fb53ee40458524b767ac36b4d2ba78b642da5e9c5200aaf99a0b3f5fd20230db478d0d23978d538b86c7d31e0a2a970e14287"
+    },
+    {
+      "inputs": [
+        "4557817928390590808443235372832112768174362177230314553109015077330272233043",
+        "853473",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "222333872316511638109280937853188908303",
+        "61679137538681017658761318129509622381"
+      ],
+      "label": "testnet-12-slot-853473",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "ce9e9c4d1e618d6e79e08a661591fe0541043eb97d4236239fba09bdec479520047f17a858c291db6db6ac96ce17ec0971dd81f3979d24d023e890e9ebcf9706074d86a839012d1339094cb3c1292446d87930ac1d2cc28d1d52daed8fd621a32ba07247bbab592a0e3d5e3c0b64d1fddf2aaa8a39a6d1c4c378f312e31b880b"
+    },
+    {
+      "inputs": [
+        "12923369154987139371900012178271167819445451767531034222138087633573073195630",
+        "853484",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "332602286713328996544828879988582300675",
+        "137812290928810706591372581294117987160"
+      ],
+      "label": "testnet-13-slot-853484",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "748966c2fe4e478eb5d72aed55e78df1c21999f6f458363bfda138b9a11fd19976a457f2c4bdace785a2ac15f77df0fa044e8cff5051569dfb9f3037467c6620eb1b8c400951809ddf7f0e7852e1d957e9a8cbcdc349607e2b78ee8029650c1eb8115dde86ff7e47ce98ab25079abe058e138e13d51edd5739895e0c1f77b480"
+    },
+    {
+      "inputs": [
+        "1540402954085653616949822448381967284800169119805225513197438327250965641512",
+        "853571",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "177214439266028080024032242479235582512",
+        "70095805462145600067938385750621420551"
+      ],
+      "label": "testnet-14-slot-853571",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "f85358ffcabc9291218a6474cee0f530970a0ef1191b822b98fa0fe837be502c1cbd45836cd869aea60a47f4091d884533a74cfb23f5898fb574377058ca330d57f3bdcfefc59efd96dbe2704a01ccee5e8102eb6e250c3398d1a4d7fe54c480197c442d0a6d42d28f7339203c240108b61580a2aa294f15a272b77a959b1ba6"
+    },
+    {
+      "inputs": [
+        "13418837895801357636932583693844677433980775381622974348414607092067803200506",
+        "853580",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "15822978265593093687931193913920267470",
+        "73309354494294555158366875594611736960"
+      ],
+      "label": "testnet-15-slot-853580",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "1e06789345fa1713b13a19c134325d711d34d200bab3ad6b0374f4521434281cb1953781d2920c7912e219bc3a7730e5a409e24fa5c0372341038adce4448d20f1d5136f6f64f28d8fc62500753621f1a41836cd481f71510a46c31ae3f72f83c1b8ee325920fbec392cb9f50a74123731bfe859899ebfa1b971b05dab3f9623"
+    },
+    {
+      "inputs": [
+        "14708319968087219561330174625308444270206207011475788410166258420078929476498",
+        "853631",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "213006724864383224513214954748565740765",
+        "225571522403225189819797378055090071408"
+      ],
+      "label": "testnet-16-slot-853631",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "346a60a2e09a4067e775e2f10ac50a22a935297e6485df73a1db7f352e7be12904d19118005ceba74a3ad64e41d6406f51a2865f77e8a5807b4dbb1c637ce80ce5596146195a26a595d1b81f58fed5f1959de68838c1ef0a3fa3a519a78f7617acdfad26c440d939a5efb072e0f0b0b000ff987e9ea5e839e453d254e4a7901c"
+    },
+    {
+      "inputs": [
+        "15872967124055002524214376030710962464240824756322571826770262318667243318153",
+        "853637",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "321777762126469151339288206038451125552",
+        "184429847045992527937740156613692507722"
+      ],
+      "label": "testnet-17-slot-853637",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "7810723b14955a33a48e198adf2f8d7d9ee169ff0b32407988e0b491bb7bde10d17727e365c342c4c8bbd1f7866fe0097a3ae8008ad3df78a603a126640f230e00246d0231b049a5aeba5ec82ebfc0c40d6692f5a639b52f890eabc9cc6235805fd554ede7ce39b9c7b4728e53823c261595e5e96a2ebb9fe292ccf6d79cbca9"
+    },
+    {
+      "inputs": [
+        "10785036991075794225535000176854740796252294221835043776648114640239350387716",
+        "853656",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "141879989674671776519532304586677331842",
+        "253607455656301347700010371610119680723"
+      ],
+      "label": "testnet-18-slot-853656",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "5efe8b4dced7a39fbdc5145b1fa79ed8eafa3d67890eaee9286e5399d46a2a20e152e6fe846ce9d790570c485dc200d1f94dbaeaef68cedf5bd15b165210961dad18bc1d37f3a8815872d75ac16eb68fcaaa8f09c2415cfc11cab8a120d72a915af0f7db1ba2b8da8437811a0bf27d725ac69e5044881b4ba76448ca99afe912"
+    },
+    {
+      "inputs": [
+        "7696598837457870950520606619029608887177864039985103701273180610227008950284",
+        "853675",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "331228279776280138997661068362362335883",
+        "308309105353675120419012403479724020417"
+      ],
+      "label": "testnet-19-slot-853675",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "6756fabf1c83618bfece30eea98847b936ae827eca4bdacc6cbb9eefb94769afe4353ff7eb8b6fb37558e10ebd1e57f768f0ff65887f2ac6c4617977819bc116ed8bd2040973f4b916c415d52a34311310a0094163ace398176785444de52b851d79ef8c75a5bb67761960aa3cde1324f5f58b2da8daf480382ce1ef91060097"
+    },
+    {
+      "inputs": [
+        "2268210883316282910186292366642593539653991984384773839727716732071071739772",
+        "853705",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "165544752225257713585569318545660701504",
+        "250034374988935360057003467231638867501"
+      ],
+      "label": "testnet-20-slot-853705",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "4b4687787a66a8fed40b0c452749a00bffabde98bb79cbe631c3d379b13b101625765a69d5696a11362ea9e22accc0b64cd5118decd42d52e9ad1d47753e9c0bf9ec6753aa6b7a5988302effd32d3ef31f34f5fd9f0f34dda3fb1fadf30a49090446131fb7e648954183f2aa7c689a43b461d72846e933d9812e57a4548b8c11"
+    },
+    {
+      "inputs": [
+        "6437677712552222056385877874523900016024403057285865652154211245817006684210",
+        "853788",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "99724046072486215465384919678247903521",
+        "309542171225637476532628163470808535125"
+      ],
+      "label": "testnet-21-slot-853788",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "7886b134b601f243672bbe1965ea65df6611ea9b59502ec290e0785cfcf30298d3e8748434b87b6483f75a3252b8e530529ef6bc81e53befe2c558b598b5941c7c5b3a1b2b661ac1c33c59a03b2436b4d7c53cbcd4cbc433f95eabf902cff1a75aafb05fcc822cf118d66e77920ebf376a49748e285d2617c0e24c9d2844f32d"
+    },
+    {
+      "inputs": [
+        "2082989829605638786601452707610221072633399399326153840415406492007959794719",
+        "853827",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "222518077031207281661073514268948992782",
+        "287181678123585190565749022017536534187"
+      ],
+      "label": "testnet-22-slot-853827",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "931cbbd0d84bf530570205eb42c4d73a013232a6127cf8ba5da368aa586c3d9c20fa7a98e37385c8c69c8c48c7bb51795d4103b77b06f901f56f3ee7b20b182a166e7e72ad1dcf4ddc57abdb0e618145233f8966b49bcff53ba3a6b345d5b185069f49802f2f884df38274d150f6eb1a21394668a5ebf24c6fba8a75f3b7b99d"
+    },
+    {
+      "inputs": [
+        "11594562721935751936119059657225271849683798856367207322975347718241291325532",
+        "853841",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "69690978635053248432771639028518517681",
+        "18618645950772674137406550426622376555"
+      ],
+      "label": "testnet-23-slot-853841",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "37a1ddf8843a406068b1027f561e0d1769dfe6806d2ed30e54b3ac0750dc401952ef70256bfba684fd108b6c91201e0f69a4799a665b2f2f5d7ec5136fe1942c0b4084f9fe209dfd580e884191245044cae7c44984e1997b0208b7808aac4d967fd45b286d0ce5ab58e687baa4449c9cebb538a78493f0e3d8f51a4db3c7909a"
+    },
+    {
+      "inputs": [
+        "17978102730060693271626375470635128262547816166517171977733575596067043815491",
+        "853860",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "179764236953654270487746244598749116246",
+        "191972950468949297032504345440711504975"
+      ],
+      "label": "testnet-24-slot-853860",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "bdd79f6e39d38632ef2c22375bc111632f66dd8d5a90f97d101e580f6e375a2aea706af4648532470ca7e1e628f52831203eda2991182ee667cd5ab336b1800151648ffbc3327910ad898212513db2d8c38566c2d8a831db4dbf3d921f246c1e71067f74289a3bdb7f415a64a66fd32402d83d3c8ae22f658bd6d7ec6822c6ae"
+    },
+    {
+      "inputs": [
+        "3082131165154543121166661864223110423793814506100084740086019193761401206640",
+        "853868",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "327129695750892905004887915594097026183",
+        "111039988327574449724196809135683721822"
+      ],
+      "label": "testnet-25-slot-853868",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "47f945a1f2fc8382e630f511ce877738a9a26f894428b0379ae0ca8c160c9a92ee450ea51c290ee7df23141813b1b8ab55708dfe49675327949ccfd114c3c4285ea23d369c6e6154377afe501b8f5e2016e7d1be6f6902a49b52cc9d451e5d01b1f67ca7f3bbbc9fbe26e28daf7179a91caed2f318ae1fc0e958ed9148bac21f"
+    },
+    {
+      "inputs": [
+        "2522762732598885292280951532718608715712310001871371199755905130521767458686",
+        "853870",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "161232991861765844904176807565413375801",
+        "181709789118451282629981870109727413767"
+      ],
+      "label": "testnet-26-slot-853870",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "f2d0dff4db58c1c314ed9408a1458bb1bb5a186242559cb48b23068442730d0f872ecbf24572cdf37f61839a4ebc27a3f11ac82c4a80c76d0148c23a473d0a1cabf1e3764f7e12992ea893f855f3f555d130476a3dd6aa20ce9d73809d1f50187444291318b8f7bbaf18d1a7c994ef7734b86b8ac1631a256b1d076373c3c0a0"
+    },
+    {
+      "inputs": [
+        "15895621736833346500779877571007762796620234524167664744097626139524395937165",
+        "853939",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "166714392826847743868211070849388089825",
+        "5837913391043705889769862163249816100"
+      ],
+      "label": "testnet-27-slot-853939",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "8d70ae38a8a9379c47902e6638dbad5dc7bea398239397e7df77171f4a68962f5e3cd4dbe1bac47abc24452bd12ffcf8116c795c9f6c0f7e5b3a52dda8515b00c3db71cead3dfd2115490fad75f539687d2adab8a77a08106ceb174b047a278b74366f6b8ba6948d01d269b697a931b2ec5c3b61fb62f3aa43ccba2a269fa603"
+    },
+    {
+      "inputs": [
+        "11428513100069884707617342538756740556979966935234614717089776881654210259805",
+        "853973",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "2708838917930958606109429885698576975",
+        "322999783076602701423902581790772688260"
+      ],
+      "label": "testnet-28-slot-853973",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "dd9acdc49212a9ab5fae674bd742e51222118896c650dca24f0f9e540c74a9883d107891ca8dff2d96fbac51c337f4bbddc17fdfffb5784df71e8a5bd2427b092b2ced47920f3766c147158b51c60c9c63c307771e726b7ddc0a6a6b8abfc28a079e9d352f3196f1376cfe803eec04516302bc7282fae59444181cc1f8e0e897"
+    },
+    {
+      "inputs": [
+        "4296141232691949373581754766617363535840956444085418881034345523803476833633",
+        "854049",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "337622318229841791740281861545263056096",
+        "112017509493934599467589798055155831358"
+      ],
+      "label": "testnet-29-slot-854049",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "20cc2a3ffaafa8b19dbc0bc9552a68e80395263b4e579ee1f396052b48421fb0e84d5912693541e55c309635dcecf9230b58cc645d0232a9bd2b878c71220e0703febd2f86edaf98af1ff7211cb2b8d12c6feb85de55a0fb3d24cf21d542faa66c253daaa64f08616ea9670c85d0ee43763e2c4b70a83343969e73b87db2400f"
+    },
+    {
+      "inputs": [
+        "21193901670125978630160441989416273841942127352964904039805441173662004970099",
+        "854075",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "45256211867473479773227105590821168168",
+        "174611160694350495765921448696079491633"
+      ],
+      "label": "testnet-30-slot-854075",
+      "node_verify": false,
+      "note": "public-testnet header; epoch nonce, lottery and both roots unknown here (zero)",
+      "proof": "e1bc2915cd1c533b4a3bde9750f4e9037638058cae35c50aa1b9db5f8b39042660f5485324f39938dff03f78d7ee12a9dd120bdc442416297c4cf61cc1046213ba0a38950b2fcf8878b063da7820d0c69167ce44270d245213fc1023ff1ef6ab5e7689f0b0ea525dac097f53ce7fe7b6f1180961a7c1202b564b463fa2f03985"
+    }
+  ],
+  "node": "logos-blockchain 3926a532b9d96d62747da064161a115a7c0c5a3e; circuits v0.5.7 (lbc-pol-sys prebuilt verification_key.json)",
+  "note_ops": [
+    {
+      "insert": true,
+      "new_root": "ebb0e4efc78332f163311899a9a22e4a6b3e9937099af5290ec2bb89ab437c0d",
+      "old_root": "e9f09299ff8f3c22acd2d826c2540d23ebb6e7f716953f0997cae8437d99f32f",
+      "position": 1000
+    },
+    {
+      "insert": false,
+      "new_root": "e608b894408ec0caa9e0f8c45c78273b0c65b66b216d98debe32350388fd7e00",
+      "old_root": "ebb0e4efc78332f163311899a9a22e4a6b3e9937099af5290ec2bb89ab437c0d",
+      "position": 17
+    },
+    {
+      "insert": true,
+      "new_root": "2e16fc824c7b6dde3cea361770fb651c9fb41421fece0500de143fc86cf5f929",
+      "old_root": "e608b894408ec0caa9e0f8c45c78273b0c65b66b216d98debe32350388fd7e00",
+      "position": 17
+    },
+    {
+      "insert": false,
+      "new_root": "01da73d158953769e77ed48d858dce47b1a6c1280931b81d639834fa94b58104",
+      "old_root": "2e16fc824c7b6dde3cea361770fb651c9fb41421fece0500de143fc86cf5f929",
+      "position": 640
+    }
+  ],
+  "testnet_headers": {
+    "count": 31,
+    "first_slot": 852908,
+    "last_slot": 854075,
+    "slots_per_block": 38.9
+  },
+  "vk_sha256_hex": "973513d9a15e0641fa8d153ef678713f5f3dbb9883cae2320832d469b01d44a5"
+}

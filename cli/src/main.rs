@@ -82,6 +82,101 @@ const PLAN: [(&str, u64, &str, u128); 4] = [
 /// The seed counter of a deposit alice never made.
 const PHANTOM_N: u64 = 9;
 
+/// What a run fixes about its network: the anvil run's constants by default,
+/// or `network.json` in the run directory (a public network: the Sepolia
+/// vault and the public LEZ testnet, `scripts/testnet-inbound.sh`). Ids are
+/// 32 ASCII bytes or 0x-prefixed hex.
+struct Net {
+    deployment_id: H256,
+    lez_chain_id: H256,
+    zone_id: H256,
+    instance_id: H256,
+    slot: u64,
+    chain_id: u64,
+    eth_name: String,
+    eth_policy: wrap_bridge::Policy,
+    /// (depositor, seed counter, token, amount), as `PLAN`.
+    plan: Vec<(String, u64, String, u128)>,
+    /// The depositors' seeds (alice, bob, carol); a public run uses fresh ones.
+    seeds: [H256; 3],
+    phantom_amount: u128,
+    honest_claim: u64,
+}
+
+impl Net {
+    fn anvil() -> Net {
+        Net {
+            deployment_id: DEPLOYMENT_ID,
+            lez_chain_id: et::LEZ_CHAIN_ID,
+            zone_id: et::ZONE_ID,
+            instance_id: INSTANCE,
+            slot: SLOT,
+            chain_id: et::ANVIL_CHAIN_ID,
+            eth_name: "Wrapped Ether (anvil)".into(),
+            eth_policy: et::eth_policy(),
+            plan: PLAN.iter().map(|(w, n, t, a)| (w.to_string(), *n, t.to_string(), *a)).collect(),
+            seeds: [et::ALICE_SEED, et::BOB_SEED, et::CAROL_SEED],
+            phantom_amount: 1_000_000_000_000_000_000,
+            honest_claim: HONEST_CLAIM,
+        }
+    }
+    fn load(run: &std::path::Path) -> Result<Net> {
+        let f = run.join("network.json");
+        if !f.exists() {
+            return Ok(Net::anvil());
+        }
+        let j = read_json(&f)?;
+        let id = |k: &str| -> Result<H256> {
+            let s = j[k].as_str().ok_or_else(|| anyhow!("network.json has no {k}"))?;
+            if let Some(h) = s.strip_prefix("0x") {
+                return hex::decode(h)?.try_into().map_err(|_| anyhow!("{k}: not 32 bytes"));
+            }
+            let mut b = [0u8; 32];
+            ensure!(s.len() <= 32, "{k}: at most 32 ASCII bytes");
+            b[..s.len()].copy_from_slice(s.as_bytes());
+            Ok(b)
+        };
+        let num = |v: &Value| -> Result<u128> {
+            match v {
+                Value::String(s) => s.parse().map_err(|e| anyhow!("{e}")),
+                Value::Number(n) => n.as_u64().map(u128::from).ok_or_else(|| anyhow!("not an integer: {n}")),
+                _ => Err(anyhow!("not a number: {v}")),
+            }
+        };
+        let pol = &j["eth_policy"];
+        let plan = j["plan"]
+            .as_array()
+            .ok_or_else(|| anyhow!("network.json has no plan"))?
+            .iter()
+            .map(|d| Ok((d[0].as_str().unwrap_or("").to_string(), d[1].as_u64().unwrap_or(0), d[2].as_str().unwrap_or("").to_string(), num(&d[3])?)))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Net {
+            deployment_id: id("deployment_id")?,
+            lez_chain_id: id("lez_chain_id")?,
+            zone_id: id("zone_id")?,
+            instance_id: id("instance_id")?,
+            slot: j["slot"].as_u64().ok_or_else(|| anyhow!("network.json has no slot"))?,
+            chain_id: j["chain_id"].as_u64().ok_or_else(|| anyhow!("network.json has no chain_id"))?,
+            eth_name: j["eth_name"].as_str().unwrap_or("Wrapped Ether").into(),
+            eth_policy: wrap_bridge::Policy {
+                denominations: pol["denominations"].as_array().ok_or_else(|| anyhow!("eth_policy.denominations"))?.iter().map(num).collect::<Result<_>>()?,
+                mint_cap: num(&pol["mint_cap"])?,
+            },
+            plan,
+            seeds: [id("alice_seed")?, id("bob_seed")?, id("carol_seed")?],
+            phantom_amount: num(&j["phantom_amount"])?,
+            honest_claim: j["honest_claim"].as_u64().unwrap_or(HONEST_CLAIM),
+        })
+    }
+    fn seed(&self, w: Who) -> H256 {
+        match w {
+            Who::Alice => self.seeds[0],
+            Who::Bob => self.seeds[1],
+            Who::Carol => self.seeds[2],
+        }
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "wrap", version, about = "the RFP-022 bridge prototype on a LEZ v0.3 sequencer")]
 struct Cli {
@@ -133,6 +228,12 @@ enum Cmd {
         /// Make the header immutable.
         #[arg(long)]
         immutable: bool,
+        /// Resume a deployment into this header account (already in the
+        /// wallet): its segments, first to last, with `--segment`.
+        #[arg(long, requires = "segment")]
+        header: Option<String>,
+        #[arg(long, requires = "header")]
+        segment: Vec<String>,
     },
     /// Create the run's wallet accounts (admin, freezer, alice, bob public;
     /// carol private) and write accounts.json.
@@ -327,14 +428,6 @@ fn read_json(p: &PathBuf) -> Result<Value> {
     serde_json::from_slice(&std::fs::read(p).with_context(|| format!("reading {}", p.display()))?).with_context(|| format!("parsing {}", p.display()))
 }
 
-fn seed_of(w: Who) -> H256 {
-    match w {
-        Who::Alice => et::ALICE_SEED,
-        Who::Bob => et::BOB_SEED,
-        Who::Carol => et::CAROL_SEED,
-    }
-}
-
 fn who_of(s: &str) -> Who {
     match s {
         "alice" => Who::Alice,
@@ -376,6 +469,7 @@ struct Ctx {
     force: bool,
     wait: u64,
     label: String,
+    net: Net,
 }
 
 /// What the pre-check found: the gas the programs use, or their refusal.
@@ -408,12 +502,12 @@ impl Ctx {
     /// The bridge configuration of this run: its address commits to all of it.
     fn config(&self, p: &Programs, a: &Accounts, vault: [u8; 20]) -> Config {
         Config {
-            deployment_id: DEPLOYMENT_ID,
-            lez_chain_id: et::LEZ_CHAIN_ID,
-            zone_id: et::ZONE_ID,
+            deployment_id: self.net.deployment_id,
+            lez_chain_id: self.net.lez_chain_id,
+            zone_id: self.net.zone_id,
             sextant: p.lc,
-            instance_id: INSTANCE,
-            chain_id: et::ANVIL_CHAIN_ID,
+            instance_id: self.net.instance_id,
+            chain_id: self.net.chain_id,
             vault,
             token_program: p.token,
             ata_program: p.ata,
@@ -617,7 +711,7 @@ impl Ctx {
             eth_token: d.token,
             salt: SALT,
             amount: d.amount,
-            slot: SLOT,
+            slot: self.net.slot,
             root,
             proof,
             index: d.index,
@@ -698,7 +792,8 @@ fn definition_supply(d: &[u8]) -> Option<u128> {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
     let rpc = SequencerClientBuilder::default().build(&cli.rpc).with_context(|| format!("not a sequencer URL: {}", cli.rpc))?;
-    let ctx = Ctx { rpc, run: cli.run, artifacts: cli.artifacts, payer: cli.payer, force: cli.force, wait: cli.wait, label: cli.label };
+    let net = Net::load(&cli.run)?;
+    let ctx = Ctx { rpc, run: cli.run, artifacts: cli.artifacts, payer: cli.payer, force: cli.force, wait: cli.wait, label: cli.label, net };
     let opens_wallet = !matches!(cli.cmd, Cmd::ImageId | Cmd::Plan | Cmd::Ids | Cmd::Balance { .. } | Cmd::ReleaseProof { .. } | Cmd::ZkProve { .. } | Cmd::ChainProve { .. } | Cmd::ChainLayout { .. } | Cmd::ChainParams { .. } | Cmd::ChainForge { .. } | Cmd::AnchorProve { .. });
     let mut wallet = if opens_wallet {
         Some(WalletCore::from_env().await.context("this command needs a v0.3 wallet home (LEE_WALLET_HOME_DIR)")?)
@@ -724,15 +819,25 @@ async fn main() -> Result<()> {
             }
             println!("{}", Value::Object(out));
         }
-        Cmd::Deploy { name, immutable } => {
+        Cmd::Deploy { name, immutable, header: resume_header, segment: resume_segments } => {
             let payer = ctx.payer()?;
             let bytecode = ctx.bin(&name)?;
             let user_elf = risc0_binfmt::ProgramBinary::decode(&bytecode).map_err(|e| anyhow!("{e}"))?.user_elf.to_vec();
             let segments = user_elf.len().div_ceil(program_loader_core::MAX_SEGMENT_DATA_LEN);
             let w = wallet.as_mut().expect("deploy opens the wallet");
-            let header = w.create_new_account_public(None).0;
-            let segs: Vec<AccountId> = std::iter::repeat_with(|| w.create_new_account_public(None).0).take(segments).collect();
-            w.store_persistent_data()?;
+            let (header, segs): (AccountId, Vec<AccountId>) = match resume_header {
+                Some(h) => {
+                    let segs = resume_segments.iter().map(|s| parse_id(s)).collect::<Result<Vec<_>>>()?;
+                    ensure!(segs.len() == segments, "{name} has {segments} segments, not {}", segs.len());
+                    (parse_id(&h)?, segs)
+                }
+                None => {
+                    let header = w.create_new_account_public(None).0;
+                    let segs = std::iter::repeat_with(|| w.create_new_account_public(None).0).take(segments).collect();
+                    w.store_persistent_data()?;
+                    (header, segs)
+                }
+            };
             let loader = ProgramLoader(w);
             let chunks: Vec<&[u8]> = user_elf.chunks(program_loader_core::MAX_SEGMENT_DATA_LEN).collect();
             let mut sent: Vec<String> = vec![];
@@ -785,17 +890,19 @@ async fn main() -> Result<()> {
             // vault pins the LEZ deployment), so it is computed before the vault exists.
             let cfg = ctx.config(&p, &a, [0; 20]);
             let pairing = wrap_bridge::pairing(&p.br, &cfg);
-            let deposits: Vec<Value> = PLAN
+            let deposits: Vec<Value> = ctx
+                .net
+                .plan
                 .iter()
                 .map(|(who, n, token, amount)| {
                     let w = who_of(who);
-                    let secret = wrap_core::derive_secret(&seed_of(w), b'd', *n);
+                    let secret = wrap_core::derive_secret(&ctx.net.seed(w), b'd', *n);
                     let c = wrap_core::commitment(&pairing, a.of(w).value(), &secret);
                     json!({"from": who, "token": token, "amount": amount.to_string(), "commitment": format!("0x{}", hex::encode(c)),
                            "destination": a.of(w).to_string(), "private": w == Who::Carol})
                 })
                 .collect();
-            let phantom = wrap_core::commitment(&pairing, a.alice.value(), &wrap_core::derive_secret(&et::ALICE_SEED, b'd', PHANTOM_N));
+            let phantom = wrap_core::commitment(&pairing, a.alice.value(), &wrap_core::derive_secret(&ctx.net.seed(Who::Alice), b'd', PHANTOM_N));
             println!("{}", json!({"pairing": format!("0x{}", hex::encode(pairing)), "phantom": format!("0x{}", hex::encode(phantom)), "deposits": deposits}));
         }
         Cmd::Ids => {
@@ -808,9 +915,9 @@ async fn main() -> Result<()> {
             let mut j = json!({
                 "config": ca.to_string(),
                 "burns": burns_account(&p.br, &ca).to_string(),
-                "sextant_instance": sextant_program::instance_account(&p.lc, &INSTANCE).to_string(),
-                "sextant_header": sextant_program::header_account(&p.lc, &INSTANCE, SLOT).to_string(),
-                "slot": SLOT,
+                "sextant_instance": sextant_program::instance_account(&p.lc, &ctx.net.instance_id).to_string(),
+                "sextant_header": sextant_program::header_account(&p.lc, &ctx.net.instance_id, ctx.net.slot).to_string(),
+                "slot": ctx.net.slot,
             });
             for (t, n) in [(Token::Eth, "eth"), (Token::Usdt, "usdt")] {
                 let et_ = ctx.eth_token(&an, t);
@@ -819,8 +926,8 @@ async fn main() -> Result<()> {
                 j[format!("{n}_supply_holding")] = supply_account(&p.br, &ca, &et_, &SALT).to_string().into();
                 j[format!("alice_{n}_ata")] = ctx.ata(&p, &cfg, &et_, a.alice).to_string().into();
             }
-            for (i, (who, n, _, _)) in PLAN.iter().enumerate() {
-                let s = wrap_core::derive_secret(&seed_of(who_of(who)), b'd', *n);
+            for (i, (who, n, _, _)) in ctx.net.plan.iter().enumerate() {
+                let s = wrap_core::derive_secret(&ctx.net.seed(who_of(who)), b'd', *n);
                 j[format!("nullifier_{i}")] = nullifier_account(&p.br, &ca, &wrap_core::nullifier(&pair, &s, i as u64)).to_string().into();
             }
             println!("{j}");
@@ -828,6 +935,7 @@ async fn main() -> Result<()> {
         Cmd::InitSextant => {
             let p = ctx.programs()?;
             let an = ctx.anvil();
+            ensure!(!ctx.run.join("network.json").exists(), "init-sextant builds a devnet checkpoint around an anvil block; on a public network Sextant's own client initialises the instance");
             let d = et::devnet(&an.block, SLOT);
             eprintln!(
                 "{}",
@@ -865,7 +973,7 @@ async fn main() -> Result<()> {
             let ca = config_account(&p.br, &cfg);
             let eth_token = ctx.eth_token(&an, token);
             let (name, policy) = match token {
-                Token::Eth => ("Wrapped Ether (anvil)", et::eth_policy()),
+                Token::Eth => (ctx.net.eth_name.as_str(), ctx.net.eth_policy.clone()),
                 Token::Usdt => ("Wrapped USDT (anvil)", et::usdt_policy()),
             };
             let rows = vec![
@@ -884,9 +992,9 @@ async fn main() -> Result<()> {
             let an = ctx.anvil();
             let cfg = ctx.config(&p, &a, an.vault);
             let n = root_after.unwrap_or(an.deposits.len());
-            let (who, k, _, _) = PLAN.get(index).ok_or_else(|| anyhow!("the plan has deposits 0 to {}", PLAN.len() - 1))?;
+            let (who, k, _, _) = ctx.net.plan.get(index).ok_or_else(|| anyhow!("the plan has deposits 0 to {}", ctx.net.plan.len() - 1))?;
             let who = who_of(who);
-            let secret = wrap_core::derive_secret(&seed_of(who), b'd', *k);
+            let secret = wrap_core::derive_secret(&ctx.net.seed(who), b'd', *k);
             let d = an.deposits[index].clone();
             let mut c = ctx.claim_ix(&an, &cfg, &d, n, a.of(who), secret);
             if let Some(r) = redirect_to {
@@ -894,10 +1002,10 @@ async fn main() -> Result<()> {
             }
             if phantom {
                 // A genuine storage proof of knownRoot[root] = 0 for a root the vault never had.
-                c.secret = wrap_core::derive_secret(&et::ALICE_SEED, b'd', PHANTOM_N);
+                c.secret = wrap_core::derive_secret(&ctx.net.seed(Who::Alice), b'd', PHANTOM_N);
                 c.destination = a.alice;
                 c.index = 0;
-                c.amount = 1_000_000_000_000_000_000;
+                c.amount = ctx.net.phantom_amount;
                 c.eth_token = et::ETH;
                 c.root = an.unknown.0;
                 c.proof = an.unknown.1.clone();
@@ -908,7 +1016,7 @@ async fn main() -> Result<()> {
             if !private {
                 let rows = ctx.claim_rows(&p, &cfg, &c, false);
                 let ix = wrap_bridge::Instruction::Claim(Box::new(c));
-                ctx.run_public(wallet.as_ref().unwrap(), &p, "claim", p.br, Program::serialize_instruction(ix)?, rows, &[], HONEST_CLAIM).await?;
+                ctx.run_public(wallet.as_ref().unwrap(), &p, "claim", p.br, Program::serialize_instruction(ix)?, rows, &[], ctx.net.honest_claim).await?;
             } else {
                 ensure!(c.destination == a.carol, "the private path mints into carol's private account");
                 let w = wallet.as_mut().expect("claim opens the wallet");
@@ -991,7 +1099,7 @@ async fn main() -> Result<()> {
             let eth_token = ctx.eth_token(&an, token);
             let o = a.of(owner);
             let recipient: [u8; 20] = et::h(&read_json(&ctx.run.join("anvil/deployment.json"))?[format!("{owner:?}").to_lowercase()]);
-            let secret = wrap_core::derive_secret(&seed_of(owner), b'b', 0);
+            let secret = wrap_core::derive_secret(&ctx.net.seed(owner), b'b', 0);
             let ec = wrap_core::eth_commitment(&recipient, fee, &secret);
             let leaf = wrap_core::burn_leaf(&wrap_bridge::pairing(&p.br, &cfg), &eth_token, amount, &ec);
             let before = frontier(&ctx, &p, &cfg).await?;
@@ -1172,7 +1280,7 @@ async fn main() -> Result<()> {
                     None => an.vault,
                 };
                 let input = wrap_core::zk::ZkReleaseInput {
-                    chain_id: et::ANVIL_CHAIN_ID, vault: release_vault, pairing: pair, relayer: a20(&json!(relayer))?,
+                    chain_id: ctx.net.chain_id, vault: release_vault, pairing: pair, relayer: a20(&json!(relayer))?,
                     token: a20(&b["token"])?, amount: num(&b["amount"])?, recipient: a20(&b["recipient"])?, fee: num(&b["fee"])?,
                     secret, index: i as u64, path: path.clone(),
                 };

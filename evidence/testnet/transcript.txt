@@ -1,0 +1,86 @@
+== lez-deploy (first attempt: the ATA program's header did not land while the testnet stalled)
+  payer 9nqn7xA7z54QZPHs8wWn5VzTeXTgbwq8SREr38tVK9aw holds 66259116 (this stage needs up to 12000000)
+deploy associated_token_account failed
+Error: the header 2ME6FvQqr3umw9U4ZHykEbKw3wfyQwrWn9KXA3h5WyCt is not on chain after 4 sends
+# Portage inbound on public networks: LEZ https://testnet.lez.logos.co (testnet), Sepolia (chain 11155111), 2026-11-08T19:34:46Z
+# commit 33250a0 (uncommitted changes)
+# payer 9nqn7xA7z54QZPHs8wWn5VzTeXTgbwq8SREr38tVK9aw balance_before 66259116
+# program Ebe8rifvjyvwWUXnk7bsKeTwuyCAFSRMFuPMVHE8CbUB ad6fbedb983da6b6d75b287da354ce3041905d152d4e576ec318871eddfaa928 sextant_lc (deployed earlier: lez-sextant v2)
+# program 3cwJjDqD17a7k5zMaYM82sgai7WdRzWfLCtRGntZ6SBb 912d412c6e82c5a5be4a6ad0749358dd85e269655940147f274d3c168c4a14ab token immutable (deployed earlier: LEZ v0.3.0 token.bin)
+
+[exited with code 0]
+Error: the header 2ME6FvQqr3umw9U4ZHykEbKw3wfyQwrWn9KXA3h5WyCt is not on chain after 4 sends
+== lez-deploy (resumed: the ATA header had landed; wrap_bridge)
+  resuming the deployment recorded in programs.json
+{"header":"2ME6FvQqr3umw9U4ZHykEbKw3wfyQwrWn9KXA3h5WyCt","image_id":"2b1d5580b54895db2544574929a2eed36186060f296fb5bf1d11040ab1d27e13","immutable":false,"name":"associated_token_account","op":"deploy","segments":["CA3VzzFP286ePZdsPgKdZHbxd46Q6becX3XrfdPGuaqX","9TNrhh8FAERcynzCvP7UdqF5E7ZeiX8QKe6UwEA
+{"header":"D6XntqqUqgFRUhAJkeM6hGzRSfJm7B3KKukyDxR5Sb4F","image_id":"073f046ce2a6fffd6adec655f0e65e91fd1ab7e47774e2685c40f2d51ea1c670","immutable":true,"name":"wrap_bridge","op":"deploy","segments":["5GSwN1FzeUn87H8AEeXf1p5uf7DmEdnsViLQcFb2GgUh","Cpe7EdAKVXKWm4xckckt5oJC56h7GR3qXZKYNvnS59su","BqdDYt
+deployed; pairing 0x3914993843097b9f73c987a8ffa3da5cc71baed264cdc91cb2b6ad8381a4be7a
+== eth (Sepolia)
+verifier 0x7340eDb604ab33bfb7C48846eD741Ca69FbcCe67 (tx 0x8e6b2b1610297ea0464d8a1bfd9fafcf1f324b77a7401f98abd59d0444dad38e), vault 0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a (tx 0x86521e22b33f49aa3a533d7e6a01251cd4c6d8265c77fe0b02b37ad42f84d288, block 12092947), Ether registered (tx 0x1c8f710574e9a050497cb0b80af03c2d26b0565749b7d2b04cca1a4ff497df12)
+deposit 0: alice 1000000000000000 wei, tx 0x8385eedf92b93fba39939376e17717da29a0ca77c329cba65e7b9f3e5ac8dbfb, block 12092949, gas 847409
+deposit 1: carol 1000000000000000 wei, tx 0x2508a66321461e382fe7c00fe5cff9ca9232ef089ecde500bebcb92934207fdd, block 12092950, gas 531046
+
+[exited with code 0]
+== fetch
+receipts root matches the block (0xe9cd725fd1f180e994209077f71962517a97f4562387bdb70f576d0a36da44a8); proof of tx 0: 3 nodes, 1420 bytes
+ok: sepolia checkpoint slot 11536448, execution block 12092950
+ok: sepolia checkpoint block 12092950, receipt tx 0, getproof-history.json
+checkpoint slot 11536448, execution block 12092950 (0x95055659f1eddddfcd28503ecefe076c9ae0d89e49f85f21fa05903532af6c23), last deposit in block 12092950
+2 deposits, block 12092950 (0x95055659f1eddddfcd28503ecefe076c9ae0d89e49f85f21fa05903532af6c23, state root 0xcb2f2b05807bf7a52617b5f386cc4906a33959e2f4e7b6caa270afe92cdc78fc), root 0x0f783dbd56aa5c54bbf04ee3fb09590a3e92812fff29466175fcaecea880dc77, 9 account and 4 storage proof nodes
+== sextant
+  payer 9nqn7xA7z54QZPHs8wWn5VzTeXTgbwq8SREr38tVK9aw holds 59986956 (this stage needs up to 18000000)
+# sextant_lc run (chain, sepolia-portage vectors) against https://testnet.lez.logos.co, 2026-11-08T21:03:14Z
+# program Ebe8rifvjyvwWUXnk7bsKeTwuyCAFSRMFuPMVHE8CbUB ad6fbedb983da6b6d75b287da354ce3041905d152d4e576ec318871eddfaa928
+# binary {"bytes":651932,"image_id":"ad6fbedb983da6b6d75b287da354ce3041905d152d4e576ec318871eddfaa928","sha256":"58a600a4c9e1d608b27bd16f59aef53587ee4fcbd4152c575f754a96604b3dbd"}
+# payer 9nqn7xA7z54QZPHs8wWn5VzTeXTgbwq8SREr38tVK9aw instance sepolia-portage-1108
+== 1. Init from the committed sepolia-portage bootstrap (slot 11536448)
+{"attempts":["a229935353b740896e3916c505dd7167de3d7251d38a54642b69d8cd7b839ccc","f5b85089439c971d4c4f3985427d8fd18b206e856ab45e171e8b576100611cfa","aea9b9442a85ae07e2c2f8611a81a6155d0ff7c87aa57992c3f022f2281070b0"],"block":79184,"block_gas_exec":1834893,"block_gas_stor":27060,"fee_reserve":"15122408","gas_limit":1863241,"label":"init","op":"init","payer_balance_after":"45091332","payer_balance_before":"59986956","precheck":{"gas":1834893},"state_changed":true,"tx":"a229935353b740896e3916c505dd7167de3d7251d38a54642b69d8cd7b839ccc","tx_bytes":27060,"verdict":"applied"}
+  ok  init: applied (gas=1834893)
+  ok  instance at the checkpoint: 11536448
+== 2. the consumer check against the checkpoint's header (execution block 12092950)
+{"attempts":["7cbd9d7bdc7c2ff8897fb8c44ee3c687332e57d668194ebcab0ec0aece6c177f"],"block":79185,"block_gas_exec":95791,"block_gas_stor":1827,"fee_reserve":"868600","gas_limit":106748,"label":"attest-checkpoint-log","op":"attest","payer_balance_after":"44310388","payer_balance_before":"45091332","precheck":{"gas":95791},"state_changed":false,"tx":"7cbd9d7bdc7c2ff8897fb8c44ee3c687332e57d668194ebcab0ec0aece6c177f","tx_bytes":1827,"verdict":"applied"}
+  ok  attest-checkpoint-log: applied (gas=95791)
+{"attempts":["76a47309ba9625e087df62980f29eff16803075ad0af468709549c31185db886","99d255e1fb94cfe8d2d95a5d075a8e20f65e623e5b6bb4298899a0ea021cf047","d3ecce004ff908f9925e7ffacc899c9f677af80213542de607c8d595d02a01e7"],"fee_reserve":"816936","gas_limit":100290,"label":"attest-checkpoint-as-mainnet","op":"attest","payer_balance_after":"44310388","payer_balance_before":"44310388","precheck":{"refused":"E7209: chain-ID mismatch: the record belongs to another chain's instance"},"tx":"d3ecce004ff908f9925e7ffacc899c9f677af80213542de607c8d595d02a01e7","tx_bytes":1827,"verdict":"not-included"}
+  FAIL attest-checkpoint-as-mainnet: not-included (E7209), expected E7209
+  (skipped attest-checkpoint-predicate-false: SKIP_STEPS)
+== 3. updates (none): Begin, Miller, Finish
+== final state: the instance and the header records, as the run left them
+# final 8if4JHY17qPNatBnisn4ULPvayu3ckQn9tMeqZiV7vXc 415 8b15fbf18f08ff64fcaade152774b6d1b9f59222d93e3d802212ffb10541e4b3
+# final 9Vs169NnZZP6uYazAtudgpJXEtR5ZkCMvB85uHgzq8i9 120 64472f3248c95256755447292c08dba4619929754a41717ce5f5ab477bece881
+# final 9Vs169NnZZP6uYazAtudgpJXEtR5ZkCMvB85uHgzq8i9 120 64472f3248c95256755447292c08dba4619929754a41717ce5f5ab477bece881
+== FAIL: 3 transactions in <lez-sextant>/evidence/testnet-v2-sepolia-portage/run.tsv
+== claims
+  payer 9nqn7xA7z54QZPHs8wWn5VzTeXTgbwq8SREr38tVK9aw holds 44310388 (this stage needs up to 25000000)
+{"attempts":["7665aa2528f2655baa4f57367a19f110ef6b13649ed319d99176510da64aabd1","bb574b06c98aa3d0014a3787eab23841fa3e40e50da80d2694729547802ca8a7","aa654a7ae947c5219cb9e14c363953aa1c15df0e764ac052e61e25e060c6badc"],"block":79187,"block_gas_exec":27049,"block_gas_stor":607,"gas_limit":37319,"label":"init-bridge","op":"init-bridge","payer_balance_after":"43272204","payer_balance_before":"44310388","precheck":{"gas":27049},"state_changed":true,"tx":"aa654a7ae947c5219cb9e14c363953aa1c15df0e764ac052e61e25e060c6badc","tx_bytes":607,"verdict":"applied"}
+  ok  init-bridge: applied (gas=27049)
+{"attempts":["3ad7971422cec2a73fa1dcf901cbaf14ea6966e199e7000900a25a00a2d121c6"],"block":79188,"block_gas_exec":90410,"block_gas_stor":1088,"gas_limit":101314,"label":"register-eth","op":"register","payer_balance_after":"42540220","payer_balance_before":"43272204","precheck":{"gas":90410},"state_changed":true,"tx":"3ad7971422cec2a73fa1dcf901cbaf14ea6966e199e7000900a25a00a2d121c6","tx_bytes":1088,"verdict":"applied"}
+  ok  register-eth: applied (gas=90410)
+-- the public claim (deposit 0, alice), attested against the Sepolia checkpoint
+{"attempts":["834a346002e0410e5248a45e4ac79ce92bda88e327c3d8c7f1611b6ee5881752"],"block":79189,"block_gas_exec":451107,"block_gas_stor":6385,"gas_limit":465618,"label":"claim-alice","op":"claim","payer_balance_after":"38880284","payer_balance_before":"42540220","precheck":{"gas":451107},"state_changed":true,"tx":"834a346002e0410e5248a45e4ac79ce92bda88e327c3d8c7f1611b6ee5881752","tx_bytes":6385,"verdict":"applied"}
+  ok  claim-alice: applied (gas=451107)
+  ok  alice holds 0.001 wrapped ETH: 1000000000000000
+-- refusals: the same deposit again, a root the vault never had
+{"attempts":["b0c840a246afbc3b58a5bf093ac499bc4f43910950a09b88b8e4deee37370579","9932dcfc9c4f70b31237bf0e7922df9e8de40e22b6493e79f9b08db9335a0a43"],"block":79190,"block_gas_exec":947324,"block_gas_stor":12770,"gas_limit":496217,"label":"claim-alice-replay","op":"claim","payer_balance_after":"34859468","payer_balance_before":"38880284","precheck":{"refused":"E7402: this deposit was already claimed"},"state_changed":false,"tx":"b0c840a246afbc3b58a5bf093ac499bc4f43910950a09b88b8e4deee37370579","tx_bytes":6385,"verdict":"included-shared-block"}
+  FAIL claim-alice-replay: included-shared-block (E7402), expected E7402
+{"attempts":["974f5e7de5c1914bb28098e949fbff5655d7037f185930a7d7f1898e39a901b3","a8448fec3fab28daf0314dab68da5df231b2bb12eaf3913e141e75eb10d015c6"],"block":79191,"block_gas_exec":496217,"block_gas_stor":6260,"gas_limit":496217,"label":"claim-phantom-unknown-root","op":"claim","payer_balance_after":"30839652","payer_balance_before":"34859468","precheck":{"refused":"E7208: predicate not satisfied by the attested state"},"state_changed":false,"tx":"974f5e7de5c1914bb28098e949fbff5655d7037f185930a7d7f1898e39a901b3","tx_bytes":6260,"verdict":"reverted"}
+  ok  claim-phantom-unknown-root: refused (E7208), included, charged its whole limit, nothing changed
+-- the private claim (deposit 1, carol's shielded account), real proving
+{"absent_from_tx":{"commitment":true,"destination":true,"leaf":true,"path_nodes":"1 of 1","secret":true},"attempts":["4f6dfe0ab587d1c15f6c4292c8be9183d8f1ef036b250f67fc70bdebfa837ca3"],"block":79196,"dev_mode":false,"kind":"privacy-preserving","label":"claim-carol-private","nullifier_account":"8qMCXuDKSuKrBUNU9CUwomhU68AcWqdQ7eC2m2TF2BKK","op":"claim-private","prove_and_submit_ms":264594,"state_changed":true,"tx":"4f6dfe0ab587d1c15f6c4292c8be9183d8f1ef036b250f67fc70bdebfa837ca3","tx_bytes":257739,"verdict":"applied"}
+  ok  the private claim landed: applied
+  ok  a privacy-preserving transaction: privacy-preserving
+  ok  RISC0 dev mode off (real proving): False
+  ok  the opening is absent from the transaction: True
+  ok  carol decrypts 0.001 wrapped ETH in her private account: 1000000000000000
+  ok  her note's commitment is in the chain's commitment set: True
+  ok  the private account is not public: no token shard on chain under its id: 0
+  ok  wrapped ETH supply: both deposits, minted once each: 2000000000000000
+== final state
+  64472f3248c95256755447292c08dba4619929754a41717ce5f5ab477bece881: 120 bytes
+  96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7: 2 bytes
+  e83b1e9a0dae4a7acf6b9f3ff12abd5bc0e6055d6f1ebf0ab900e9ac1ad41f51: 134 bytes
+  4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a: 1 bytes
+  4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a: 1 bytes
+  71595b5a35daf42b0cdf8db6ab6a379b07cee091482f5bd418c1c44cae8068ed: 43 bytes
+  391e194995fbbeeabbafc4105af298859522819f0535fc74531b5142d7e99622: 49 bytes
+  ok  both deposits' nullifiers are spent: 1 1 
+== FAIL: 7 LEZ transactions (5 applied, 1 refused as expected), 10 state checks ok
