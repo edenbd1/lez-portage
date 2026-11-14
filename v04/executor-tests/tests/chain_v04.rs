@@ -7,8 +7,9 @@
 //! What it shows: the block mirror is LEZ's layout byte for byte (the
 //! reverted list included), the hash formula is LEZ's, and the burns the
 //! program actually applied, and only those, are derivable from the blocks
-//! alone: two public burns applied, two public burns included in blocks but
-//! reverted, and the tree rebuilt from the blocks is the program's own.
+//! alone: public burns of ETH and of the ERC-20 (USDT) applied, others
+//! included in blocks but reverted, and the tree rebuilt from the blocks is
+//! the program's own.
 
 use std::str::FromStr;
 
@@ -89,7 +90,11 @@ fn applied_public_burns_and_only_those_are_derived_from_the_blocks() {
             }
         }
     }
-    assert_eq!(sent, 4, "four burns in the blocks");
+    let burns_sent = r["transactions"].as_array().unwrap().iter().filter(|t| t["label"].as_str().unwrap().contains("Burn ")).count();
+    let burns_reverted = r["transactions"].as_array().unwrap().iter().filter(|t| t["label"].as_str().unwrap().contains("Burn ") && t["verdict"] == "reverted").count();
+    assert!(burns_sent >= 4 && burns_reverted >= 2, "applied and reverted burns in the run");
+    assert_eq!(sent, burns_sent, "every burn the run sent is in the blocks");
+    assert_eq!(r["applied_burn_leaves"].as_array().unwrap().len(), burns_sent - burns_reverted);
     // From the anchor (the block before the first, which it names), the blocks give the applied two.
     let first: common::block::Block = borsh::from_slice(&blocks[0].1).unwrap();
     let mut s = v04::ChainState::at_anchor(blocks[0].0 - 1, first.header.prev_block_hash.0);
@@ -109,7 +114,7 @@ fn a_block_whose_reverted_list_is_tampered_does_not_hash() {
     let blocks = blocks();
     // The block of a reverted burn: un-list it, and the block no longer has its hash.
     let r = run();
-    let n = r["transactions"].as_array().unwrap().iter().find(|t| t["label"].as_str().unwrap().starts_with("Burn 12345")).unwrap()["block"].as_u64().unwrap();
+    let n = r["transactions"].as_array().unwrap().iter().find(|t| t["label"].as_str().unwrap().contains("Burn 12345")).unwrap()["block"].as_u64().unwrap();
     let raw = &blocks.iter().find(|(id, _)| *id == n).unwrap().1;
     let mut b: v04::block::Block = borsh::from_slice(raw).unwrap();
     assert_eq!(b.body.reverted, vec![0]);

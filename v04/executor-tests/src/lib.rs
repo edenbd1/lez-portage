@@ -20,6 +20,8 @@
 //! light client itself. The storage proofs, the deposits' leaves and paths,
 //! the nullifiers and the mints are checked exactly as on v0.3.
 
+pub mod seq;
+
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

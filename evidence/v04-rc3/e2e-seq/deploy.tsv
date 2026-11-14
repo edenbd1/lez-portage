@@ -1,15 +1,16 @@
-deploy token.bin segment 1	applied	applied	2	0	aa96458421a0914d690d570b8bd7657e5a51f22e3ae03e81833fe8ae6b631758
-deploy token.bin segment 0	applied	applied	3	0	584c1b67b644d7b1be35941162246b14cc7e69debcd786057385f33a6d957c00
-deploy token.bin header	applied	applied	4	0	2326684351d8a6f46f28e14f78c59d8f42dad813017c85885f81ad9ad8d678fe
-deploy sextant_lc.bin segment 5	applied	applied	5	0	96bb824d788b1ff18df18d48cfb22dd02effddde7c08f0580b04f266f85c9784
-deploy sextant_lc.bin segment 4	applied	applied	6	0	e05b607431183356a35e0d4cf06f52980395dfba0f01f010347f32cd33612ec5
-deploy sextant_lc.bin segment 3	applied	applied	7	0	cc80c4caf3a793b5e1946a0cd718805c185783b8c3d98d4dfc4cbec4e05840e1
-deploy sextant_lc.bin segment 2	applied	applied	8	0	954ec6b9cf3fbeb36427fdc18f0189e44535e115a5ca78ac84936ee0b93c11eb
-deploy sextant_lc.bin segment 1	applied	applied	9	0	b630b12525ebabf2612b9bd4cdcd922678fc9a38bab7e43e17dcc1e6baef89da
-deploy sextant_lc.bin segment 0	applied	applied	10	0	a0ea72ea52e3ada35d487f2bc41a38a8b7910f406b4aa554d036d5c5dba44726
-deploy sextant_lc.bin header	applied	applied	11	0	fbbb00af6d308f3dbbbb7dbe9109f89e6c5f562b202b448a3bebdfa5dd332a23
-deploy wrap_bridge.bin segment 3	applied	applied	12	0	72768e7b0f81cfa7eaa6a4c76428a64525aba2a01a117aa3dfe644165fb7ef62
-deploy wrap_bridge.bin segment 2	applied	applied	13	0	e95feeff05a498304663a498e10fb69ec9bb2dd26100b882e4cdb4420702c76b
-deploy wrap_bridge.bin segment 1	applied	applied	14	0	a3ee5292c3adf8447b0289f65321d16fc338ab7d9a0050e37344c025e14ced6b
-deploy wrap_bridge.bin segment 0	applied	applied	15	0	a5bda0193f23391ab2ed9eb236df62f695144ccbc9f51c1b1e3e8fb974e3de8f
-deploy wrap_bridge.bin header	applied	applied	16	0	f4536a658853c0f6d3b9ab82f894b73255dffc6f00c710039be0b4b4d1f8f51b
+deploy token segment 2	applied	applied	2	0	9416d403ecafb9c6f9bf2e57e4862c5539c311a59502059ae4b3b61672d421e3	-
+deploy token segment 1	applied	applied	3	0	3f7a1981ec1d19fc44c6381e2aa24a87cd184f56f3817181ab6da0b01047959c	-
+deploy token segment 0	applied	applied	4	0	df5d207fc8a69a86f73845da06e2eff730c854d96ca9e4c634ad608117fb27a8	-
+deploy token header	applied	applied	5	0	3efc1f3b9c26deda5b45bf39d7207a44d951b3bd1107d0c63eac3bd41a3864b8	-
+deploy sextant_lc segment 5	applied	applied	6	0	8596971eb5a27c273169456003446c8f13fea57088adcd4da56e1a136c467e51	-
+deploy sextant_lc segment 4	applied	applied	7	0	dcc5a7158425b207cc465672202ee13beae2f5535736fbca9ebfcbe404521dc5	-
+deploy sextant_lc segment 3	applied	applied	8	0	55e689a6a5406b6103503f4bb13462f05d14dfc599130522a1bd276aafbc55a6	-
+deploy sextant_lc segment 2	applied	applied	9	0	0c1cb37d5b161b84703642e83321107c102e67ebe897b5d3ebf5f3a0bc721048	-
+deploy sextant_lc segment 1	applied	applied	10	0	96547be3cd020ae920501f2906fa7210984b65e455f62654679e07ebed8aa6a5	-
+deploy sextant_lc segment 0	applied	applied	11	0	95c71e08a4a48be9839e1f31563b13c311194ecd8624149ef6590b7cd8e7f169	-
+deploy sextant_lc header	applied	applied	12	0	add5e515891164dffc839f364f774ac7b4e4814c1b07dd4053715fc3d71b34a3	-
+deploy wrap_bridge segment 3	applied	applied	13	0	5db20d7e7091a31a2046e67f58217b4941e7f1e046ee23bb031464242834e198	-
+deploy wrap_bridge segment 2	applied	applied	14	0	6f5a30040607c3f593de711bcacc2323a1075b2f1e02f5ceb165e855131a339c	-
+deploy wrap_bridge segment 1	applied	applied	15	0	eb110b1e00d26c481174ac34cb96303fab0cbf70540e5a63f969ec2e2217dbf2	-
+deploy wrap_bridge segment 0	applied	applied	16	0	ed3b1bb693fef03dcc90a4264b2b926a023bfbc75cd0b91314748fa47ee04f05	-
+deploy wrap_bridge header	applied	applied	17	0	a8e5bd3e8fe03afd15f190d95bbda02c7972dddb3f968fcbaec1ae867c56acff	-

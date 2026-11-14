@@ -155,11 +155,46 @@ jobs:
           for i in 1 2 3; do rzup install r0vm 3.0.5 && exit 0; sleep $((i * 20)); done
           exit 1
       # The committed v0.4 binaries (v04/artifacts: token, sextant_lc,
-      # wrap_bridge) through lee::V03State at v0.4.0-rc3, a real Sepolia
+      # wrap_bridge) through lee::V03State at v0.4.0-rc3 (ETH and the ERC-20 path), a real Sepolia
       # checkpoint attesting the Sepolia vault's roots, and chain/v04 on the
       # blocks of a local v0.4.0-rc3 sequencer (vectors/lez-blocks-v04);
       # docs/V04-PORT.md.
       - run: cargo test --release --manifest-path chain/v04/Cargo.toml
       - run: cargo test --release --manifest-path v04/executor-tests/Cargo.toml -- --nocapture
+      - name: The v0.4 client builds
+        run: cargo build --release --manifest-path v04/executor-tests/Cargo.toml --bin wrap
       - name: The v0.4 chain guest's cycles
         run: cargo run --release --manifest-path v04/executor-tests/Cargo.toml --bin measure_chain
+  reproduce-v04:
+    name: A clean Docker rebuild is each committed v0.4 binary (token, wrap_bridge, lez_chain_v04, sextant_lc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: RISC0
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+      - name: cargo-risczero 3.0.5, r0vm 3.0.5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for i in 1 2 3; do
+            rzup install cargo-risczero 3.0.5 && rzup install r0vm 3.0.5 && rzup install rust && exit 0
+            sleep $((i * 20))
+          done
+          exit 1
+      # Each in RISC Zero's pinned builder image (r0.1.91.1): the token program
+      # from lez-programs 2801ea1 with the lockfile in v04/locks, wrap_bridge,
+      # the v0.4 chain guest, and Sextant's light client from lez-sextant
+      # 1e55629 (built by that repository's own script). ImageIDs:
+      # evidence/v04-rc3/image-ids.txt.
+      - run: |
+          mkdir -p /tmp/committed
+          cp v04/artifacts/*.bin /tmp/committed/
+          NO_IMAGE_ID=1 DOCKER=1 v04/scripts/build-guests.sh token wrap_bridge lez_chain_v04
+          for b in token wrap_bridge lez_chain_v04; do cmp /tmp/committed/$b.bin v04/artifacts/$b.bin; done
+          sha256sum v04/artifacts/*.bin
+      - run: |
+          DOCKER=1 v04/scripts/build-guests.sh sextant
+          cmp /tmp/committed/sextant_lc.bin v04/artifacts/sextant_lc.bin

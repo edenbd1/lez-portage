@@ -1,0 +1,1 @@
+wrap: a private claim is not available on LEZ v0.4 yet: its fee is paid inside the proof by a funded private account, and the bridge's private paths are not ported (docs/V04-PORT.md, section 2.6). Claim publicly (the default).

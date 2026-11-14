@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn a v04/scripts/e2e-seq.sh run directory into vectors/lez-blocks-v04:
+"""Turn a v04/scripts/e2e-seq.sh run directory (the v0.4 client's manifest.tsv) into vectors/lez-blocks-v04:
 run.json (programs, config, burns, pairing, block range, applied burn leaves,
 the burn tree root, every transaction's label, verdict, block, index and hash)
 and the blocks themselves.
@@ -25,8 +25,12 @@ for line in open(os.path.join(run, "manifest.tsv")):
         f = line[2:].split(" ")
         meta[f[0]] = f[1:]
         continue
-    label, expected, verdict, block, tx, h = line.split("\t")
-    txs.append({"label": label, "verdict": verdict, "block": int(block), "tx": int(tx), "hash": h})
+    f = line.split("\t")
+    label, expected, verdict, block, tx, h = f[:6]
+    t = {"label": label, "verdict": verdict, "block": int(block), "tx": int(tx), "hash": h}
+    if len(f) > 6 and f[6] != "-":
+        t["precheck"] = f[6]
+    txs.append(t)
 first, last = [int(x) for x in meta["blocks"][0].split("..=")]
 cfg = meta["config"]
 os.makedirs(out, exist_ok=True)

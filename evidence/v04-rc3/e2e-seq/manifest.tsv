@@ -1,18 +1,28 @@
-# label	expected	verdict	block	tx	hash
-Sextant Init (devnet header of the anvil block)	applied	applied	20	0	0d5f18687c8301aa55ae364faae7333bb0ca314ca874da1b541b6836e6d51460
-Init	applied	applied	21	0	5ceb736b64c4b655a144e7e57f3182fe32b66dd6cd4adc1dc6bfd73f519221c1
-Register ETH	applied	applied	22	0	75910fc1c83db7f9a95dafa5b4bb80e0cdab1f1926ef8fa10102b7c902bb5657
-alice InitializeHolding	applied	applied	23	0	bbd7e86c5096177133be4049f03869c0b7feb983c747ba44824f46bc26d54a05
-Claim deposit 0	applied	applied	24	0	3355e7645b3a83e78d8c62be660490da4aab88e004999e7dced1dc2986fb3478
-Claim deposit 1	applied	applied	25	0	63073a38d9758619a90b9176a0c82b43b8c9bd21c0be882f89311a626031b6fb
-Claim deposit 0 again (replay)	reverted	reverted	26	0	644c8671fbc089a8d0a5a66212ed087f2a71776ee76009aa3dc558123f37e55a
-Claim against a root the vault never had (Sextant refuses)	reverted	reverted	27	0	1fa8ba561cd5e0366240b1d1e42e77aeb4055289d0af89dc7ef3facf818af664
-Burn 0.1 ETH	applied	applied	28	0	56e9205048c9330098b21a14f609f22567d5ac51a4de4bddb1c68c0381d7590f
-Burn 12345 wei (not a denomination)	reverted	reverted	29	0	c34d048c1ca42d72a43e06e62260ec2f391982092e2696db01c61fc8db80d0c0
-Burn 1 ETH	applied	applied	30	0	199feca0f980c223c95aef023d8cd511f18729d690faadd2bfe469e06260a5bd
-Burn 1 ETH (more than alice holds)	reverted	reverted	31	0	816a832e4b65a279b9cc070d0c83c449e4db585bf749a024d3339ff5f512bca8
+# label	expected	verdict	block	tx	hash	precheck
+Sextant Init (devnet header of the anvil block)	applied	applied	21	0	a4ae45073f0358f988e19060b55139736741aa0ff32fb029e8dd24ff820223c2	-
+Init	applied	applied	22	0	67e1cba78435437937f2fea9620e433c44ee59ffd8e452d613f9ee98f52d4074	-
+REGISTER ETH	applied	applied	23	0	a16ad822c3b510db34be082f1ffd4bbd1184575385e8172861483c020b992600	-
+REGISTER USDT	applied	applied	24	0	16f55c0bf8d0f0e9015a729b6d72056518504c43185e66a32f71d050a9b1e661	-
+alice InitializeHolding Eth	applied	applied	25	0	3772c40a96a5e1d1fd39d044d72adcd47a19100ff197991f8d1e051862936e62	-
+bob InitializeHolding Usdt	applied	applied	26	0	e61f846e8be10c5ce5557f8e217095e24572d5c01c73a8e5879ad4003a40e3db	-
+Claim deposit 0	applied	applied	27	0	48c22db2e04d4cf26b2b606848d0d5f8d157984ee4c33cc2c8720d6b73181b32	-
+Claim deposit 2	applied	applied	28	0	8da41af7772afcafbd36da2b48f9c31c25afbb585bd188cabff894a520926768	-
+Claim deposit 0 again (replay)	reverted	reverted	29	0	9974afca3de8151eec503756fedadfb1801abcb298db8890822a3fca54b32585	E7402
+Claim deposit 2 again under an earlier root (replay)	reverted	reverted	30	0	220d832da47062616cb0effb8e1c240d1229067d22b784f502ea0a2b8b8c76d0	E7402
+Claim the deposit never made (a root the vault never had)	reverted	reverted	31	0	9dd1e00aac0b4c4bc2e3d93309e9f08ebd0543876d7c81a09bb49784590afad1	E7208
+Claim deposit 3 redirected to alice	reverted	reverted	32	0	579dd8765711cb908434f51cdc201169d2eb52eea7f63b46cbc19555ff2ef770	E7403
+Claim deposit 3 as ETH (the wrong token)	reverted	reverted	33	0	e412a09432067ecfa9a09fd4b0bc82c1e46a0d913e9242cb8009bba1bdc487ad	E7403
+Claim deposit 1	applied	applied	34	0	b917cdc8c43b69129aebcd5161db592693b776819cb0a0885ed9749edc78d837	-
+Claim deposit 3	applied	applied	35	0	5a478a6bed819db95b31f3a5dbb5b33265a81f4f91970ba77a533c2d0c7fed31	-
+alice Burn 100000000000000000 Eth	applied	applied	36	0	543c6ca2584c74566e5414046d75f0e9cf056089b3516e70c6701cafd282e38f	-
+bob Burn 100000000 Usdt	applied	applied	37	0	45efb58a8588ef1a140c2dab2666f1e0cbb3769425be090ca4c141adf5bb1345	-
+bob Burn 12345 USDT units (not a denomination)	reverted	reverted	38	0	e35e9886bb6f1fa32e30be13b4817201fdaa884541d79645f22658b6d72abbfd	E7408
+alice Burn 100 USDT from her wrapped ETH (the wrong token)	reverted	reverted	39	0	4c90178fbe1b5b848c6e2db43403d4767b0c17c47971de2a057d5d54736d89a8	Failed to execute program: Guest panicked: recipient holds another token
+bob Burn 1000000000 Usdt	applied	applied	40	0	b99d2b5862b3a82f0912d25e0665d28d1a4da093598eb266507c378ce758e4f5	-
+bob Burn 1000 USDT (more than bob holds)	reverted	reverted	41	0	fca27118cab82d0a8110c7783861e7464ffc8327e75838bf591f38b796274bc2	Failed to execute program: Guest panicked: insufficient balance
+alice Burn 1000000000000000000 Eth	applied	applied	42	0	c4269a507ab193ed64742aaedab79b092165d5ca8cdede135d3e1f50ee94ddef	-
 # programs token 3sNabUZKL776oo3x1aubaQyMLXaKpMSYjrxsGcybwDFX sextant_lc SWmn7pHJoq59DQJAjPoewg7sz3zqGnotAttvmb6XYun wrap_bridge 3WJtzhYHGpHDEAV6NJkvDwoTfT9P8sahB5WMESmVb1Qf
 # config 5NbKMHqjuLcsNVNjRnbqJQ8JWhE4Lh8ZZ8y8cyjZvbZY burns 9d4ZaPsNZw3EaRYHggZEczmDfk26kgsdHdhbAapFmcof pairing 0xbe7c5f96c9f4cf0e115467b5aa80257e0ec00e385e57f64075f2fab12af89c88
-# blocks 20..=31
-# burn leaves (applied burns, in order) 0x7836322811062cbd35f1c9c514a6304966990bcd95a549bc17fe221ffec02f7b 0x5e59c9a50423b9bb3e2eae0a178bcf0df7453dd3b9e7ae40ec8a6f354d20b4a9
-# burn tree root 0x4042780cf26245da1a7dc050a3742a19fc152a01b7bf09e3578b9e6bf0c1b4b3 (the program's own frontier, read back: 2 leaves, root 0x4042780cf26245da1a7dc050a3742a19fc152a01b7bf09e3578b9e6bf0c1b4b3)
+# blocks 20..=42
+# burn leaves (applied burns, in order) 0xbda9924c88ad8e66d375b4b84473370cab8a38bc89c801dbf4463cb697cfc3c4 0xdadb97576e8d20ceeda61d94fb30fe09f2f88b574d684945b234b0292a7181ae 0x455e330a9756671d6aea48d0e0f04aeb028c8d1a2a805bc74d3619ab8e93971c 0x0e24d5b1042b611ffa059123f3b3925f4e2e98303af8724f56fac78984225208
+# burn tree root 0xf36d194f846b6bd819c275ea8fb8aa501b220fe25412b99f424741bfe7597894 (the program's own frontier, read back: 4 leaves, root 0xf36d194f846b6bd819c275ea8fb8aa501b220fe25412b99f424741bfe7597894)

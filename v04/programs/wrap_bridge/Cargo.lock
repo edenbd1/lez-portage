@@ -1868,7 +1868,7 @@ dependencies = [
 [[package]]
 name = "sextant-core"
 version = "0.1.0"
-source = "git+https://github.com/edenbd1/lez-sextant?rev=d02d621c4992839e74ddb36e2fde0c92fa8981d2#d02d621c4992839e74ddb36e2fde0c92fa8981d2"
+source = "git+https://github.com/edenbd1/lez-sextant?rev=1e55629a80117bc9e8caed35439df86ec6433dff#1e55629a80117bc9e8caed35439df86ec6433dff"
 dependencies = [
  "blst",
  "borsh",

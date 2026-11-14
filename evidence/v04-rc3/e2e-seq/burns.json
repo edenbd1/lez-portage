@@ -1,0 +1,46 @@
+[
+  {
+    "amount": "100000000000000000",
+    "blinding": "0x188bbd73a84a520dbb3ebe8094e1e8a971f71c799bbada4bee3e659b78eef6c9",
+    "eth_commitment": "0x66abe068d5b01b134f3c4ce43078870bc5e12a27aeaf39f1b6bfa0e879965475",
+    "fee": "0",
+    "index": 0,
+    "leaf": "0xbda9924c88ad8e66d375b4b84473370cab8a38bc89c801dbf4463cb697cfc3c4",
+    "owner": "alice",
+    "recipient": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+    "token": "0x0000000000000000000000000000000000000000"
+  },
+  {
+    "amount": "100000000",
+    "blinding": "0x542c32a2e32371b8c23dc1ff6ea8a702d627f202fb9bda61d499335564fa1083",
+    "eth_commitment": "0x76d3afd30f8f64e0d76c74f101dee173796869175a5fd3dc74437b8927b8a2f9",
+    "fee": "0",
+    "index": 1,
+    "leaf": "0xdadb97576e8d20ceeda61d94fb30fe09f2f88b574d684945b234b0292a7181ae",
+    "owner": "bob",
+    "recipient": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+    "token": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+  },
+  {
+    "amount": "1000000000",
+    "blinding": "0xe9673e8edc33ee56419e45460ef65b4bbb0c867f9977c02781df685de50579c4",
+    "eth_commitment": "0xba30201507a7d08dbd658b5da04207d7e25691b064738c3ae36f76f8997b5086",
+    "fee": "0",
+    "index": 2,
+    "leaf": "0x455e330a9756671d6aea48d0e0f04aeb028c8d1a2a805bc74d3619ab8e93971c",
+    "owner": "bob",
+    "recipient": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+    "token": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+  },
+  {
+    "amount": "1000000000000000000",
+    "blinding": "0x5af747cbb5fdee73c4a39dc58ac8136acbd9bbe5a33113c5b4d9b4c53e9e877c",
+    "eth_commitment": "0x51abd29720acac8f2112d14bbc3d1d1fd8f2e677871297ccf4af321eb3eeb9a4",
+    "fee": "0",
+    "index": 3,
+    "leaf": "0x0e24d5b1042b611ffa059123f3b3925f4e2e98303af8724f56fac78984225208",
+    "owner": "alice",
+    "recipient": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+    "token": "0x0000000000000000000000000000000000000000"
+  }
+]

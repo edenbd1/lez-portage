@@ -36,6 +36,7 @@ hex = "0.4"
 risc0-binfmt = "3.0"
 risc0-zkvm = { version = "=3.0.5", features = ["client"] }
 risc0-zkos-v1compat = "=2.2.2"
+clap = { version = "4.5", features = ["derive", "env"] }
 
 [[bin]]
 name = "pack"
@@ -44,8 +45,8 @@ path = "src/bin/pack.rs"
 name = "image_id"
 path = "src/bin/image_id.rs"
 [[bin]]
-name = "seq_drive"
-path = "src/bin/seq_drive.rs"
+name = "wrap"
+path = "src/bin/wrap.rs"
 [[bin]]
 name = "measure_chain"
 path = "src/bin/measure_chain.rs"
