@@ -267,8 +267,8 @@ the state root, the deposit's path, the nullifier, the mint) is verified as on
 a real network. On Sepolia the checkpoint is a finalized header served,
 byte for byte the same, by two beacon implementations.
 
-Not built yet: the release path on a public network, a relayer, a
-protocol fee, a rolling-window cap on LEZ (an outstanding-supply cap instead),
+Not built yet: the zero-knowledge release on a public network (the public
+release ran through the committee verifier), a relayer, a protocol fee, a rolling-window cap on LEZ (an outstanding-supply cap instead),
 Logos modules, and a SPEL IDL (SPEL does not build v0.3 programs). A public
 claim carries the deposit's opening, so it links the claim to its deposit.
 
@@ -277,8 +277,8 @@ claim carries the deposit's opening, so it links the claim to its deposit.
 Tests and reproducible builds (as in CI):
 
 ```console
-forge test --root vault                                            # 105 tests
-scripts/mutation-test-vault.sh                                     # 66 mutations, each must fail them
+forge test --root vault                                            # 131 tests
+scripts/mutation-test-vault.sh                                     # 106 mutations, each must fail them
 cargo test --release --manifest-path core/Cargo.toml --features zk
 cargo test --release --manifest-path chain/Cargo.toml --features release
 cargo test --release --manifest-path bedrock/Cargo.toml --features release
