@@ -1,4 +1,10 @@
-# The inbound path on public networks: Sepolia to the LEZ testnet
+# Portage on public networks: Sepolia and the LEZ testnet
+
+Both directions have run on public networks: inbound on 2026-11-08 (this
+section and the next ones), outbound on 2026-11-14 and 15
+([The outbound path](#the-outbound-path-back-from-the-lez-testnet-to-sepolia)).
+
+## The inbound path: Sepolia to the LEZ testnet
 
 On 2026-11-08 the inbound path ran on two public networks. Two deposits of
 0.001 ETH were made into a `WrapVault` on **Sepolia**. A **Sextant** instance
@@ -83,7 +89,7 @@ Sepolia (chain 11155111), deployer `0xf4e827cd18597f071FB8bca9A77319AD619927D7`:
 
 | step | transaction | block |
 |---|---|---:|
-| `CommitteeBurnVerifier` (release path, not exercised) | [`0x8e6b2b1610297ea0…`](https://sepolia.etherscan.io/tx/0x8e6b2b1610297ea0464d8a1bfd9fafcf1f324b77a7401f98abd59d0444dad38e) | 12,092,946 |
+| `CommitteeBurnVerifier` (the release verifier; exercised by the outbound run) | [`0x8e6b2b1610297ea0…`](https://sepolia.etherscan.io/tx/0x8e6b2b1610297ea0464d8a1bfd9fafcf1f324b77a7401f98abd59d0444dad38e) | 12,092,946 |
 | `WrapVault` `0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a` | [`0x86521e22b33f49aa…`](https://sepolia.etherscan.io/tx/0x86521e22b33f49aa3a533d7e6a01251cd4c6d8265c77fe0b02b37ad42f84d288) | 12,092,947 |
 | `registerToken(ETH, 18, [0.001 ETH], …)` | [`0x1c8f710574e9a050…`](https://sepolia.etherscan.io/tx/0x1c8f710574e9a050497cb0b80af03c2d26b0565749b7d2b04cca1a4ff497df12) | 12,092,948 |
 | deposit 0, 0.001 ETH, committed to alice (public), 847,409 gas | [`0x8385eedf92b93fba…`](https://sepolia.etherscan.io/tx/0x8385eedf92b93fba39939376e17717da29a0ca77c329cba65e7b9f3e5ac8dbfb) | 12,092,949 |
@@ -162,10 +168,10 @@ proof, the same claim is 297,457 gas (README): the difference is Sextant's
   instance (three transactions, about 108M of the testnet token per update at
   the current base fee) or by a new instance from a later checkpoint (one
   `Init`, about 15M).
-- **Outbound is not exercised here.** The Sepolia vault's release verifier is
-  a `CommitteeBurnVerifier` (2 of 3) and no release was made on Sepolia; the
-  release path, with its zero-knowledge and Bedrock-anchored verifiers, ran
-  on the local runs only ([OUTBOUND.md](OUTBOUND.md)).
+- **Outbound is a separate run** ([below](#the-outbound-path-back-from-the-lez-testnet-to-sepolia)).
+  It released through this vault's `CommitteeBurnVerifier` (2 of 3). The
+  zero-knowledge and Bedrock-anchored verifiers ran on the local runs only
+  ([OUTBOUND.md](OUTBOUND.md)).
 - **A public claim links to its deposit**: it carries the deposit's opening.
   The private claim carries none of it (destination, secret, commitment,
   leaf, path), which `verify-onchain.sh` re-checks on the transaction's bytes.
@@ -173,7 +179,177 @@ proof, the same claim is 297,457 gas (README): the difference is Sextant's
   that the verifier can check that its id occurs nowhere in the private
   claim's bytes. A real user would not publish it.
 
-## Re-check
+## The outbound path: back from the LEZ testnet to Sepolia
+
+On 2026-11-14 and 15 both wrapped deposits of the inbound run went back. On
+the **public LEZ testnet**, alice burned her 0.001 wrapped ETH by a public
+`Burn`, and carol burned hers from her shielded account by a
+privacy-preserving `BurnFrom` proven on this machine. Each burn committed to
+a fresh Sepolia address. On **Sepolia**, the `WrapVault` deployed on
+2026-11-08 released 0.001 ETH to each address, against the root of the LEZ
+burn tree, attested by its committee. Three release attempts were refused
+on Sepolia as expected: not final, one member only, and a replay. The vault
+now holds 0 wei.
+
+`scripts/verify-outbound.sh` re-checks all of it with public JSON-RPC
+(the LEZ testnet and a Sepolia endpoint serving historical state): 23 checks
+on the transactions and final state and 21 on the releases against the burns
+they pay out (29 with `--bedrock-tools`, which re-derives the saved Bedrock
+blocks with the node's own types), 0 failures. Its mutation test, `scripts/mutation-test-outbound.sh`,
+catches 25 of 25 mutations.
+
+Record: [`evidence/testnet-outbound/`](../evidence/testnet-outbound/)
+(`run.tsv` the manifest, `transcript.txt` the stages' output, `verify.txt`,
+`mutation-test.txt`, `bedrock/` the Bedrock blocks each member walked before
+signing). The manifest's header reads `commit 36c4d98`, without the
+"uncommitted changes" mark: the run's scripts (`scripts/testnet-outbound.sh`,
+`scripts/sepolia_release.py`) were new, untracked files, which the check did
+not see. They went into the commit that added this record, with the check
+fixed. The client (`cli/`), the programs, `vault/` and `artifacts/` are those of
+`36c4d98`, and the binaries are pinned by size, sha256 and ImageID in the
+manifest's header.
+
+### Which release verifier, and what is trusted
+
+The deployed vault's release verifier was fixed at construction
+(Security #8). It is the `CommitteeBurnVerifier` deployed with it: 2 of 3 members, a
+finality depth of 30 LEZ blocks. The stronger verifiers (`ZkBurnVerifier`,
+`ZkChainBurnVerifier`, `ZkBedrockBurnVerifier`, [OUTBOUND.md](OUTBOUND.md))
+each need a new vault, and the escrowed Ether is in this one. A new vault
+would need new deposits, a new Sextant instance and new claims before any
+release, so none was deployed. This is the weakest of the four verifiers.
+
+What the vault checks on chain, for each release:
+
+- the opening: the release carries the burn's token, amount, recipient, fee,
+  secret, index and Merkle path; the verifier recomputes the Ethereum
+  commitment, the leaf, the root and the nullifier (SHA-256), so the payout
+  goes only to the recipient and fee the burn committed to;
+- 2 distinct members' EIP-191 signatures over
+  `attestationDigest(vault, pairing, root, lezBlock, lezFinalBlock)`, with
+  `lezFinalBlock >= lezBlock + 30`;
+- the nullifier is spent once (`AlreadyReleased` on the replay).
+
+**What is trusted: the committee's word that the root is the LEZ burn
+tree's root, final.** Nothing on Ethereum checks LEZ. Before signing, each
+member:
+
+1. reads the burn tree's root from the public LEZ testnet itself
+   (`getAccount`, between two equal reads of the tip) and signs only the
+   root it read, at the block it read it;
+2. waits until the LEZ tip is 30 blocks above that block, and names that tip
+   final;
+3. reads that final LEZ block (`getBlock`) and refuses to sign unless it is,
+   byte for byte, the inscription opening a transaction on the LEZ channel
+   (`0101…01`) of a Bedrock block on its node's canonical chain, with at
+   least k = 30 Bedrock blocks above it. `bedrock-tools anchor` re-derives
+   those Bedrock blocks with the node's own types and checks the
+   inscription's Merkle path to the header's body root, its Ed25519
+   signature and the headers above it.
+
+The limits of that, stated plainly:
+
+- **One operator holds all three member keys**, and the relayer's. The 2 of
+  3 is the contract's rule, not three independent parties.
+- **One Bedrock node.** It is a `logos-blockchain-node` 0.3.1 following the
+  public Bedrock testnet, run on this machine for this run and stopped
+  after it. All members used it. It was "Online" and "Following". Its
+  canonical chain is its own view: its LIB (slot 3,095,116 when the members
+  signed) was below both inscriptions (slots 3,146,664 and 3,148,037). So the
+  inscriptions were 124 and 103 headers deep on the node's chain, well over
+  k = 30, but not yet below the node's LIB.
+- **The inscription's signer was not pinned.** The member checks the Ed25519
+  signature against the key named in the inscription itself. The two
+  inscriptions are signed by different keys (`0d27b709…` for LEZ block
+  82,406, `30cfd05a…` for 82,412). The public testnet's LEZ channel carries
+  more than one key, and this run did not establish which keys the channel
+  authorizes. What the Bedrock check does show is that the LEZ block the
+  public RPC serves, byte for byte, was published on Bedrock and had k
+  blocks built on it in that node's view.
+- **The opening is public.** A committee release opens the leaf, so the
+  release links to its burn. For alice's public burn that link is already
+  public. For carol's private burn, the release reveals the leaf, the index
+  and the recipient. Her LEZ account still appears nowhere: the private burn's
+  bytes carry neither the account, nor the recipient, nor the secret. The
+  zero-knowledge verifiers, which hide the opening, ran on local chains only.
+
+`scripts/verify-outbound.sh` re-checks the members' checks rather than
+trusting them. It reads the vault's `VERIFIER()` and `PAIRING()`, and the
+verifier's `members()`, `THRESHOLD()` and `FINALITY_DEPTH()`. It decodes each
+release's opening from its calldata and recomputes it. It finds the LEZ burn
+it pays out on the testnet, carrying the commitment (public) or the leaf
+(private). It recovers 2 distinct members' signatures over the digest,
+recomputed. It checks that the LEZ blocks from the burn's to the final one
+are one hash-linked chain, and that the payout went to the recipient and out
+of the vault in the release's block. It rebuilds the burn tree's current root
+from the released openings. With the saved Bedrock blocks, it checks that the
+final LEZ block, as the public RPC returns it now, is byte for byte the
+inscription in the recorded Bedrock block, and that the saved walk links down
+from the node's tip, at least 30 blocks above it. With
+`--bedrock-tools bedrock/tools/target/release/bedrock-tools`, it re-derives
+every saved block with the node's own types and re-checks the anchor. There
+is no public Bedrock RPC to re-check against, so the Bedrock part is checked
+against the saved blocks, which the members' node served.
+
+### Transactions
+
+LEZ public testnet, payer `9nqn7xA7z54QZPHs8wWn5VzTeXTgbwq8SREr38tVK9aw`:
+
+| step | verdict | transaction | block | gas |
+|---|---|---|---:|---:|
+| alice's public `Burn` of 0.001 wrapped ETH, committed to `0x794Dc407…` | applied | [`dc459d9af502a320…`](https://explorer.testnet.lez.logos.co/transaction/dc459d9af502a32037c4aee3784fe93b8d113ae43e18f34b5ba1f4ea0a8e8df0) | 82,365 | 228,499 (limit 240,783) |
+| carol's privacy-preserving `BurnFrom` from `Private/F8WThjdH…`, committed to `0xf3AB6cAB…` (fee-exempt) | applied | [`3eb6e8af4ef7b2c5…`](https://explorer.testnet.lez.logos.co/transaction/3eb6e8af4ef7b2c512ba77afa3984f587b6cc9c3c6cecc1106a5309e5b350c8f) | 82,368 | |
+
+The burn tree (`8tUnHjsP…`) went from 0 leaves to 2, root `0xcaa24e7e…`.
+Carol's private burn was proven with dev mode off: 258.6 s to prove and
+submit, 6.06 GB peak memory, 248,358 bytes on chain. Her account, the
+recipient and the secret do not occur in its bytes, and her wallet decrypts
+0 wrapped ETH after it. **The testnet rewrote its tip once more.** The
+private burn was read back in block 82,368. Minutes later the tip was back at
+82,367: `getTransaction` returned null for about 20 minutes, and the Bedrock
+node's channel held LEZ blocks up to 82,367 only. By 22:20 UTC the same
+transaction was included again, in a new block 82,368. The first release
+pass was stopped and resumed. No second proof of the burn was sent.
+
+Sepolia, relayer `0xf4e827cd18597f071FB8bca9A77319AD619927D7` (also member
+0), vault `0x4Ae65712A472e11842A2e1Fe61C7A52Da99c8F7a`:
+
+| attempt | verdict | transaction | block | gas |
+|---|---|---|---:|---:|
+| alice's release, members signing at depth 0 | refused `NotFinal` | [`0xee8a043cf63055fe…`](https://sepolia.etherscan.io/tx/0xee8a043cf63055fe6fe3f1581e49f651c8bd87eea4351b10b43abe6e0cd63874) | 12,136,049 | 127,896 |
+| alice's release, one member's signature | refused `RootNotAttested` | [`0xfa69239412d4ce8f…`](https://sepolia.etherscan.io/tx/0xfa69239412d4ce8fce089c10115d295d1316e5547acfb05ed84d140d922959a9) | 12,137,717 | 117,656 |
+| **alice's release**: 0.001 ETH to `0x794Dc407…`, root at LEZ block 82,372, final 82,406 | applied | [`0x0b0a7078d74f2707…`](https://sepolia.etherscan.io/tx/0x0b0a7078d74f27072f6000ade4d35a75ba897e4bd3483996c290bc6aef975f0d) | 12,137,797 | 421,504 |
+| alice's release again | refused `AlreadyReleased` | [`0xf9d0f76e6a819a04…`](https://sepolia.etherscan.io/tx/0xf9d0f76e6a819a04098e230d83d8a838cc2c9327bdf211102bc94ce8ba77e0e0) | 12,137,876 | 127,896 |
+| **carol's release**: 0.001 ETH to `0xf3AB6cAB…`, root at LEZ block 82,372, final 82,412 | applied | [`0x5e7685dd356592ca…`](https://sepolia.etherscan.io/tx/0x5e7685dd356592ca2fa954bb11e694b4895ab6a0261ea4c92abeaf039602d9b2) | 12,138,027 | 421,267 |
+
+The Bedrock blocks the members checked, on the public Bedrock testnet:
+LEZ block 82,406 is inscribed in Bedrock block `5becd8ff3270d00f…` (slot
+3,146,664, transaction 5), and LEZ block 82,412 in `ceb7a5e43fb71b2e…`
+(slot 3,148,037, transaction 0). Each is in the walk from the node's tip
+`9039c0614b43396d…` (slot 3,154,900) saved under
+[`evidence/testnet-outbound/bedrock/`](../evidence/testnet-outbound/bedrock/).
+No Bedrock transaction was sent by this run.
+
+Cost: 1,837,104 of the testnet token for the public burn (228,499
+execution and 1,139 storage gas at base fee 8). The private burn is
+fee-exempt. The payer held 30,839,652 before the run and holds 29,002,548.
+On Sepolia, the five attempts cost 0.0000012 ETH of gas.
+
+Re-check, mutation test, and the two stages, run from a copy of the inbound
+run's directory:
+
+```console
+scripts/verify-outbound.sh            # LEZ testnet and Sepolia, JSON-RPC only
+scripts/verify-outbound.sh --bedrock-tools bedrock/tools/target/release/bedrock-tools   # and the node's own types
+scripts/mutation-test-outbound.sh     # 25 of 25
+RUN=<copy of the inbound run directory> LEE_WALLET_HOME_DIR=$RUN/wallet PAYER=<funded account> \
+  PRIVATE=1 HEAVY=<optional wrapper> scripts/testnet-outbound.sh burn
+RUN=… SEPOLIA_KEY_FILE=<deployer key file> SEPOLIA_RPC=<Sepolia endpoint> BEDROCK_NODE=http://127.0.0.1:8080 \
+  BEDROCK_EVIDENCE=evidence/testnet-outbound/bedrock BEDROCK_TOOLS=bedrock/tools/target/release/bedrock-tools \
+  REFUSALS_FOR=alice scripts/testnet-outbound.sh release
+```
+
+## Re-check (inbound)
 
 ```console
 scripts/verify-testnet.sh            # LEZ testnet and Sepolia, JSON-RPC only
@@ -191,6 +367,16 @@ state root on Sepolia now, the committed bootstrap committing to that block,
 the committed storage proof under that state root, `knownRoot` on Sepolia
 now and a random root as a control, Sextant's header record on LEZ holding
 that state root, and the public claim carrying the root and the vault).
+The outbound run later burned alice's wrapped ETH, so three accounts the
+inbound run wrote (the bridge's ETH entry, the token definition, alice's
+token account) hold other bytes now. `verify-testnet.sh` and the mutation
+test pass `--later evidence/testnet-outbound/run.tsv`: those three accounts
+are checked against the outbound manifest, which pins their bytes now, and
+the others against this one. Since then the LEZ half is 26 checks, not 29. The Ethereum endpoint must serve historical
+state: the deposits are checked at their blocks. The default
+`rpc.sepolia.ethpandaops.io` does. `ethereum-sepolia-rpc.publicnode.com`,
+the default until 2026-11-15, now prunes everything below block 12,129,511,
+so the deposit checks failed there.
 Output of the run: [`evidence/testnet/verify.txt`](../evidence/testnet/verify.txt).
 
 ## Reproduce

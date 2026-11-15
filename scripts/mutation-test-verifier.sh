@@ -4,7 +4,7 @@
 # scripts/verify-onchain.sh must exit non-zero on every one, with a FAIL line,
 # and zero on the manifest as recorded.
 #
-#   scripts/mutation-test-verifier.sh [--manifest FILE] [--rpc URL] [--eth-rpc URL]
+#   scripts/mutation-test-verifier.sh [--manifest FILE] [--rpc URL] [--eth-rpc URL] [--later MANIFEST]
 set -uo pipefail
 cd "$(dirname "$0")/.."
 MANIFEST="evidence/local/e2e.tsv"; RPC="http://127.0.0.1:3051"; ETH_RPC=""
@@ -13,10 +13,17 @@ while [ $# -gt 0 ]; do
     --manifest) MANIFEST="$2"; shift 2 ;;
     --rpc) RPC="$2"; shift 2 ;;
     --eth-rpc) ETH_RPC="$2"; shift 2 ;;
-    *) echo "usage: $0 [--manifest FILE] [--rpc URL] [--eth-rpc URL]"; exit 2 ;;
+    --later) LATER="$2"; shift 2 ;;
+    *) echo "usage: $0 [--manifest FILE] [--rpc URL] [--eth-rpc URL] [--later MANIFEST]"; exit 2 ;;
   esac
 done
 ETH=(); [ -n "$ETH_RPC" ] && ETH=(--eth-rpc "$ETH_RPC")
+# The public inbound run's minted tokens were burned by the outbound run: the accounts it wrote
+# again are checked against its manifest (as scripts/verify-testnet.sh does).
+if [ -z "${LATER:-}" ] && [ "$MANIFEST" -ef evidence/testnet/run.tsv ] && [ -f evidence/testnet-outbound/run.tsv ]; then
+  LATER=evidence/testnet-outbound/run.tsv
+fi
+[ -n "${LATER:-}" ] && ETH+=(--later "$LATER")
 T="$(mktemp -d)"
 fake="$(python3 -c 'import secrets;print(secrets.token_hex(32))')"
 mutate() { # mutation

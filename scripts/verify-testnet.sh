@@ -7,13 +7,13 @@
 # final state of every account the run wrote), then the Sepolia side and what
 # ties it to LEZ with scripts/verify-sepolia.py.
 #
-#   scripts/verify-testnet.sh [--rpc https://testnet.lez.logos.co] [--eth-rpc https://ethereum-sepolia-rpc.publicnode.com]
+#   scripts/verify-testnet.sh [--rpc https://testnet.lez.logos.co] [--eth-rpc https://rpc.sepolia.ethpandaops.io]
 #
 # Needs python3 with pycryptodome (Keccak-256).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 RPC="https://testnet.lez.logos.co"
-ETH_RPC="https://ethereum-sepolia-rpc.publicnode.com"
+ETH_RPC="https://rpc.sepolia.ethpandaops.io"
 MANIFEST="evidence/testnet/run.tsv"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -25,7 +25,10 @@ while [ $# -gt 0 ]; do
 done
 fail=0
 echo "== LEZ ($RPC)"
-scripts/verify-onchain.sh --manifest "$MANIFEST" --rpc "$RPC" || fail=1
+# The outbound run burned the minted tokens later: the accounts it wrote are checked against its
+# manifest (scripts/verify-outbound.sh), not against what the inbound run left in them.
+LATER=(); [ -f evidence/testnet-outbound/run.tsv ] && LATER=(--later evidence/testnet-outbound/run.tsv)
+scripts/verify-onchain.sh --manifest "$MANIFEST" --rpc "$RPC" ${LATER[@]+"${LATER[@]}"} || fail=1
 echo "== Sepolia ($ETH_RPC) and the link to LEZ"
 python3 scripts/verify-sepolia.py --manifest "$MANIFEST" --eth-rpc "$ETH_RPC" --rpc "$RPC" || fail=1
 echo "== $( [ $fail = 0 ] && echo PASS || echo FAIL )"

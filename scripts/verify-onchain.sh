@@ -2,7 +2,10 @@
 # Re-check a recorded run of the bridge against a LEZ v0.3 sequencer, from its
 # manifest, with nothing but JSON-RPC (no wallet, no build).
 #
-#   scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 [--eth-rpc http://127.0.0.1:8551]
+#   scripts/verify-onchain.sh --manifest evidence/local/e2e.tsv --rpc http://127.0.0.1:3051 [--eth-rpc http://127.0.0.1:8551] [--later MANIFEST]
+#
+# --later names the manifest of a later run on the same chain: an account it has a `final` line
+# for is not checked against this manifest's (the later run wrote it again).
 #
 # A manifest is what scripts/e2e-local.sh writes: one line per transaction
 #   label expected verdict block tx attempts precheck gas_limit charged_gas
@@ -23,6 +26,7 @@
 #   # release-root <root> <burns-account> <program>
 #                                          the root the releases were checked against is the
 #                                          LEZ burn tree's root now
+#   # eth-vault <vault> verifier <v> ...  (or # anvil vault <vault> ...) the vault the releases call
 #   # anvil zk-verifier <verifier> risc0 <groth16-verifier> image_id <id>
 #                                          zero-knowledge releases (ZkBurnVerifier); with it:
 #   # binary burn_membership ... image_id <id>, # release-proof <owner> ... leaf <leaf> ...,
@@ -75,31 +79,37 @@ cd "$(dirname "$0")/.."
 MANIFEST="evidence/local/e2e.tsv"
 RPC="http://127.0.0.1:3051"
 ETH_RPC=""
+LATER=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --manifest) MANIFEST="${2:?}"; shift 2 ;;
     --rpc) RPC="${2:?}"; shift 2 ;;
     --eth-rpc) ETH_RPC="${2:?}"; shift 2 ;;
-    *) echo "usage: $0 [--manifest FILE] [--rpc URL] [--eth-rpc URL]" >&2; exit 2 ;;
+    --later) LATER="${2:?}"; shift 2 ;;
+    *) echo "usage: $0 [--manifest FILE] [--rpc URL] [--eth-rpc URL] [--later MANIFEST]" >&2; exit 2 ;;
   esac
 done
 [ -f "$MANIFEST" ] || { echo "no manifest at $MANIFEST"; exit 3; }
 
-python3 - "$MANIFEST" "$RPC" "$ETH_RPC" <<'PY'
-import base64, hashlib, json, secrets, struct, sys, urllib.request
+python3 - "$MANIFEST" "$RPC" "$ETH_RPC" "$LATER" <<'PY'
+import base64, hashlib, json, secrets, struct, sys, time, urllib.request
 
-manifest, rpc, eth_rpc = sys.argv[1], sys.argv[2], sys.argv[3]
+manifest, rpc, eth_rpc, later = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+# Accounts a later run (--later) wrote again: their final state is that run's to check.
+rewritten = {l.split()[2] for l in open(later) if l.startswith("# final ")} if later else set()
 
 def call(method, param, url=None, many=False):
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": param if many else [param]}).encode()
-    req = urllib.request.Request(url or rpc, body, {"Content-Type": "application/json"})
-    for attempt in range(3):
+    # Some public endpoints refuse urllib's default User-Agent.
+    req = urllib.request.Request(url or rpc, body, {"Content-Type": "application/json", "User-Agent": "portage-verify"})
+    for attempt in range(5):   # public endpoints drop connections now and then: back off and retry
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.load(r)
         except Exception:
-            if attempt == 2:
+            if attempt == 4:
                 raise
+            time.sleep(2 ** attempt)
 
 FEE = "2TsGdKDWTY92X4vSBZzjzemZpThhyqNEdZJj3xBrQ9AZ"   # fee_core::fee_account_id()
 LOADER = "JAQ5MVHbCkSYRzXunsrNuM2m1LS859PGveHfoYPAmcvZ"  # [0xFE; 32], program_loader
@@ -173,6 +183,8 @@ for line in lines:
         _, _, what, tx = line.split()[:4]
         res = call("getTransaction", tx).get("result")
         report(isinstance(res, list) and len(res) > 1, f"deploy {what}: {tx[:16]}… resolves" + (f" (block {res[1]})" if isinstance(res, list) and len(res) > 1 else " NOT FOUND"))
+    elif line.startswith("# final ") and line.split()[2] in rewritten:
+        print(f"  --   final state of {line.split()[6]} ({line.split()[2][:12]}…): written again by the later run {later}, checked there")
     elif line.startswith("# final "):
         _, _, account, program, length, want, name = line.split()[:7]
         b = shard(account, program)
@@ -271,7 +283,7 @@ elif eth_rpc:
     def eth(method, *params):
         r = call(method, list(params), url=eth_rpc, many=True)
         return r
-    vault = next((l.split()[3] for l in lines if l.startswith("# anvil vault ")), None)
+    vault = next((l.split()[3] for l in lines if l.startswith("# anvil vault ")), None) or next((l.split()[2] for l in lines if l.startswith("# eth-vault ")), None)
     root_line = next((l.split() for l in lines if l.startswith("# release-root ")), None)
     release_root = root_line[2] if root_line else None
     if root_line:
@@ -284,7 +296,7 @@ elif eth_rpc:
         label, expected, verdict, block, tx, sel, gas, nf, root = p[2:11]
         rc = eth("eth_getTransactionReceipt", tx).get("result")
         if not rc:
-            report(False, f"eth {label}: {tx[:16]}… NOT FOUND on anvil"); continue
+            report(False, f"eth {label}: {tx[:16]}… NOT FOUND on the Ethereum endpoint"); continue
         status, b, g = int(rc["status"], 16), int(rc["blockNumber"], 16), int(rc["gasUsed"], 16)
         why = []
         if str(b) != block: why.append(f"in block {b}, recorded {block}")
@@ -393,7 +405,7 @@ elif eth_rpc:
             report(got == want, f"eth final: {name} holds {got} wei" if got == want else f"eth final: {name} holds {got} wei, recorded {want}")
     ctl = "0x" + secrets.token_hex(32)
     r = eth("eth_getTransactionReceipt", ctl)
-    report("result" in r and r["result"] is None, f"control: a random transaction hash ({ctl[:12]}…) does not resolve on anvil, and the endpoint answers")
+    report("result" in r and r["result"] is None, f"control: a random transaction hash ({ctl[:12]}…) does not resolve on the Ethereum endpoint, and it answers")
 print(f"{ok} checks pass, {bad} fail ({applied} applied and {refused} refused public transactions, {private} privacy-preserving, "
       f"{eth_applied} applied and {eth_refused} refused releases, in the manifest)")
 sys.exit(1 if bad else 0)

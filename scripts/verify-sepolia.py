@@ -3,7 +3,7 @@
 from its manifest, with nothing but JSON-RPC.
 
     python3 scripts/verify-sepolia.py --manifest evidence/testnet/run.tsv \\
-        [--eth-rpc https://ethereum-sepolia-rpc.publicnode.com] [--rpc https://testnet.lez.logos.co]
+        [--eth-rpc https://rpc.sepolia.ethpandaops.io] [--rpc https://testnet.lez.logos.co]
 
 Checks:
 - the vault has code, and its PAIRING and VERIFIER are the recorded ones;
@@ -68,7 +68,7 @@ def report(good, text):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--manifest", default="evidence/testnet/run.tsv")
-    ap.add_argument("--eth-rpc", default="https://ethereum-sepolia-rpc.publicnode.com")
+    ap.add_argument("--eth-rpc", default="https://rpc.sepolia.ethpandaops.io")
     ap.add_argument("--rpc", default="https://testnet.lez.logos.co")
     a = ap.parse_args()
     lines = open(a.manifest).read().splitlines()

@@ -1,0 +1,50 @@
+# Portage outbound on public networks, 2026-11-14/15: the stages' console output.
+# Repeated 'LEZ tip N, waiting for M' polls are collapsed to one line each; nothing else is edited.
+# release-alice-not-final (Sepolia 0xee8a043c…, block 12136049) was sent by an earlier release invocation
+# whose console output was not kept; its record is the manifest's '# eth release-alice-not-final' line.
+
+$ scripts/testnet-outbound.sh burn
+-- the burn tree holds 0 leaves (root -)
+-- alice's public burn of 0.001 wrapped ETH, to 0x794Dc407610F6A3b350f846Cfb3fb649cfE897f6, fee 0
+{"attempts":["dc459d9af502a32037c4aee3784fe93b8d113ae43e18f34b5ba1f4ea0a8e8df0"],"block":82365,"block_gas_exec":228499,"block_gas_stor":1139,"gas_limit":240783,"label":"burn-alice","op":"burn","payer_balance_after":"29002548","payer_balance_before":"30839652","precheck":{"gas":228499},"state_changed":true,"tx":"dc459d9af502a32037c4aee3784fe93b8d113ae43e18f34b5ba1f4ea0a8e8df0","tx_bytes":1139,"verdict":"applied"}
+  ok  alice's burn applied: applied
+  ok  alice holds no wrapped ETH: 0
+  ok  the burn tree's leaves are the recorded burns': 1
+
+$ PRIVATE=1 scripts/testnet-outbound.sh burn
+-- the burn tree holds 1 leaves (root 0x5f547340e748b4c57551b159d1d1763f5b69e1d7c3232a15d340a5f0e6c9e028)
+-- carol's privacy-preserving burn of 0.001 wrapped ETH from her shielded account, real proving
+{"absent_from_tx":{"holder":true,"recipient":true,"secret":true},"attempts":["3eb6e8af4ef7b2c512ba77afa3984f587b6cc9c3c6cecc1106a5309e5b350c8f"],"block":82368,"burns_account":"8tUnHjsPsdjHPXnw336rBEUgfHRxA7dwiBDveNQh7u3T","dev_mode":false,"held_before":"1000000000000000","kind":"privacy-preserving","label":"burn-carol-private","leaf_in_tx":true,"op":"burn-private","prove_and_submit_ms":258563,"state_changed":true,"tx":"3eb6e8af4ef7b2c512ba77afa3984f587b6cc9c3c6cecc1106a5309e5b350c8f","tx_bytes":248358,"verdict":"applied"}
+  ok  carol's private burn landed: applied
+  ok  RISC0 dev mode off (real proving): False
+  ok  carol's wallet decrypts 0 wrapped ETH in her private account: 0
+  ok  the burn tree's leaves are the recorded burns': 2
+
+$ scripts/testnet-outbound.sh release   (first pass: the LEZ testnet rewrote its tip under it; stopped and resumed)
+[alice]   member 0: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82368
+[alice] {"label": "release-alice-not-final", "skipped": "already in the manifest"}
+[alice]   waiting for LEZ block 82398 (last tip seen 82372; repeated polls collapsed)
+[carol]   member 0: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82368
+[carol]   waiting for LEZ block 82398 (last tip seen 82372; repeated polls collapsed)
+
+$ scripts/testnet-outbound.sh release   (resumed)
+[alice]   member 0: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82372
+[alice] {"label": "release-alice-not-final", "skipped": "already in the manifest"}
+[alice]   waiting for LEZ block 82402 (last tip seen 82394; repeated polls collapsed)
+[carol]   member 0: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82372
+[carol]   waiting for LEZ block 82402 (last tip seen 82394; repeated polls collapsed)
+[alice]   member 0: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82406
+[alice]   member 0: LEZ block 82406 not yet 30 blocks deep on Bedrock (not inscribed within 400 blocks below the tip (newest LEZ block seen inscribed: 82394)); waiting
+[carol]   member 0: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82412
+[carol]   member 0: LEZ block 82412 not yet 30 blocks deep on Bedrock (not inscribed within 400 blocks below the tip (newest LEZ block seen inscribed: 82394)); waiting
+[alice]   member 1: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82450
+[alice]   member 2: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82450
+[alice] {"label": "release-alice-one-member", "expect": "RootNotAttested", "precheck": "RootNotAttested", "verdict": "reverted", "tx": "0xfa69239412d4ce8fce089c10115d295d1316e5547acfb05ed84d140d922959a9", "block": 12137717, "gas_used": 117656, "lez_block": 82372, "lez_final_block": 82406, "root": "0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd2b306e21ce235ce2b6c8", "nullifier": "0xa1c33caa82dab7ff18d55ee7c6f88372daf5f33afc8d932a2a1f082c1e0f19bc", "ok": true}
+[alice] {"label": "release-alice", "expect": "applied", "precheck": "applied", "verdict": "applied", "tx": "0x0b0a7078d74f27072f6000ade4d35a75ba897e4bd3483996c290bc6aef975f0d", "block": 12137797, "gas_used": 421504, "lez_block": 82372, "lez_final_block": 82406, "root": "0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd2b306e21ce235ce2b6c8", "nullifier": "0xa1c33caa82dab7ff18d55ee7c6f88372daf5f33afc8d932a2a1f082c1e0f19bc", "ok": true}
+[alice] {"label": "release-alice-replay", "expect": "AlreadyReleased", "precheck": "AlreadyReleased", "verdict": "reverted", "tx": "0xf9d0f76e6a819a04098e230d83d8a838cc2c9327bdf211102bc94ce8ba77e0e0", "block": 12137876, "gas_used": 127896, "lez_block": 82372, "lez_final_block": 82406, "root": "0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd2b306e21ce235ce2b6c8", "nullifier": "0xa1c33caa82dab7ff18d55ee7c6f88372daf5f33afc8d932a2a1f082c1e0f19bc", "ok": true}
+[carol]   member 1: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82461
+[carol] getLastBlockId: <urlopen error [Errno 54] Connection reset by peer>, retrying
+[carol]   member 2: burn tree root 0xcaa24e7ee9c2d7a8… (2 leaves) at LEZ block 82460
+[carol] {"label": "release-carol", "expect": "applied", "precheck": "applied", "verdict": "applied", "tx": "0x5e7685dd356592ca2fa954bb11e694b4895ab6a0261ea4c92abeaf039602d9b2", "block": 12138027, "gas_used": 421267, "lez_block": 82372, "lez_final_block": 82412, "root": "0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd2b306e21ce235ce2b6c8", "nullifier": "0xbab754ef1eab3bdb96e57b943c36e0c5007d3ef26e7c30c88d3c08876f76db0e", "ok": true}
+{"release_root": "0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd2b306e21ce235ce2b6c8", "leaves": 2, "roots_released_under": ["0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd2b306e21ce235ce2b6c8"]}
+
