@@ -723,6 +723,6 @@ optimize (batching the frontier's upper levels per block).
 | zk/bedrock_anchor, burn_release, bedrock_release on v0.4 | move compose.rs to chain/v04 and the 36-word journal; re-verify bedrock/ against lb-core d480efc6; accept staked sequencer keys | 2 days |
 | Chain guest recursion and per-burn cost | prior-receipt recursion as in zk/lez_chain; batch frontier inserts | 1 day |
 | Vault verifiers | new ImageIDs and journal layout in ZkChainBurnVerifier / ZkBedrockBurnVerifier, Foundry tests and mutations | 1 day |
-| ~~Reproducible builds~~ | done 2026-11-14 (section 0.1): token, wrap_bridge, lez_chain_v04 and sextant_lc, CI `reproduce-v04` | - |
+| ~~Reproducible builds~~ | done 2026-11-14 (section 0.1): token, ata, wrap_bridge, lez_chain_v04 and sextant_lc, CI `reproduce-v04` | - |
 | ~~A private transaction in real v0.4 blocks~~ | done (section 0.4): the private claim and burn are in vectors/lez-blocks-v04, decoded by chain_v04 | - |
 | testnet 0.4 | deploy on the public 0.4 network when it exists (needs funds) | 1 day |
