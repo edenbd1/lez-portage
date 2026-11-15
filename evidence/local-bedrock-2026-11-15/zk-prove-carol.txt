@@ -1,0 +1,42 @@
+# 2026-11-15T20:27:19Z wrap release-proof carol --zk --relayer 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.8.2 linux/aarch64 cpus=14 mem=12598894592; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 78c3565; guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 39.31 52.80 38.89
+       98.81 real       615.26 user         4.37 sys
+          2556542976  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              276480  page reclaims
+                1349  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  18  messages sent
+                  58  messages received
+                 129  signals received
+                 124  voluntary context switches
+              710933  involuntary context switches
+           538561693  instructions retired
+           179141845  cycles elapsed
+             6095232  peak memory footprint
+# docker 20:28:24 nervous_davinci 1.809GiB / 11.73GiB 350.65%
+# docker 20:28:26 nervous_davinci 2.891GiB / 11.73GiB 218.47%
+# docker 20:28:28 nervous_davinci 3.469GiB / 11.73GiB 219.64%
+# docker 20:28:30 nervous_davinci 4.122GiB / 11.73GiB 217.60%
+# docker 20:28:32 nervous_davinci 4.607GiB / 11.73GiB 221.65%
+# docker 20:28:34 nervous_davinci 4.821GiB / 11.73GiB 124.29%
+# docker 20:28:37 nervous_davinci 5.607GiB / 11.73GiB 705.73%
+# docker 20:28:39 nervous_davinci 5.688GiB / 11.73GiB 695.08%
+# docker 20:28:41 nervous_davinci 5.689GiB / 11.73GiB 809.96%
+# docker 20:28:43 nervous_davinci 6.934GiB / 11.73GiB 1126.28%
+# docker 20:28:45 nervous_davinci 7.157GiB / 11.73GiB 1008.52%
+# docker 20:28:47 nervous_davinci 7.319GiB / 11.73GiB 1039.50%
+# docker 20:28:50 nervous_davinci 7.361GiB / 11.73GiB 1062.86%
+# docker 20:28:52 nervous_davinci 7.361GiB / 11.73GiB 1111.05%
+# docker 20:28:54 nervous_davinci 7.365GiB / 11.73GiB 783.33%
+# docker 20:28:56 nervous_davinci 7.404GiB / 11.73GiB 779.74%
+# exit 0; load after: load averages: 30.26 47.25 38.36
+# groth16 container peak memory (docker stats samples) 7.40 GiB

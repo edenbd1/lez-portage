@@ -1,0 +1,19 @@
+{"anchor":{"hash":"0xc716d9772134d47763a917507b6d31ceb3e1b2e9b7422e8c49c42841c816de9d","id":28},"block_bytes":251,"blocks":1,"dev_mode":false,"from":29,"image_id":"0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22","journal":null,"leaves":[{"block":29,"index":0,"leaf":"0xf959a6206a3ab911f3041b3f666d3eb4513e044d65f3d4cb3e85f5353877e99e","tx_index":0}],"next_index":1,"op":"chain-prove","params":{"burns":"4rskAuSwrFT3R4DKCD85N9quKwR6YwpW68DPhpuy8HBm","burns_account":"0x3959e5afc45057ab61974f53e7a510d685ce0a6e59bf01f6181b538da6201788","program":"GJceaKophxgEJU1LRPfXcT2FkSM2v6GoFA6PQJ8a864J","program_id":"0xe3627c1b0995f743e30878d80c44a91cdc76e4bfa411e8a6a2746fc640c0e7bb"},"prior":false,"root":"0xaf9d53fc637bae4429720a406f959fb9b64a81e6cb3c7eb04a46f1e9332ed0bb","stats":{"paging_cycles":29576,"reserved_cycles":119038,"segments":1,"stark_succinct_ms":25002,"total_cycles":262144,"user_cycles":113530},"tip":{"hash":"0xbda5326f7b23a73b2a671455cc650bfee39b7b2c1f481d36c759799f7113caf4","id":29}}
+       25.04 real       267.27 user         2.01 sys
+          2452783104  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              199447  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   6  messages sent
+                  14  messages received
+                   0  signals received
+                  14  voluntary context switches
+              220394  involuntary context switches
+           634348796  instructions retired
+           196026474  cycles elapsed
+             5734808  peak memory footprint

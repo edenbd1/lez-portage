@@ -141,7 +141,7 @@ was not measured on native x86_64.
 | [`evidence/local/`](evidence/local/), `scripts/e2e-local.sh` | PASS: 14 LEZ transactions (9 applied, 5 refused as expected), 11 zero-knowledge releases on anvil (2 applied, 9 refused as expected); verifier 81 checks, 0 fail; its mutation test 32 of 32 |
 | [`evidence/local-committee/`](evidence/local-committee/), `RELEASE_VERIFIER=committee` | PASS, releases opening the leaf: verifier 73 checks, mutation test 28 of 28 |
 | [`evidence/local-chain/`](evidence/local-chain/), `scripts/e2e-chain.sh` | PASS: 12 releases through `ZkChainBurnVerifier` (1 applied, 11 refused) |
-| [`evidence/local-bedrock/`](evidence/local-bedrock/), `scripts/e2e-bedrock.sh` | PASS: 15 releases through `ZkBedrockBurnVerifier` (1 applied, 14 refused), after e2e-local (PASS) and e2e-chain (PASS) on a sequencer inscribing every block on the devnet; 2,579 Bedrock blocks checked against the node's own types |
+| [`evidence/local-bedrock/`](evidence/local-bedrock/), `scripts/e2e-bedrock.sh` | PASS: 15 releases through `ZkBedrockBurnVerifier` (1 applied, 14 refused), after e2e-local (PASS) and e2e-chain (PASS) on a sequencer inscribing every block on the devnet; 2,579 Bedrock blocks checked against the node's own types. Re-run on the current vault on 2026-11-15 ([`evidence/local-bedrock-2026-11-15/`](evidence/local-bedrock-2026-11-15/)): e2e-local, e2e-chain (12 releases, 1 applied, 11 refused) and e2e-bedrock (15, 1 applied, 14 refused) PASS, 401 Bedrock blocks checked |
 
 The refusals include replays, a redirected recipient, another amount, a
 front-run, a tampered journal, another anchor or channel, an anchor one header
@@ -192,8 +192,8 @@ storage, [`docs/raw/vault-gas-2026-11-14.txt`](docs/raw/vault-gas-2026-11-14.txt
 | global caps on: added to a deposit, a release | 3,794, 4,037 |
 | Ethereum `release`, `CommitteeBurnVerifier` | 143,096 (fee 0), 152,400 (relayer paid) |
 | Ethereum `release`, `ZkBurnVerifier` | 334,215 (fee 0), 343,550 (relayer paid) |
-| Ethereum `release`, `ZkChainBurnVerifier` | 347,250 |
-| Ethereum `release`, `ZkBedrockBurnVerifier` | 349,997 |
+| Ethereum `release`, `ZkChainBurnVerifier` | 364,299 (347,250 before the rolling caps) |
+| Ethereum `release`, `ZkBedrockBurnVerifier` | 367,050 (349,997 before the rolling caps) |
 | of which RISC Zero's Groth16 `verify` | 253,318 |
 
 The anvil storage proof has 3 nodes; a mainnet one has 8 to 9, which Sextant

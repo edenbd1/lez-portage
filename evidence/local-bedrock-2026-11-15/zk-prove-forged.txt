@@ -1,0 +1,39 @@
+# 2026-11-15T20:28:59Z wrap zk-prove /tmp/e2e-bedrock-rerun/run/forged-input.json, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.8.2 linux/aarch64 cpus=14 mem=12598894592; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 78c3565; guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 30.26 47.25 38.36
+       91.68 real       629.50 user         5.03 sys
+          2438545408  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              371239  page reclaims
+                1692  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  17  messages sent
+                  44  messages received
+                 117  signals received
+                  70  voluntary context switches
+              759947  involuntary context switches
+           534824442  instructions retired
+           176828359  cycles elapsed
+             5833112  peak memory footprint
+# docker 20:30:03 quirky_mclean 2.177GiB / 11.73GiB 339.21%
+# docker 20:30:05 quirky_mclean 3.145GiB / 11.73GiB 211.57%
+# docker 20:30:08 quirky_mclean 4.053GiB / 11.73GiB 213.67%
+# docker 20:30:10 quirky_mclean 4.6GiB / 11.73GiB 100.16%
+# docker 20:30:12 quirky_mclean 4.191GiB / 11.73GiB 112.71%
+# docker 20:30:14 quirky_mclean 5.721GiB / 11.73GiB 668.13%
+# docker 20:30:16 quirky_mclean 5.721GiB / 11.73GiB 814.57%
+# docker 20:30:18 quirky_mclean 6.979GiB / 11.73GiB 1132.65%
+# docker 20:30:20 quirky_mclean 7.231GiB / 11.73GiB 1134.40%
+# docker 20:30:23 quirky_mclean 7.394GiB / 11.73GiB 1099.40%
+# docker 20:30:25 quirky_mclean 7.399GiB / 11.73GiB 1140.71%
+# docker 20:30:27 quirky_mclean 7.418GiB / 11.73GiB 871.67%
+# docker 20:30:29 quirky_mclean 7.514GiB / 11.73GiB 783.61%
+# exit 0; load after: load averages: 43.16 49.52 40.26
+# groth16 container peak memory (docker stats samples) 7.51 GiB

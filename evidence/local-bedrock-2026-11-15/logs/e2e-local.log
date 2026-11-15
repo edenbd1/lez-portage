@@ -1,0 +1,265 @@
+run dir /tmp/e2e-bedrock-rerun/run, manifest /tmp/e2e-bedrock-rerun/run/evidence/e2e.tsv
+== 0. a local v0.3.1 sequencer on 3051 (blocks every 5s) and anvil on 8551
+  payer 6iArKUXxhUJqS7kCaPNhwMWt3ro71PDyBj7jwAyE2VQV holds 10000000000000
+== 1. LEZ: the four committed binaries, through program_loader
+{"associated_token_account":{"bytes":396244,"image_id":"2b1d5580b54895db2544574929a2eed36186060f296fb5bf1d11040ab1d27e13","sha256":"246bea9d8385975f57f5b36820a5842562b9c02d2309fab86d252603c51a942e"},"bedrock_anchor":{"bytes":431932,"image_id":"cebe7a279169ea723ca8d1636f6f0d9a36198c51a21e6d182cfb73d9eac5b208","sha256":"4469db985a9526f53cad37683644215b0a82292546de877d119743db9797baaf"},"bedrock_release":{"bytes":335088,"image_id":"a73cc9844b46381382ef408b54fffdf9efa2e831ff410e2498d84eacdfd9dc42","sha256":"2f0137c5c3272961ecfd09bf40a670df5e05a7b709ce1da3d22e66fb4e71a451"},"burn_membership":{"bytes":318720,"image_id":"855dfc801b07750f6ebb29619e6b4629dba6ae136e07f0981c5a6605e64c2316","sha256":"2c800cd93d4c2cc3a4876165c93ebe4a231f151d8f09394951517c7dc0048881"},"burn_release":{"bytes":330048,"image_id":"fd3b52ce15d97b688f2c297afd466f6fde49a55f8f9925f956a68548f4799721","sha256":"2a377a260e713c4b9d728c3e0ecc8882ba4ac070e5e8d679d3f6fb4c8487ac99"},"lez_chain":{"bytes":294832,"image_id":"68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22","sha256":"8d8d6d33f450005c5ff552c1884f1df37175e51193a1085890b5d4556057d2fd"},"sextant_lc":{"bytes":642168,"image_id":"fa229eddbae15b2a20126e37e03fa82a2b42c7c98f74001a7d49e93fafe205c8","sha256":"d17de1ea1457c1369319f646999baf8f29098d2014d8700f148a3f74d15e19ca"},"token":{"bytes":427292,"image_id":"912d412c6e82c5a5be4a6ad0749358dd85e269655940147f274d3c168c4a14ab","sha256":"728e7a331cd357385c22f55d5724c440bb846dd8bdaab5d3c5e2bec28fa330d2"},"wrap_bridge":{"bytes":446832,"image_id":"073f046ce2a6fffd6adec655f0e65e91fd1ab7e47774e2685c40f2d51ea1c670","sha256":"6975794938335ab3715a9acdc783bc1e6eb5203e9fe411c5e7efd9f78cca1903"}}
+{"header":"C321aBzhw47HxzLinoWLMPvRqBcq1maWdzxaAXWqdNub","image_id":"fa229eddbae15b2a20126e37e03fa82a2b42c7c98f74001a7d49e93fafe205c8","immutable":false,"name":"sextant_lc","op":"deploy","segments":["
+{"header":"12wmPszmZdgrXEDsLxpmMpyVqC31vkmkswZitXzXa5ym","image_id":"912d412c6e82c5a5be4a6ad0749358dd85e269655940147f274d3c168c4a14ab","immutable":false,"name":"token","op":"deploy","segments":["XRQ7d
+{"header":"8Hk18TVmeMk5VVkpJuFcxtejnsNYWDz3qzppN2mFagwA","image_id":"2b1d5580b54895db2544574929a2eed36186060f296fb5bf1d11040ab1d27e13","immutable":false,"name":"associated_token_account","op":"deploy"
+{"header":"GJceaKophxgEJU1LRPfXcT2FkSM2v6GoFA6PQJ8a864J","image_id":"073f046ce2a6fffd6adec655f0e65e91fd1ab7e47774e2685c40f2d51ea1c670","immutable":true,"name":"wrap_bridge","op":"deploy","segments":["
+  accounts {"admin":"7rU4nPdu5CVCzQTQ5t7y6AcLWgXeqT6rnnWJQR8ewiZs","alice":"7911tuEyfUpDoZK4k1KxsNGfpnU7txZWT9zLbgwt2Wcu","bob":"9XnVWV2UMcP58KqyH886k3VgAmwuSRqipopiSQ4xAB5e","carol_private":"7DbKe9aao3xXofp6vrq1UmiTr7BQ9qT8JcRPzangeSXq","freezer":"74VuSecaQ8sTzHdbvdhPjiJHmdR8WSHhTVhkG9r97ybR"}
+== 2. Ethereum (anvil): the vault, both tokens, four deposits
+vault 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 (pairing 0xd09447301a63f94ff6ad5724f8136128426f16bd262e29e3cd1855ceb92e55b8), usdt 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0, verifier 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 (zk), risc0 0x5FbDB2315678afecb367f032d93F642f64180aa3
+deposit 0: alice eth 1000000000000000000, tx 0xd4be4c1915f0d02034562b68af1327bdac302831277bb6eae40eef9dd5a2ee32, gas 312474
+deposit 1: alice usdt 100000000, tx 0xc6a5ec93df4ae896e211506eeb7989fd36ef7afbbad991bfbf5b58e4e120e816, gas 312878
+deposit 2: bob eth 100000000000000000, tx 0x28d1bfc01a5244dc152b14590d0fcfd6f5edd6099c5f2a40245d2ce69d39cfef, gas 256602
+deposit 3: carol eth 1000000000000000000, tx 0xd06997790723ab044f9b5d58181bee6c25f11bdd9369f74bb679c818d9a54731, gas 251560
+4 deposits, block 16 (state root 0xec29fed501802c7a8f5bc30af93715dbe1b21b68ff68c9c2d6e918274da57daf), root 0x467fa6af3d672d7fdee9d7a7991e058a70f2968b3d20cbb110d81c6ec1e921fd
+== 3. LEZ: Sextant from the anvil block, the bridge, the claims
+{"attempts":["b30c5de97f281d230f2565347b63f0b28dbab0b53d896f0004723bb3dea62a16"],"block":28,"block_gas_exec":1831160,"block_gas_stor":26133,"gas_limit":1859471,"label":"init-sextant","op":"init-sextant","payer_balance_after":"9999970772632","payer_balance_before":"9999985630976","precheck":{"gas":1831160},"state_changed":true,"tx":"b30c5de97f281d230f2565347b63f0b28dbab0b53d896f0004723bb3dea62a16","tx_bytes":26133,"verdict":"applied"}
+  ok  init-sextant: applied (gas=1831160)
+  CAVEAT: anvil has no beacon chain: the Sextant instance is initialised from a beacon header built around anvil block 16 (state root 0xec29fed501802c7a8f5bc30af93715dbe1b21b68ff68c9c2d6e918274da57daf), the trusted checkpoint a light client takes on trust; the storage proofs, paths, nullifiers and mints after it are verified as on a real network
+{"attempts":["2326f81c068ac7111b0ba7a63dacaef998ecb83a494a7eee08f4d8cea52a438e"],"block":29,"block_gas_exec":27049,"block_gas_stor":607,"gas_limit":37319,"label":"init-bridge","op":"init-bridge","payer_balance_after":"9999970551384","payer_balance_before":"9999970772632","precheck":{"gas":27049},"state_changed":true,"tx":"2326f81c068ac7111b0ba7a63dacaef998ecb83a494a7eee08f4d8cea52a438e","tx_bytes":607,"verdict":"applied"}
+  ok  init-bridge: applied (gas=27049)
+{"attempts":["9e97ffb0a7fa2cd84d78634448291231734afbc822bd108ab0723f85c8907745"],"block":30,"block_gas_exec":90958,"block_gas_stor":1104,"gas_limit":101867,"label":"register-eth","op":"register","payer_balance_after":"9999969814888","payer_balance_before":"9999970551384","precheck":{"gas":90958},"state_changed":true,"tx":"9e97ffb0a7fa2cd84d78634448291231734afbc822bd108ab0723f85c8907745","tx_bytes":1104,"verdict":"applied"}
+  ok  register-eth: applied (gas=90958)
+{"attempts":["4cc8537a1f0980b2043a3f8aaca9ea9a8630583d34d812644e600a78ef5f0c62"],"block":31,"block_gas_exec":90316,"block_gas_stor":1103,"gas_limit":101219,"label":"register-usdt","op":"register","payer_balance_after":"9999969083536","payer_balance_before":"9999969814888","precheck":{"gas":90316},"state_changed":true,"tx":"4cc8537a1f0980b2043a3f8aaca9ea9a8630583d34d812644e600a78ef5f0c62","tx_bytes":1103,"verdict":"applied"}
+  ok  register-usdt: applied (gas=90316)
+-- public claims (deposit 0: alice 1 ETH; 1: alice 100 USDT)
+{"attempts":["eeb06515a0dd665e13d4aa1f0b48f882f7fec1f49958aed1787d3c50b4dbdf20"],"block":32,"block_gas_exec":287385,"block_gas_stor":3183,"gas_limit":300258,"label":"claim-alice-eth","op":"claim","payer_balance_after":"9999966758992","payer_balance_before":"9999969083536","precheck":{"gas":287385},"state_changed":true,"tx":"eeb06515a0dd665e13d4aa1f0b48f882f7fec1f49958aed1787d3c50b4dbdf20","tx_bytes":3183,"verdict":"applied"}
+  ok  claim-alice-eth: applied (gas=287385)
+  ok  alice holds 1 wrapped ETH: 1000000000000000000
+{"attempts":["d78c7c78b48f449451552696c8692fe99b9366716a47de7555b31ec409333426"],"block":33,"block_gas_exec":330000,"block_gas_stor":3183,"gas_limit":330000,"label":"claim-alice-eth-replay","op":"claim","payer_balance_after":"9999964093528","payer_balance_before":"9999966758992","precheck":{"refused":"E7402: this deposit was already claimed"},"state_changed":false,"tx":"d78c7c78b48f449451552696c8692fe99b9366716a47de7555b31ec409333426","tx_bytes":3183,"verdict":"reverted"}
+  ok  claim-alice-eth-replay: refused (E7402), included, charged its whole limit, nothing changed
+{"attempts":["f7c2f36f68e32ea44856754c7578526135d485d0f81149dde3cfd90de39ad05c"],"block":34,"block_gas_exec":330000,"block_gas_stor":3365,"gas_limit":330000,"label":"claim-alice-eth-replay-old-root","op":"claim","payer_balance_after":"9999961426608","payer_balance_before":"9999964093528","precheck":{"refused":"E7402: this deposit was already claimed"},"state_changed":false,"tx":"f7c2f36f68e32ea44856754c7578526135d485d0f81149dde3cfd90de39ad05c","tx_bytes":3365,"verdict":"reverted"}
+  ok  claim-alice-eth-replay-old-root: refused (E7402), included, charged its whole limit, nothing changed
+{"attempts":["817774a37f18b5f797f409aca2c0daec30d6e7917db4a20731014853a6c16056"],"block":35,"block_gas_exec":287457,"block_gas_stor":3183,"gas_limit":300331,"label":"claim-alice-usdt","op":"claim","payer_balance_after":"9999959101488","payer_balance_before":"9999961426608","precheck":{"gas":287457},"state_changed":true,"tx":"817774a37f18b5f797f409aca2c0daec30d6e7917db4a20731014853a6c16056","tx_bytes":3183,"verdict":"applied"}
+  ok  claim-alice-usdt: applied (gas=287457)
+  ok  alice holds 100 wrapped USDT: 100000000
+-- refusals: a redirected claim, a root the vault never had
+{"attempts":["e5c0dd1ac414842ac775ff84556aa68b37324985689d6200288c9472c3a8fd80"],"block":36,"block_gas_exec":330000,"block_gas_stor":3183,"gas_limit":330000,"label":"claim-bob-redirected-to-alice","op":"claim","payer_balance_after":"9999956436024","payer_balance_before":"9999959101488","precheck":{"refused":"E7403: no such deposit under this root: check the token, amount, destination, secret and path"},"state_changed":false,"tx":"e5c0dd1ac414842ac775ff84556aa68b37324985689d6200288c9472c3a8fd80","tx_bytes":3183,"verdict":"reverted"}
+  ok  claim-bob-redirected-to-alice: refused (E7403), included, charged its whole limit, nothing changed
+{"attempts":["f9133351a017aac5afd90f87fe6663ff9a898e81027260049e17fb717b4e22d3"],"block":37,"block_gas_exec":330000,"block_gas_stor":3240,"gas_limit":330000,"label":"claim-phantom-unknown-root","op":"claim","payer_balance_after":"9999953770104","payer_balance_before":"9999956436024","precheck":{"refused":"E7208: predicate not satisfied by the attested state"},"state_changed":false,"tx":"f9133351a017aac5afd90f87fe6663ff9a898e81027260049e17fb717b4e22d3","tx_bytes":3240,"verdict":"reverted"}
+  ok  claim-phantom-unknown-root: refused (E7208), included, charged its whole limit, nothing changed
+  ok  wrapped ETH supply after the public claims: 1000000000000000000
+-- the private claim (deposit 3: carol 1 ETH, committed to her private account), real proving
+{"absent_from_tx":{"commitment":true,"destination":true,"leaf":true,"path_nodes":"2 of 2","secret":true},"attempts":["0a91ce9d77a20ddbeacb032bda0d33c23b396ab71e0bc84a417ad86e73f6b288"],"block":109,"dev_mode":false,"kind":"privacy-preserving","label":"claim-carol-private","nullifier_account":"E9AogEyLMJJUgf326FtikZWHRzNvyoMJ7L5d9rLFwVAV","op":"claim-private","prove_and_submit_ms":358758,"state_changed":true,"tx":"0a91ce9d77a20ddbeacb032bda0d33c23b396ab71e0bc84a417ad86e73f6b288","tx_bytes":251335,"verdict":"applied"}
+  ok  the private claim landed: applied
+  ok  a privacy-preserving transaction: privacy-preserving
+  ok  RISC0 dev mode off (real proving): False
+  ok  the opening is absent from the transaction: True
+-- carol's wallet syncs and decrypts her private account
+{"account":"Private/7DbKe9aao3xXofp6vrq1UmiTr7BQ9qT8JcRPzangeSXq","commitment_on_chain":true,"definition":"6vnis8E6HairvPEepZHH87zwMZeEHQUDB3rEgfJycX5v","op":"show-private","synced_to_block":109,"wrapped_balance":"1000000000000000000"}
+  ok  carol decrypts 1 wrapped ETH in Private/7DbKe9aao3xXofp6vrq1UmiTr7BQ9qT8JcRPzangeSXq: 1000000000000000000
+  ok  her note's commitment is in the chain's commitment set: True
+  wallet account get --account-id Private/7DbKe9aao3xXofp6vrq1UmiTr7BQ9qT8JcRPzangeSXq --scope 12wmPszmZdgrXEDsLxpmMpyVqC31vkmkswZitXzXa5ym: 005811ea51f80596bbe480a2165b4c1003efb1ede3865e52e108075f185a458fed000064a7b3b6e00d0000000000000000
+  ok  the wallet shows the same record: a holding of 1 wrapped ETH: 1000000000000000000
+  ok  the private account is not public: no token shard on chain under its id: 0
+  ok  wrapped ETH supply after the private claim: 2000000000000000000
+-- a public burn (alice, 1 ETH, Ethereum recipient hidden in a commitment that also fixes the relayer fee, 0)
+{"attempts":["98cbfb37e168de263210a896db585eb75ddc2d5100978424d82c56aa7f4ff2bf"],"block":110,"block_gas_exec":255000,"block_gas_stor":1139,"gas_limit":255000,"label":"burn-alice-eth-not-a-denomination","op":"burn","payer_balance_after":"9999951720992","payer_balance_before":"9999953770104","precheck":{"refused":"E7408: burn one of the token's permitted amounts"},"state_changed":false,"tx":"98cbfb37e168de263210a896db585eb75ddc2d5100978424d82c56aa7f4ff2bf","tx_bytes":1139,"verdict":"reverted"}
+  ok  burn-alice-eth-not-a-denomination: refused (E7408), included, charged its whole limit, nothing changed
+{"attempts":["2dcc0a5494d0caeb85d491cb636b23e12925bc9c1dc005a9be8935a321b6459d"],"block":111,"block_gas_exec":228729,"block_gas_stor":1139,"gas_limit":241016,"label":"burn-alice-eth","op":"burn","payer_balance_after":"9999949882048","payer_balance_before":"9999951720992","precheck":{"gas":228729},"state_changed":true,"tx":"2dcc0a5494d0caeb85d491cb636b23e12925bc9c1dc005a9be8935a321b6459d","tx_bytes":1139,"verdict":"applied"}
+  ok  burn-alice-eth: applied (gas=228729)
+  ok  alice holds no wrapped ETH: 0
+  ok  wrapped ETH supply after the public burn: 1000000000000000000
+-- the private burn (carol, 1 ETH, from her private account; fee 0.01 ETH), real proving
+{"dev_mode":false,"held_before":"1000000000000000000","label":"burn-carol-private-not-a-denomination","op":"burn-private","precheck":{"refused":"E7408: burn one of the token's permitted amounts"},"verdict":"refused-precheck"}
+  ok  a private burn of an amount that is not a denomination is refused before proving: refused-precheck E7408
+{"absent_from_tx":{"holder":true,"recipient":true,"secret":true},"attempts":["6ca4fbdb7983afc7767099475470e55342a134682708cdd8079dfd8841872f36"],"block":166,"burns_account":"4rskAuSwrFT3R4DKCD85N9quKwR6YwpW68DPhpuy8HBm","dev_mode":false,"held_before":"1000000000000000000","kind":"privacy-preserving","label":"burn-carol-private","leaf_in_tx":true,"op":"burn-private","prove_and_submit_ms":269237,"state_changed":true,"tx":"6ca4fbdb7983afc7767099475470e55342a134682708cdd8079dfd8841872f36","tx_bytes":248358,"verdict":"applied"}
+  ok  the private burn landed: applied
+  ok  a privacy-preserving transaction: privacy-preserving
+  ok  RISC0 dev mode off (real proving): False
+  ok  the holder, the Ethereum recipient and the burn secret are absent from it: True
+  ok  its burn leaf is public (what a release opens): True
+  ok  carol's wallet decrypts her account after the burn: 0 wrapped ETH: 0
+  ok  wrapped ETH supply after both burns: 0
+-- Bedrock: the sequencer's latest block is inscribed on the node's channel
+  ok  LEZ block 166 (the sequencer's latest) is inscribed on Bedrock channel 0202020202020202020202020202020202020202020202020202020202020202: yes
+== 4. Ethereum (anvil): releases against the LEZ burn tree (zk)
+# 2026-11-15T20:25:40Z wrap release-proof alice --zk --relayer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+       97.28 real       611.81 user         3.84 sys
+          2554134528  maximum resident set size
+             7061912  peak memory footprint
+# exit 0; load after: load averages: 39.31 52.80 38.89
+# groth16 container peak memory (docker stats samples) 7.44 GiB
+# 2026-11-15T20:27:19Z wrap release-proof carol --zk --relayer 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+       98.81 real       615.26 user         4.37 sys
+          2556542976  maximum resident set size
+             6095232  peak memory footprint
+# exit 0; load after: load averages: 30.26 47.25 38.36
+# groth16 container peak memory (docker stats samples) 7.40 GiB
+# 2026-11-15T20:28:59Z wrap zk-prove /tmp/e2e-bedrock-rerun/run/forged-input.json, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+       91.68 real       629.50 user         5.03 sys
+          2438545408  maximum resident set size
+             5833112  peak memory footprint
+# exit 0; load after: load averages: 43.16 49.52 40.26
+# groth16 container peak memory (docker stats samples) 7.51 GiB
+  ok  the three Groth16 proofs are real (RISC0 dev mode off): 3
+  ok  the zk verifier is pinned to the committed guest's image id: 0x855dfc801b07750f6ebb29619e6b4629dba6ae136e07f0981c5a6605e64c2316
+  ok  the vault's verifier is the zk verifier: 0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  ok  the seals carry RISC Zero's verifier selector: 0x73c457ba
+{"label": "release-carol-not-final", "expect": "NotFinal", "precheck": "NotFinal", "verdict": "reverted", "tx": "0x65eae6cf508abf096944fcd97df327466c92c92a2997ab80efb932e4244676c8", "block": 17, "gas_used": 286080, "lez_block": 224, "lez_final_block": 224, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714e
+  ok  release-carol-not-final: reverted (NotFinal), block 17, gas 286080
+{"label": "release-alice", "expect": "applied", "precheck": "applied", "verdict": "applied", "tx": "0x174006f256a7dd822c227fa81fabf8bea07a19b4db376156ffeccdf727c23824", "block": 18, "gas_used": 351208, "lez_block": 225, "lez_final_block": 228, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468
+  ok  release-alice: applied (applied), block 18, gas 351208
+{"label": "release-alice-replay", "expect": "AlreadyReleased", "precheck": "AlreadyReleased", "verdict": "reverted", "tx": "0x118cde0b3c9cad9740fdc3f7c9ee293617ea4f0ef322b7e99cdf1ef10fbd734f", "block": 19, "gas_used": 50601, "lez_block": 228, "lez_final_block": 231, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59e556747e709d2
+  ok  release-alice-replay: reverted (AlreadyReleased), block 19, gas 50601
+{"label": "release-carol-redirected-to-relayer", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0x00f4341b8c3308da25f81fc43a9651315e78363b370a6b84784063d16f5bbf8c", "block": 20, "gas_used": 58610, "lez_block": 231, "lez_final_block": 234, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59
+  ok  release-carol-redirected-to-relayer: reverted (NotThisRelease), block 20, gas 58610
+{"label": "release-carol-another-amount", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0xd9602d518c981769c620b2046f39785770cbae07f7f7d8354a12030e507e531a", "block": 21, "gas_used": 58634, "lez_block": 234, "lez_final_block": 237, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59e556747
+  ok  release-carol-another-amount: reverted (NotThisRelease), block 21, gas 58634
+{"label": "release-carol-front-run", "expect": "NotThisRelease", "precheck": "NotThisRelease", "verdict": "reverted", "tx": "0x14fa22fa45b7bc2f90be72f99f863347a2c76eb49b1423b834ac5c3d2eeb9dd7", "block": 22, "gas_used": 58634, "lez_block": 237, "lez_final_block": 240, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59e556747e709d
+  ok  release-carol-front-run: reverted (NotThisRelease), block 22, gas 58634
+{"label": "release-carol-tampered-journal", "expect": "VerificationFailed", "precheck": "VerificationFailed", "verdict": "reverted", "tx": "0x18c101d3e329ec7e53e3b0bc137fa3083abb41d1c8b049bbd85a00a9749e61c7", "block": 23, "gas_used": 285827, "lez_block": 240, "lez_final_block": 243, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936
+  ok  release-carol-tampered-journal: reverted (VerificationFailed), block 23, gas 285827
+{"label": "release-forged-burn-committee", "expect": "RootNotAttested", "precheck": "RootNotAttested", "verdict": "reverted", "tx": "0x58514bf883fb6c63a1d97cac156fe71179d41ee47500824b7d475341c75633c9", "block": 24, "gas_used": 298241, "lez_block": 243, "lez_final_block": 246, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0xaf9d53fc637bae4429720a406f959
+  ok  release-forged-burn-committee: reverted (RootNotAttested), block 24, gas 298241
+{"label": "release-forged-burn-outsiders", "expect": "RootNotAttested", "precheck": "RootNotAttested", "verdict": "reverted", "tx": "0x4875f35e0a1d698dab92f2740cfc141c3e9502a530edca0a63461b9e39dc0307", "block": 25, "gas_used": 298253, "lez_block": 246, "lez_final_block": 249, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0xaf9d53fc637bae4429720a406f959
+  ok  release-forged-burn-outsiders: reverted (RootNotAttested), block 25, gas 298253
+{"label": "release-carol-one-member", "expect": "RootNotAttested", "precheck": "RootNotAttested", "verdict": "reverted", "tx": "0x41c9afbc71f5f9bf74df9d353d90f38c9c5d4fac5bfe50bf6a49b19f9fb00c11", "block": 26, "gas_used": 290768, "lez_block": 249, "lez_final_block": 252, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59e556747e
+  ok  release-carol-one-member: reverted (RootNotAttested), block 26, gas 290768
+{"label": "release-carol", "expect": "applied", "precheck": "applied", "verdict": "applied", "tx": "0xf46831800787ace8df7057e4c1fb5102fb04e166e2b007a6a1c042c09aee0671", "block": 27, "gas_used": 344147, "lez_block": 252, "lez_final_block": 255, "root_seen": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468b0", "root": "0x546b34feb7aeb317f83936ac59e556747e709d2ca10a4714ef63a86c4e0468
+  ok  release-carol: applied (applied), block 27, gas 344147
+  ok  no zero-knowledge release sent its leaf, secret, Ethereum commitment or path: 9/9
+  ok  the vault paid out exactly the two releases (2 ETH): 2000000000000000000
+  ok  carol received 1 ETH less the 0.01 ETH fee her burn fixed: 990000000000000000
+  ok  the vault recorded alice's burn nullifier as released: true
+  ok  the vault recorded carol's burn nullifier as released: true
+== final state: the accounts the run wrote, as it left them
+  db96c1a78f9a036586432b7c42d6eb021e2c0efab3379d043dcaac58cd694336: 307 bytes
+  ea2f693174981d7b5c2eefedb46c4e4cb35d556d870993523da05eb2efab4a3e: 120 bytes
+  96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7: 2 bytes
+  89c25400f9baf27455d7ab17f857d63c8161cd72a46f7e5f55d4472f902171d5: 150 bytes
+  4f5b5d2f7e3cb73018f59c3f0015fe38db497a59803e291b915b1ff7f02ef462: 150 bytes
+  d10e072edfc03aa533d160e9653ab134ee4b2949ed5f9ae8dace1ad5994e377a: 812 bytes
+  4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a: 1 bytes
+  4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a: 1 bytes
+  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855: 0 bytes
+  4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a: 1 bytes
+  4a5caa065105c5d4c37dc31715716a56ecbc986437714af7027c7c627be1a807: 43 bytes
+  881223e35617758ba120f333020813cc7f941479df674445405a7c75f8787f6e: 42 bytes
+  07d4e0cc3631ca0f1f8264f9096f43fc080aeba78d4fbcfe0d7de0dd340a771a: 49 bytes
+  8d3f721e0a1ff9f5bad1aaaa68ec3ea8a58beaf05a6a15f7f2f80abaf6794432: 49 bytes
+  ok  bob's deposit (2) stays unclaimed: its nullifier account is empty: 0
+== PASS: 14 LEZ transactions in /tmp/e2e-bedrock-rerun/run/evidence/e2e.tsv (9 applied, 5 refused as expected), 11 Ethereum releases (2 applied, 9 refused as expected), 33 state checks ok
+== verifier, against the same sequencer
+wrap_bridge run against http://127.0.0.1:3051, from /tmp/e2e-bedrock-rerun/run/evidence/e2e.tsv
+  ok   program sextant_lc: header C321aBzhw47H… names ImageID fa229eddbae15b2a…
+  ok   deploy sextant_lc-segment6: 9c9af026ee779306… resolves (block 2)
+  ok   deploy sextant_lc-segment5: c882eaf83574541c… resolves (block 3)
+  ok   deploy sextant_lc-segment4: 3f950fd073de07a0… resolves (block 4)
+  ok   deploy sextant_lc-segment3: 44f9fb6bb6749eaf… resolves (block 5)
+  ok   deploy sextant_lc-segment2: 3211394c49dfb16e… resolves (block 6)
+  ok   deploy sextant_lc-segment1: f9f593f3fc48d1ba… resolves (block 7)
+  ok   deploy sextant_lc-segment0: 00d4169ad559e00f… resolves (block 8)
+  ok   deploy sextant_lc-header: 2963bd8ac136ef8b… resolves (block 9)
+  ok   program token: header 12wmPszmZdgr… names ImageID 912d412c6e82c5a5…
+  ok   deploy token-segment4: 4185fe23e1325d06… resolves (block 10)
+  ok   deploy token-segment3: 42a62514b9267c20… resolves (block 11)
+  ok   deploy token-segment2: ec703a0840acce4a… resolves (block 12)
+  ok   deploy token-segment1: c188f4bebf8e6301… resolves (block 13)
+  ok   deploy token-segment0: 5506e133f280487a… resolves (block 14)
+  ok   deploy token-header: 5be996181873ac50… resolves (block 15)
+  ok   program associated_token_account: header 8Hk18TVmeMk5… names ImageID 2b1d5580b54895db…
+  ok   deploy associated_token_account-segment3: a042100db203e161… resolves (block 16)
+  ok   deploy associated_token_account-segment2: 0366fff243d34078… resolves (block 17)
+  ok   deploy associated_token_account-segment1: 46582aa1f4bf0653… resolves (block 18)
+  ok   deploy associated_token_account-segment0: 8c5458520723aed8… resolves (block 19)
+  ok   deploy associated_token_account-header: 445df7a8d802815a… resolves (block 20)
+  ok   program wrap_bridge: header GJceaKophxgE… names ImageID 073f046ce2a6fffd…
+  ok   deploy wrap_bridge-segment4: cd8d49af72e577b1… resolves (block 21)
+  ok   deploy wrap_bridge-segment3: 010083cdb4e96de1… resolves (block 22)
+  ok   deploy wrap_bridge-segment2: 99a53309547f837e… resolves (block 23)
+  ok   deploy wrap_bridge-segment1: 9f2cb1466ae1a61a… resolves (block 24)
+  ok   deploy wrap_bridge-segment0: 3f351194d7dfdb9f… resolves (block 25)
+  ok   deploy wrap_bridge-header: 93a467456d3e968b… resolves (block 26)
+  ok   init-sextant: applied, b30c5de97f281d23… in block 28, charged 1831160 gas = the pre-checked gas, below its limit 1859471
+  ok   init-bridge: applied, 2326f81c068ac711… in block 29, charged 27049 gas = the pre-checked gas, below its limit 37319
+  ok   register-eth: applied, 9e97ffb0a7fa2cd8… in block 30, charged 90958 gas = the pre-checked gas, below its limit 101867
+  ok   register-usdt: applied, 4cc8537a1f0980b2… in block 31, charged 90316 gas = the pre-checked gas, below its limit 101219
+  ok   claim-alice-eth: applied, eeb06515a0dd665e… in block 32, charged 287385 gas = the pre-checked gas, below its limit 300258
+  ok   claim-alice-eth-replay: refused (E7402), d78c7c78b48f4494… in block 33, charged its whole limit 330000
+  ok   claim-alice-eth-replay-old-root: refused (E7402), f7c2f36f68e32ea4… in block 34, charged its whole limit 330000
+  ok   claim-alice-usdt: applied, 817774a37f18b5f7… in block 35, charged 287457 gas = the pre-checked gas, below its limit 300331
+  ok   claim-bob-redirected-to-alice: refused (E7403), e5c0dd1ac414842a… in block 36, charged its whole limit 330000
+  ok   claim-phantom-unknown-root: refused (E7208), f9133351a017aac5… in block 37, charged its whole limit 330000
+  ok   claim-carol-private: privacy-preserving, 0a91ce9d77a20ddb… in block 109, 251335 bytes, Private/7DbKe9aao3xX… absent from its bytes
+  ok   burn-alice-eth-not-a-denomination: refused (E7408), 98cbfb37e168de26… in block 110, charged its whole limit 255000
+  ok   burn-alice-eth: applied, 2dcc0a5494d0caeb… in block 111, charged 228729 gas = the pre-checked gas, below its limit 241016
+  ok   burn-carol-private: privacy-preserving, 6ca4fbdb7983afc7… in block 166, 248358 bytes, Private/7DbKe9aao3xX… absent from its bytes
+  ok   final state of sextant_instance (6Gr418Tg2De4…): 307 bytes as the run left them
+  ok   final state of sextant_header (6nTK3MxVF2RA…): 120 bytes as the run left them
+  ok   final state of config (GYUwx1rBRmGL…): 2 bytes as the run left them
+  ok   final state of eth_entry (2LHB1XY7j179…): 150 bytes as the run left them
+  ok   final state of usdt_entry (9V9JcZj7FsTx…): 150 bytes as the run left them
+  ok   final state of burns (4rskAuSwrFT3…): 812 bytes as the run left them
+  ok   final state of nullifier_0 (4gupM4tt2aV4…): 1 bytes as the run left them
+  ok   final state of nullifier_1 (CTYXHxicCZWK…): 1 bytes as the run left them
+  ok   final state of nullifier_2 (4rBMixhgrUW5…): 0 bytes as the run left them
+  ok   final state of nullifier_3 (E9AogEyLMJJU…): 1 bytes as the run left them
+  ok   final state of eth_definition (6vnis8E6Hair…): 43 bytes as the run left them
+  ok   final state of usdt_definition (4yRbEA87Yya6…): 42 bytes as the run left them
+  ok   final state of alice_eth_ata (HZVH8VPSBUat…): 49 bytes as the run left them
+  ok   final state of alice_usdt_ata (8tJuNpeQp3eF…): 49 bytes as the run left them
+  ok   control: a random hash (213d6777344f…) does not resolve, and the endpoint answers
+  ok   release-root 0x546b34feb7aeb317… is the LEZ burn tree's root on the sequencer now (4rskAuSwrFT3…)
+  ok   eth release-carol-not-final: refused NotFinal (0xd7c25c79), 0x65eae6cf508abf… in block 17, replayed: the same revert
+  ok   eth release-alice: applied, 0x174006f256a7dd… in block 18, 351208 gas, Release of nullifier 0x58cc2dde7031… under the LEZ burn root
+  ok   eth release-alice-replay: refused AlreadyReleased (0x63b4904e), 0x118cde0b3c9cad… in block 19, replayed: the same revert
+  ok   eth release-carol-redirected-to-relayer: refused NotThisRelease (0x97ed60d9), 0x00f4341b8c3308… in block 20, replayed: the same revert
+  ok   eth release-carol-another-amount: refused NotThisRelease (0x97ed60d9), 0xd9602d518c9817… in block 21, replayed: the same revert
+  ok   eth release-carol-front-run: refused NotThisRelease (0x97ed60d9), 0x14fa22fa45b7bc… in block 22, replayed: the same revert
+  ok   eth release-carol-tampered-journal: refused VerificationFailed (0x439cc0cd), 0x18c101d3e329ec… in block 23, replayed: the same revert
+  ok   eth release-forged-burn-committee: refused RootNotAttested (0xfb0612b1), 0x58514bf883fb6c… in block 24, replayed: the same revert
+  ok   eth release-forged-burn-outsiders: refused RootNotAttested (0xfb0612b1), 0x4875f35e0a1d69… in block 25, replayed: the same revert
+  ok   eth release-carol-one-member: refused RootNotAttested (0xfb0612b1), 0x41c9afbc71f5f9… in block 26, replayed: the same revert
+  ok   eth release-carol: applied, 0xf46831800787ac… in block 27, 344147 gas, Release of nullifier 0xf61b895f4011… under the LEZ burn root
+  ok   zk: the zk verifier's recorded image id is the committed guest's (0x855dfc801b07750f…)
+  ok   zk: ZkBurnVerifier.IMAGE_ID() = 0x855dfc801b07750f…, the recorded image id
+  ok   zk: ZkBurnVerifier.RISC0() is the recorded RiscZeroGroth16Verifier 0x5FbDB23156…
+  ok   zk: the vault's VERIFIER() is the zk verifier 0xe7f1725E77…
+  ok   zk release-alice: seal (260 B) and journal read back from 0x174006f256a7dd…; sha256(journal) = the vault's digest; RISC Zero's verifier accepts it for 0x855dfc801b… and refuses it altered; leaf and 1 path node(s) absent
+  ok   zk release-carol: seal (260 B) and journal read back from 0xf46831800787ac…; sha256(journal) = the vault's digest; RISC Zero's verifier accepts it for 0x855dfc801b… and refuses it altered; leaf and 1 path node(s) absent
+  ok   eth final: nullifierSpent(0x58cc2dde7031…) = true (release-alice)
+  ok   eth final: nullifierSpent(0xf61b895f4011…) = true (release-carol)
+  ok   eth final: nullifierSpent(0x86dafc1d4531…) = false (control)
+  ok   eth final: vault holds 100000000000000000 wei
+  ok   control: a random transaction hash (0x406e5263b5…) does not resolve on the Ethereum endpoint, and it answers
+81 checks pass, 0 fail (7 applied and 5 refused public transactions, 2 privacy-preserving, 2 applied and 9 refused releases, in the manifest)
+== mutation test of the verifier
+  ok   the recorded manifest verifies (81 checks pass, 0 fail (7 applied and 5 refused public transactions, 2 privacy-preserving, 2 applied and 9 refused releases, in the manifest))
+  ok   mutation fake-hash caught: init-sextant: 37e0cb6e432805da… NOT FOUND on chain
+  ok   mutation refusal-as-applied caught: claim-alice-eth-replay: expected applied, charged 330000 gas (pre-checked 330000, limit 330000)
+  ok   mutation applied-as-refused caught: init-sextant: expected refused, charged 1831160 gas against a limit of 1859471
+  ok   mutation wrong-gas caught: init-sextant: expected applied, charged 1831160 gas (pre-checked 1831161, limit 1859471)
+  ok   mutation wrong-block caught: init-sextant: b30c5de97f281d23… is in block 28, recorded in 29
+  ok   mutation swapped-hashes caught: init-sextant: 2326f81c068ac711… is in block 29, recorded in 28
+  ok   mutation private-fake-hash caught: claim-carol-private: 37e0cb6e432805da… NOT FOUND on chain
+  ok   mutation private-as-public caught: claim-carol-private: not a public transaction
+  ok   mutation private-destination caught: claim-carol-private: the private account's id GYUwx1rBRmGL… occurs in the transaction
+  ok   mutation private-size caught: claim-carol-private: 251335 bytes, recorded 251336
+  ok   mutation public-as-private caught: init-sextant: not a privacy-preserving transaction; 26133 bytes, recorded None; no hidden account recorded
+  ok   mutation final-state caught: final state of nullifier_3 (E9AogEyLMJJU…): recorded 1 bytes 0000000000000000…, chain has 1 bytes 4bf5122f344554c5…
+  ok   mutation image-id caught: program wrap_bridge: header GJceaKophxgE… names ImageID 0000000000000000… (chain has 073f046ce2a6fffd6adec655f0e65e91fd1
+  ok   mutation deploy-hash caught: deploy sextant_lc-segment6: 37e0cb6e432805da… resolves NOT FOUND
+  ok   mutation final-unclaimed caught: final state of nullifier_2 (4rBMixhgrUW5…): recorded 1 bytes 4bf5122f344554c5…, chain has 0 bytes e3b0c44298fc1c14…
+  ok   mutation private-burn-fake-hash caught: burn-carol-private: 37e0cb6e432805da… NOT FOUND on chain
+  ok   mutation private-burn-holder caught: burn-carol-private: the private account's id GYUwx1rBRmGL… occurs in the transaction
+  ok   mutation private-burn-size caught: burn-carol-private: 248358 bytes, recorded 248359
+  ok   mutation eth-fake-hash caught: eth release-alice: 0x37e0cb6e432805… NOT FOUND on the Ethereum endpoint
+  ok   mutation eth-refusal-as-applied caught: eth release-carol-not-final: status 0, recorded applied; no Release event of the vault names the recorded nullifier
+  ok   mutation eth-applied-as-refused caught: eth release-alice: status 1, recorded reverted; replayed at block 17 it reverts with nothing, recorded 0xfb0612b1
+  ok   mutation eth-other-error caught: eth release-forged-burn-committee: replayed at block 23 it reverts with 0xfb0612b1, recorded 0xd7c25c79
+  ok   mutation eth-wrong-block caught: eth release-carol-not-final: in block 17, recorded 18
+  ok   mutation eth-wrong-nullifier caught: eth release-alice: no Release event of the vault names the recorded nullifier
+  ok   mutation eth-wrong-root caught: release-root 0x37e0cb6e432805da… is not the LEZ burn tree's root (the sequencer has 0x546b34feb7aeb317f83936ac59e556747e
+  ok   mutation eth-unreleased caught: eth final: nullifierSpent(0x58cc2dde7031…) = true, recorded false (release-alice)
+  ok   mutation eth-control-spent caught: eth final: nullifierSpent(0x86dafc1d4531…) = false, recorded true (control)
+  ok   mutation eth-balance caught: eth final: vault holds 100000000000000000 wei, recorded 100000000000000001
+  ok   mutation zk-image-id caught: zk: recorded image id 0x855dfc801b07750f… is not the committed guest's (0x0000000000000000000000000000000000000000000000
+  ok   mutation zk-verifier caught: zk: ZkBurnVerifier.IMAGE_ID() = 0x0x…, recorded 0x855dfc801b07750f…
+  ok   mutation zk-leaf-sent caught: zk release-carol: the burn leaf occurs in the input
+  ok   mutation zk-path-sent caught: zk release-alice: 1 path node(s) occur in the input
+32 of 32 mutations caught
+KEEP=1: sequencer and anvil left running (pids 37658 37659), run dir /tmp/e2e-bedrock-rerun/run

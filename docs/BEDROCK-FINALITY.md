@@ -683,6 +683,8 @@ Gas on anvil (gas used, with the 21,000 base and calldata):
 | `release-carol` (by the relayer, fee 0.01 ETH; calldata 1,924 B, no leaf, secret or commitment in it) | applied | **349,997** |
 | `release-carol-replay` | `AlreadyReleased` | 56,000 |
 
+(On the current vault, with its rolling-window caps, the same run on 2026-11-15 gives 367,050 here and 364,299 through `ZkChainBurnVerifier`: [`evidence/local-bedrock-2026-11-15/`](../evidence/local-bedrock-2026-11-15/).)
+
 That is 2,747 gas more than through `ZkChainBurnVerifier` (347,250): the
 longer journal and the four more pinned words.
 

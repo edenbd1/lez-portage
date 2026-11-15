@@ -1,0 +1,39 @@
+# 2026-11-15T20:55:05Z wrap zk-prove /tmp/e2e-bedrock-rerun/run/bedrock/forged-input.json --bedrock /tmp/e2e-bedrock-rerun/run/bedrock/anchor-forged-other-key.json, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.8.2 linux/aarch64 cpus=14 mem=12598894592; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 78c3565 (uncommitted changes); guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 29.56 35.07 39.09
+      106.58 real       874.95 user         5.51 sys
+          5360435200  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              558780  page reclaims
+                1111  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  19  messages sent
+                  58  messages received
+                 105  signals received
+                  76  voluntary context switches
+              616299  involuntary context switches
+           536951359  instructions retired
+           174368297  cycles elapsed
+             6603160  peak memory footprint
+# docker 20:56:26 exciting_hermann 2.89GiB / 11.73GiB 302.47%
+# docker 20:56:28 exciting_hermann 4.306GiB / 11.73GiB 100.45%
+# docker 20:56:30 exciting_hermann 4.504GiB / 11.73GiB 100.14%
+# docker 20:56:33 exciting_hermann 4.707GiB / 11.73GiB 100.28%
+# docker 20:56:35 exciting_hermann 5.439GiB / 11.73GiB 292.18%
+# docker 20:56:37 exciting_hermann 5.441GiB / 11.73GiB 839.45%
+# docker 20:56:39 exciting_hermann 6.546GiB / 11.73GiB 1285.96%
+# docker 20:56:41 exciting_hermann 6.803GiB / 11.73GiB 1079.29%
+# docker 20:56:43 exciting_hermann 6.989GiB / 11.73GiB 1152.04%
+# docker 20:56:45 exciting_hermann 7.031GiB / 11.73GiB 1092.40%
+# docker 20:56:47 exciting_hermann 7.032GiB / 11.73GiB 948.56%
+# docker 20:56:50 exciting_hermann 7.04GiB / 11.73GiB 779.29%
+# docker 20:56:52 exciting_hermann 74.99MiB / 11.73GiB 546.17%
+# exit 0; load after: load averages: 26.16 33.19 37.95
+# groth16 container peak memory (docker stats samples) 7.04 GiB

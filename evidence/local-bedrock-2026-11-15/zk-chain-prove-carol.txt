@@ -1,0 +1,40 @@
+# 2026-11-15T20:37:04Z wrap release-proof carol --zk --chain /tmp/e2e-bedrock-rerun/run/chain/chain-2.json --relayer 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65 --vault 0x610178dA211FEF7D417bC0e6FeD39F05609AD788, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.8.2 linux/aarch64 cpus=14 mem=12598894592; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 78c3565; guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 69.82 51.03 41.71
+      112.23 real       905.98 user         4.25 sys
+          5369692160  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              434406  page reclaims
+                1210  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  20  messages sent
+                  62  messages received
+                  97  signals received
+                  69  voluntary context switches
+              594956  involuntary context switches
+           539603888  instructions retired
+           173836134  cycles elapsed
+             7422360  peak memory footprint
+# docker 20:38:29 jolly_cray 2.116GiB / 11.73GiB 363.89%
+# docker 20:38:31 jolly_cray 3.106GiB / 11.73GiB 212.61%
+# docker 20:38:33 jolly_cray 4.15GiB / 11.73GiB 211.40%
+# docker 20:38:35 jolly_cray 4.63GiB / 11.73GiB 100.17%
+# docker 20:38:37 jolly_cray 4.807GiB / 11.73GiB 107.63%
+# docker 20:38:39 jolly_cray 5.661GiB / 11.73GiB 680.58%
+# docker 20:38:42 jolly_cray 5.742GiB / 11.73GiB 780.81%
+# docker 20:38:44 jolly_cray 6.767GiB / 11.73GiB 1020.44%
+# docker 20:38:46 jolly_cray 7.115GiB / 11.73GiB 1209.59%
+# docker 20:38:48 jolly_cray 7.312GiB / 11.73GiB 1239.52%
+# docker 20:38:50 jolly_cray 7.361GiB / 11.73GiB 1167.82%
+# docker 20:38:53 jolly_cray 7.365GiB / 11.73GiB 985.03%
+# docker 20:38:55 jolly_cray 7.371GiB / 11.73GiB 750.04%
+# docker 20:38:57 jolly_cray 7.419GiB / 11.73GiB 769.42%
+# exit 0; load after: load averages: 47.13 49.10 42.13
+# groth16 container peak memory (docker stats samples) 7.42 GiB

@@ -1,0 +1,43 @@
+# 2026-11-15T20:25:40Z wrap release-proof alice --zk --relayer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.8.2 linux/aarch64 cpus=14 mem=12598894592; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 78c3565; guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 45.13 55.74 37.94
+       97.28 real       611.81 user         3.84 sys
+          2554134528  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              267999  page reclaims
+                1500  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  18  messages sent
+                  51  messages received
+                 105  signals received
+                  68  voluntary context switches
+              625512  involuntary context switches
+           541769684  instructions retired
+           182059487  cycles elapsed
+             7061912  peak memory footprint
+# docker 20:26:44 peaceful_pare 1.566GiB / 11.73GiB 314.40%
+# docker 20:26:46 peaceful_pare 2.756GiB / 11.73GiB 212.14%
+# docker 20:26:48 peaceful_pare 3.598GiB / 11.73GiB 213.24%
+# docker 20:26:50 peaceful_pare 4.531GiB / 11.73GiB 208.31%
+# docker 20:26:52 peaceful_pare 4.718GiB / 11.73GiB 100.26%
+# docker 20:26:55 peaceful_pare 5.363GiB / 11.73GiB 511.30%
+# docker 20:26:57 peaceful_pare 5.607GiB / 11.73GiB 554.35%
+# docker 20:26:59 peaceful_pare 5.688GiB / 11.73GiB 948.60%
+# docker 20:27:01 peaceful_pare 5.952GiB / 11.73GiB 631.69%
+# docker 20:27:03 peaceful_pare 6.987GiB / 11.73GiB 1004.51%
+# docker 20:27:05 peaceful_pare 7.178GiB / 11.73GiB 1137.53%
+# docker 20:27:08 peaceful_pare 7.297GiB / 11.73GiB 963.55%
+# docker 20:27:10 peaceful_pare 7.37GiB / 11.73GiB 994.55%
+# docker 20:27:12 peaceful_pare 7.382GiB / 11.73GiB 1008.39%
+# docker 20:27:14 peaceful_pare 7.4GiB / 11.73GiB 860.27%
+# docker 20:27:16 peaceful_pare 7.443GiB / 11.73GiB 785.10%
+# docker 20:27:18 peaceful_pare 2.741GiB / 11.73GiB 603.25%
+# exit 0; load after: load averages: 39.31 52.80 38.89
+# groth16 container peak memory (docker stats samples) 7.44 GiB

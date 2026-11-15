@@ -1,0 +1,39 @@
+# 2026-11-15T20:39:23Z wrap zk-prove /tmp/e2e-bedrock-rerun/run/chain/forged-input.json --chain /tmp/e2e-bedrock-rerun/run/chain/chain-forged.json, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.8.2 linux/aarch64 cpus=14 mem=12598894592; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit 78c3565; guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 48.02 49.15 42.39
+      110.58 real       880.86 user         4.29 sys
+          5370363904  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              433756  page reclaims
+                1363  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  19  messages sent
+                  62  messages received
+                  62  signals received
+                  61  voluntary context switches
+              616095  involuntary context switches
+           532355455  instructions retired
+           168270771  cycles elapsed
+             7422336  peak memory footprint
+# docker 20:40:46 friendly_benz 2.049GiB / 11.73GiB 336.69%
+# docker 20:40:48 friendly_benz 3.612GiB / 11.73GiB 209.97%
+# docker 20:40:50 friendly_benz 4.418GiB / 11.73GiB 126.35%
+# docker 20:40:52 friendly_benz 4.609GiB / 11.73GiB 100.10%
+# docker 20:40:55 friendly_benz 4.139GiB / 11.73GiB 120.20%
+# docker 20:40:57 friendly_benz 5.65GiB / 11.73GiB 739.74%
+# docker 20:40:59 friendly_benz 5.688GiB / 11.73GiB 682.24%
+# docker 20:41:01 friendly_benz 6.955GiB / 11.73GiB 1217.32%
+# docker 20:41:03 friendly_benz 7.203GiB / 11.73GiB 1119.58%
+# docker 20:41:05 friendly_benz 7.353GiB / 11.73GiB 1171.25%
+# docker 20:41:07 friendly_benz 7.359GiB / 11.73GiB 1171.69%
+# docker 20:41:10 friendly_benz 7.407GiB / 11.73GiB 876.22%
+# docker 20:41:12 friendly_benz 7.485GiB / 11.73GiB 788.48%
+# exit 0; load after: load averages: 41.96 47.17 42.46
+# groth16 container peak memory (docker stats samples) 7.49 GiB
