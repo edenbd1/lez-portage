@@ -58,6 +58,22 @@ ATTEST_TAG = b"rfp022/burn-root-attestation/v1".ljust(32, b"\0")
 ETH_COMMIT_TAG = b"rfp022/eth-commit/v1".ljust(32, b"\0")
 RELEASE_EVENT = None  # topic0 computed below
 LEZ_CHANNEL = "01" * 32
+
+def same_lez_block(inscription_hex, raw):
+    """True when a Bedrock inscription is the LEZ block `raw`, byte for byte, except the last byte.
+
+    The last byte of a Borsh-encoded LEZ block is its `bedrock_status` (Pending 0, Safe 1,
+    Finalized 2: lez/common/src/block.rs, the last field of `Block`). It is the node's own view
+    of the block's progress on Bedrock, not part of what the block hash covers, and it changes
+    after the block is inscribed: a block inscribed while Pending is later returned Finalized.
+    Every other byte, the header with its hash and the body, must match."""
+    try:
+        ins = bytes.fromhex(inscription_hex)
+    except ValueError:
+        return False
+    return (raw is not None and len(ins) == len(raw) and len(raw) > 0
+            and ins[:-1] == raw[:-1] and ins[-1] in (0, 1, 2) and raw[-1] in (0, 1, 2))
+
 BEDROCK_K = 30   # Bedrock's security parameter in the node's deployment settings
 
 ok_n = bad_n = 0
@@ -314,7 +330,7 @@ def main():
                     report(False, f"{label}: member {mi}: no saved Bedrock blocks ({e})"); continue
                 ins = [op["payload"]["inscription"] for t_ in blk["transactions"] for op in t_["mantle_tx"]["ops"][:1]
                        if op["opcode"] == 17 and op["payload"]["channel_id"] == LEZ_CHANNEL]
-                if (lez_block(lez_n) or b"").hex() not in [i.lower() for i in ins]:
+                if not any(same_lez_block(i, lez_block(lez_n)) for i in ins):
                     why.append(f"Bedrock block {bid[:12]}… does not inscribe LEZ block {lez_n} as the LEZ RPC returns it")
                 chain = walk["chain_top_down"]
                 if chain[0] != walk["top"] or chain[-1] != bid:
@@ -325,7 +341,9 @@ def main():
                     bj = json.load(open(os.path.join(d, f"{hi}.json")))
                     if bj["header"]["id"] != hi or bj["header"]["parent_block"] != lo:
                         why.append(f"block {hi[:12]}…'s parent is not {lo[:12]}…"); break
-                report(not why, f"{label}: member {mi}: LEZ block {lez_n} is, byte for byte, the inscription in Bedrock block {bid[:12]}…, "
+                status = {0: "Pending", 1: "Safe", 2: "Finalized"}.get((lez_block(lez_n) or b"\xff")[-1], "?")
+                report(not why, f"{label}: member {mi}: LEZ block {lez_n} is, byte for byte, the inscription in Bedrock block {bid[:12]}… "
+                                f"(all but its last byte, the node's Bedrock status, {status} now), "
                                 f"{len(chain) - 1} parent links (>= k = {BEDROCK_K}) below the node's tip {walk['top'][:12]}… when the member signed" if not why else f"{label}: member {mi}: " + "; ".join(why))
                 if a.bedrock_tools and os.path.exists(os.path.join(d, "anchor.json")):
                     an = json.load(open(os.path.join(d, "anchor.json")))

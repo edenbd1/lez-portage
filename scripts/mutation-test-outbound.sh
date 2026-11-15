@@ -94,6 +94,21 @@ elif how == "bedrock-inscription":     # a saved Bedrock block's inscription alt
             if op["opcode"] == 17 and op["payload"]["channel_id"] == "01" * 32:
                 s = op["payload"]["inscription"]; op["payload"]["inscription"] = s[:200] + ("0" if s[200] != "0" else "1") + s[201:]
         json.dump(b, open(f, "w"))
+elif how in ("bedrock-inscription-last-content", "bedrock-status-invalid"):
+    # The comparison skips only the last byte (the node's Bedrock status, outside the hash):
+    # the byte before it is block content and must still count, and the status itself must be
+    # a real one (0, 1 or 2).
+    for d in os.listdir(bdir):
+        walk = json.load(open(os.path.join(bdir, d, "walk.json")))
+        f = os.path.join(bdir, d, walk["inscription_block"] + ".json"); b = json.load(open(f))
+        for t in b["transactions"]:
+            op = t["mantle_tx"]["ops"][0]
+            if op["opcode"] == 17 and op["payload"]["channel_id"] == "01" * 32:
+                raw = bytearray(bytes.fromhex(op["payload"]["inscription"]))
+                if how == "bedrock-status-invalid": raw[-1] = 7
+                else: raw[-2] ^= 1
+                op["payload"]["inscription"] = raw.hex()
+        json.dump(b, open(f, "w"))
 elif how == "bedrock-broken-walk":     # a saved block's parent link broken
     for d in os.listdir(bdir):
         walk = json.load(open(os.path.join(bdir, d, "walk.json")))
@@ -108,7 +123,7 @@ fail=0; caught=0; total=0
 MUTS=(release-fake-hash release-wrong-nullifier release-wrong-root release-refusal-as-applied release-other-error burn-tx-other burn-block
       burn-private recipient amount leaf attested-final verifier committee-member threshold finality-depth pairing release-root unreleased
       control-spent recipient-balance burn-gas)
-[ -d "$SRC/bedrock" ] && MUTS+=(bedrock-other-block bedrock-inscription bedrock-broken-walk)
+[ -d "$SRC/bedrock" ] && MUTS+=(bedrock-other-block bedrock-inscription bedrock-inscription-last-content bedrock-status-invalid bedrock-broken-walk)
 for m in "${MUTS[@]}"; do
   total=$((total + 1))
   mutate "$m" || { echo "  FAIL mutation $m could not be applied"; fail=1; continue; }

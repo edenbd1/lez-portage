@@ -137,7 +137,7 @@ was not measured on native x86_64.
 | run | result |
 |---|---|
 | [`evidence/testnet/`](evidence/testnet/), `scripts/testnet-inbound.sh`, **Sepolia and the public LEZ testnet** | 2 deposits on Sepolia; Sextant `Init` from a Sepolia checkpoint finalized after them; the public claim (451,107 gas) and the private claim (proven in 264.6 s, 257,739 B) applied; 2 refusals (a replay, a root the vault never had); `scripts/verify-testnet.sh`: 26 LEZ checks and 14 Sepolia checks, 0 fail; verifier mutation test 16 of 16; 35.4M of the testnet token |
-| [`evidence/testnet-outbound/`](evidence/testnet-outbound/), `scripts/testnet-outbound.sh`, **the public LEZ testnet and Sepolia** | alice's public burn (228,499 gas) and carol's private burn (proven in 258.6 s, 248,358 B) applied on LEZ; on Sepolia, through the deployed vault's `CommitteeBurnVerifier`, 2 releases applied (421,504 and 421,267 gas) and 3 refused (`NotFinal`, `RootNotAttested`, `AlreadyReleased`); the members checked each final LEZ block's inscription, 124 and 103 headers deep, on one node following the public Bedrock testnet; `scripts/verify-outbound.sh`: 23 + 21 checks, 0 fail; its mutation test 25 of 25; 1.84M of the testnet token |
+| [`evidence/testnet-outbound/`](evidence/testnet-outbound/), `scripts/testnet-outbound.sh`, **the public LEZ testnet and Sepolia** | alice's public burn (228,499 gas) and carol's private burn (proven in 258.6 s, 248,358 B) applied on LEZ; on Sepolia, through the deployed vault's `CommitteeBurnVerifier`, 2 releases applied (421,504 and 421,267 gas) and 3 refused (`NotFinal`, `RootNotAttested`, `AlreadyReleased`); the members checked each final LEZ block's inscription, 124 and 103 headers deep, on one node following the public Bedrock testnet; `scripts/verify-outbound.sh`: 23 + 21 checks, 0 fail; its mutation test 27 of 27; 1.84M of the testnet token |
 | [`evidence/local/`](evidence/local/), `scripts/e2e-local.sh` | PASS: 14 LEZ transactions (9 applied, 5 refused as expected), 11 zero-knowledge releases on anvil (2 applied, 9 refused as expected); verifier 81 checks, 0 fail; its mutation test 32 of 32 |
 | [`evidence/local-committee/`](evidence/local-committee/), `RELEASE_VERIFIER=committee` | PASS, releases opening the leaf: verifier 73 checks, mutation test 28 of 28 |
 | [`evidence/local-chain/`](evidence/local-chain/), `scripts/e2e-chain.sh` | PASS: 12 releases through `ZkChainBurnVerifier` (1 applied, 11 refused) |
@@ -352,7 +352,7 @@ mutation-test the LEZ half of that check:
 scripts/verify-testnet.sh
 scripts/mutation-test-verifier.sh --manifest evidence/testnet/run.tsv --rpc https://testnet.lez.logos.co   # 16 of 16
 scripts/verify-outbound.sh
-scripts/mutation-test-outbound.sh   # 25 of 25
+scripts/mutation-test-outbound.sh   # 27 of 27
 ```
 
 The Ethereum endpoint must serve historical state. The default,

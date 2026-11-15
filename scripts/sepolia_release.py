@@ -65,6 +65,22 @@ ERRORS = ["NotThisRelease()", "BadOpening()", "NotFinal()", "RootNotAttested()",
 RELEASE_T = "(address,uint256,address,address,uint256,bytes32,uint64,bytes32[24],uint64,uint64,bytes[])"
 LEZ_CHANNEL = os.environ.get("LEZ_CHANNEL", "01" * 32)
 
+def same_lez_block(inscription_hex, raw):
+    """True when a Bedrock inscription is the LEZ block `raw`, byte for byte, except the last byte.
+
+    The last byte of a Borsh-encoded LEZ block is its `bedrock_status` (Pending 0, Safe 1,
+    Finalized 2: lez/common/src/block.rs, the last field of `Block`). It is the node's own view
+    of the block's progress on Bedrock, not part of what the block hash covers, and it changes
+    after the block is inscribed: a block inscribed while Pending is later returned Finalized.
+    Every other byte, the header with its hash and the body, must match."""
+    try:
+        ins = bytes.fromhex(inscription_hex)
+    except ValueError:
+        return False
+    return (raw is not None and len(ins) == len(raw) and len(raw) > 0
+            and ins[:-1] == raw[:-1] and ins[-1] in (0, 1, 2) and raw[-1] in (0, 1, 2))
+
+
 
 def keccak(b):
     return _keccak.new(digest_bits=256, data=b).digest()
@@ -142,7 +158,6 @@ def bedrock_inscribed(node, lez_raw, evidence, label, max_walk=400):
     if ci.get("state") != "Online":
         return None, ci, f"node not Online ({ci.get('state')})", []
     h, walked, newest = ci["tip"], [], None
-    want = lez_raw.hex()
     for _ in range(max_walk):
         raw = bedrock_get(node, f"/cryptarchia/blocks/{h}")
         b = json.loads(raw)
@@ -153,7 +168,7 @@ def bedrock_inscribed(node, lez_raw, evidence, label, max_walk=400):
                if op["opcode"] == 17 and op["payload"]["channel_id"] == LEZ_CHANNEL]
         if ins and newest is None:
             newest = int.from_bytes(bytes.fromhex(ins[0][:16]), "little")
-        if any(i.lower() == want for i in ins):
+        if any(same_lez_block(i, lez_raw) for i in ins):
             if evidence:
                 d = os.path.join(evidence, f"{label}-top{ci['tip'][:16]}")
                 os.makedirs(d, exist_ok=True)
@@ -297,7 +312,7 @@ def main():
                         sys.exit(f"member {i}: bedrock-tools check refuses the saved blocks: {r.stderr.strip()[-300:]}")
                     blk = json.load(open(os.path.join(d, f"{found['block']}.json")))
                     signer = next(op["payload"]["signer"] for t in blk["transactions"] for op in t["mantle_tx"]["ops"][:1]
-                                  if op["opcode"] == 17 and op["payload"]["channel_id"] == LEZ_CHANNEL and op["payload"]["inscription"].lower() == raw.hex())
+                                  if op["opcode"] == 17 and op["payload"]["channel_id"] == LEZ_CHANNEL and same_lez_block(op["payload"]["inscription"], raw))
                     r = subprocess.run([tools, "anchor", d, "--channel", LEZ_CHANNEL, "--signer", signer, "--lez-hash", raw[40:72].hex(),
                                         "--depth", str(found["depth"]), "--out", os.path.join(d, "anchor.json")], capture_output=True, text=True)
                     if r.returncode != 0:

@@ -1,4 +1,4 @@
-$ scripts/verify-outbound.sh --bedrock-tools bedrock/tools/target/release/bedrock-tools   (2026-11-15T11:01Z)
+$ scripts/verify-outbound.sh --bedrock-tools bedrock/tools/target/release/bedrock-tools   (2026-11-15T20:16Z)
 == LEZ (https://testnet.lez.logos.co) and Sepolia (https://rpc.sepolia.ethpandaops.io): transactions, receipts, final state
 wrap_bridge run against https://testnet.lez.logos.co, from evidence/testnet-outbound/run.tsv
   ok   program token: header 3cwJjDqD17a7… names ImageID 912d412c6e82c5a5…
@@ -10,7 +10,7 @@ wrap_bridge run against https://testnet.lez.logos.co, from evidence/testnet-outb
   ok   final state of eth_entry (GXx9oChYBtzN…): 134 bytes as the run left them
   ok   final state of eth_definition (2FywSuPkthHj…): 43 bytes as the run left them
   ok   final state of alice_eth_ata (4rvEegtox9KG…): 49 bytes as the run left them
-  ok   control: a random hash (167be97f7c7a…) does not resolve, and the endpoint answers
+  ok   control: a random hash (e10433c54c36…) does not resolve, and the endpoint answers
   ok   release-root 0xcaa24e7ee9c2d7a8… is the LEZ burn tree's root on the sequencer now (8tUnHjsPsdjH…)
   ok   eth release-alice-not-final: refused NotFinal (0xd7c25c79), 0xee8a043cf63055… in block 12136049, replayed: the same revert
   ok   eth release-alice-one-member: refused RootNotAttested (0xfb0612b1), 0xfa69239412d4ce… in block 12137717, replayed: the same revert
@@ -23,7 +23,7 @@ wrap_bridge run against https://testnet.lez.logos.co, from evidence/testnet-outb
   ok   eth final: carol-recipient holds 1000000000000000 wei
   ok   eth final: nullifierSpent(0xd1864b66e830…) = false (control)
   ok   eth final: vault holds 0 wei
-  ok   control: a random transaction hash (0xd77db90e3e…) does not resolve on the Ethereum endpoint, and it answers
+  ok   control: a random transaction hash (0xc9ad0b1dc4…) does not resolve on the Ethereum endpoint, and it answers
 23 checks pass, 0 fail (1 applied and 0 refused public transactions, 1 privacy-preserving, 2 applied and 3 refused releases, in the manifest)
 == the releases against the burns they pay out
   ok   the vault 0x4Ae65712…'s VERIFIER() is the recorded CommitteeBurnVerifier 0x7340eDb6…
@@ -33,27 +33,27 @@ wrap_bridge run against https://testnet.lez.logos.co, from evidence/testnet-outb
   ok   FINALITY_DEPTH() = 30 LEZ blocks
   ok   release-alice: the opening in 0x0b0a7078d74f…'s input gives leaf 0x13a3cfadacb4…, root and nullifier = the call's and the recorded ones; 1000000000000000 wei to 0x794dc407…, fee 0
   ok   release-alice: pays out LEZ burn dc459d9af502a3… (public, block 82365), which carries the release's Ethereum commitment (its instruction)
-  ok   release-alice: 2 of 3 members signed root 0xcaa24e7ee9c2… at LEZ block 82372, final 82406 (34 >= 30 deep), burn in block 82365, LEZ tip now 82535
+  ok   release-alice: 2 of 3 members signed root 0xcaa24e7ee9c2… at LEZ block 82372, final 82406 (34 >= 30 deep), burn in block 82365, LEZ tip now 82655
   ok   release-alice: LEZ blocks 82365..82406 are one hash-linked chain (42 blocks)
   ok   release-alice: in Sepolia block 12137797 the recipient 0x794dc407… received 1000000000000000 wei (amount - fee) and the vault paid out 1000000000000000
-  ok   release-alice: member 0: LEZ block 82406 is, byte for byte, the inscription in Bedrock block 5becd8ff3270…, 124 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
+  ok   release-alice: member 0: LEZ block 82406 is, byte for byte, the inscription in Bedrock block 5becd8ff3270… (all but its last byte, the node's Bedrock status, Finalized now), 124 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
   ok   release-alice: member 0: bedrock-tools anchor: LEZ block 82406's inscription in 5becd8ff3270… (tx 5, path 3), signed by 0d27b7090beb…, 124 headers above it
   ok   release-alice: member 0: bedrock-tools check: the node's own types agree on every saved block's id, body root and transactions
-  ok   release-alice: member 2: LEZ block 82406 is, byte for byte, the inscription in Bedrock block 5becd8ff3270…, 124 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
+  ok   release-alice: member 2: LEZ block 82406 is, byte for byte, the inscription in Bedrock block 5becd8ff3270… (all but its last byte, the node's Bedrock status, Finalized now), 124 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
   ok   release-alice: member 2: bedrock-tools anchor: LEZ block 82406's inscription in 5becd8ff3270… (tx 5, path 3), signed by 0d27b7090beb…, 124 headers above it
   ok   release-alice: member 2: bedrock-tools check: the node's own types agree on every saved block's id, body root and transactions
   ok   release-carol: the opening in 0x5e7685dd3565…'s input gives leaf 0x423ab637f830…, root and nullifier = the call's and the recorded ones; 1000000000000000 wei to 0xf3ab6cab…, fee 0
   ok   release-carol: pays out LEZ burn 3eb6e8af4ef7b2… (privacy-preserving, block 82368), which carries the release's leaf (its Append)
-  ok   release-carol: 2 of 3 members signed root 0xcaa24e7ee9c2… at LEZ block 82372, final 82412 (40 >= 30 deep), burn in block 82368, LEZ tip now 82535
+  ok   release-carol: 2 of 3 members signed root 0xcaa24e7ee9c2… at LEZ block 82372, final 82412 (40 >= 30 deep), burn in block 82368, LEZ tip now 82655
   ok   release-carol: LEZ blocks 82368..82412 are one hash-linked chain (45 blocks)
   ok   release-carol: in Sepolia block 12138027 the recipient 0xf3ab6cab… received 1000000000000000 wei (amount - fee) and the vault paid out 1000000000000000
-  ok   release-carol: member 0: LEZ block 82412 is, byte for byte, the inscription in Bedrock block ceb7a5e43fb7…, 103 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
+  ok   release-carol: member 0: LEZ block 82412 is, byte for byte, the inscription in Bedrock block ceb7a5e43fb7… (all but its last byte, the node's Bedrock status, Finalized now), 103 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
   ok   release-carol: member 0: bedrock-tools anchor: LEZ block 82412's inscription in ceb7a5e43fb7… (tx 0, path 4), signed by 30cfd05a0fd5…, 103 headers above it
   ok   release-carol: member 0: bedrock-tools check: the node's own types agree on every saved block's id, body root and transactions
-  ok   release-carol: member 2: LEZ block 82412 is, byte for byte, the inscription in Bedrock block ceb7a5e43fb7…, 103 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
+  ok   release-carol: member 2: LEZ block 82412 is, byte for byte, the inscription in Bedrock block ceb7a5e43fb7… (all but its last byte, the node's Bedrock status, Finalized now), 103 parent links (>= k = 30) below the node's tip 9039c0614b43… when the member signed
   ok   release-carol: member 2: bedrock-tools anchor: LEZ block 82412's inscription in ceb7a5e43fb7… (tx 0, path 4), signed by 30cfd05a0fd5…, 103 headers above it
   ok   release-carol: member 2: bedrock-tools check: the node's own types agree on every saved block's id, body root and transactions
   ok   the LEZ burn tree now holds 2 leaves with root 0xcaa24e7ee9c2…: exactly the 2 released burns, rebuilt here
-  ok   control: a random hash (0x8b5d3bcc5d…) is no Sepolia transaction
+  ok   control: a random hash (0x842f95e75a…) is no Sepolia transaction
 29 checks pass, 0 fail
 == PASS

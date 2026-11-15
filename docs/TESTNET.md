@@ -197,7 +197,19 @@ now holds 0 wei.
 on the transactions and final state and 21 on the releases against the burns
 they pay out (29 with `--bedrock-tools`, which re-derives the saved Bedrock
 blocks with the node's own types), 0 failures. Its mutation test, `scripts/mutation-test-outbound.sh`,
-catches 25 of 25 mutations.
+catches 27 of 27 mutations.
+
+The comparison of a LEZ block with its Bedrock inscription skips one byte:
+the last, `bedrock_status` (the last field of `Block` in
+`lez/common/src/block.rs`, Borsh: Pending 0, Safe 1, Finalized 2). It is
+the node's own view of the block's progress on Bedrock, it is not covered by
+the block hash, and it changes after inscription. The blocks were inscribed
+while Pending, and the RPC now returns them Finalized, so a byte-exact
+comparison failed for the first time on 2026-11-15. Every other byte, the
+header with its hash and the body, must still match. Two mutations cover the
+rule: one changes the byte before the status, one sets an invalid status.
+The members' signing path (`scripts/sepolia_release.py`) uses the same
+comparison.
 
 Record: [`evidence/testnet-outbound/`](../evidence/testnet-outbound/)
 (`run.tsv` the manifest, `transcript.txt` the stages' output, `verify.txt`,
@@ -342,7 +354,7 @@ run's directory:
 ```console
 scripts/verify-outbound.sh            # LEZ testnet and Sepolia, JSON-RPC only
 scripts/verify-outbound.sh --bedrock-tools bedrock/tools/target/release/bedrock-tools   # and the node's own types
-scripts/mutation-test-outbound.sh     # 25 of 25
+scripts/mutation-test-outbound.sh     # 27 of 27
 RUN=<copy of the inbound run directory> LEE_WALLET_HOME_DIR=$RUN/wallet PAYER=<funded account> \
   PRIVATE=1 HEAVY=<optional wrapper> scripts/testnet-outbound.sh burn
 RUN=… SEPOLIA_KEY_FILE=<deployer key file> SEPOLIA_RPC=<Sepolia endpoint> BEDROCK_NODE=http://127.0.0.1:8080 \
