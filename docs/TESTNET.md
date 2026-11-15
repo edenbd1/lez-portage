@@ -20,8 +20,9 @@ no committee is involved.
 On LEZ: 7 transactions, 5 applied and 2 refused as expected, plus the
 deployment of two programs. On Sepolia: a verifier, the vault, a registration
 and two deposits. `scripts/verify-testnet.sh` re-checks all of it with
-JSON-RPC only: 29 checks on LEZ and 14 on Sepolia and the link between them,
-0 failures. The LEZ verifier's mutation test catches 16 of 16 mutations.
+JSON-RPC only: 26 checks on LEZ and 14 on Sepolia and the link between them,
+0 failures (29 on LEZ before the outbound run rewrote three of the accounts
+it pins; those three are now checked against the outbound manifest). The LEZ verifier's mutation test catches 16 of 16 mutations.
 
 Before any of it, the same stages ran against a local v0.3.1 sequencer, with
 a second Sepolia vault and a checkpoint of its own (a dry run). The local
