@@ -21,6 +21,18 @@ jobs:
       # Each check of the release path (both verifiers, their committee, the vault's digest and
       # nullifier) removed in turn.
       - run: scripts/mutation-test-vault.sh
+  archive:
+    name: Public runs, re-checked offline from evidence/archive
+    runs-on: ubuntu-latest
+    # The LEZ testnet and Sepolia answers verify-testnet.sh and verify-outbound.sh
+    # read, recorded from the public endpoints; no network is used here.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pycryptodome eth-account eth-abi
+      - run: scripts/verify-archived.sh
   core:
     name: wrap-core (hashes shared with the vault)
     runs-on: ubuntu-latest
