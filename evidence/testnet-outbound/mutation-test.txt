@@ -1,6 +1,7 @@
-$ scripts/mutation-test-outbound.sh   (2026-11-15T21:40Z)
-  ok   the recorded manifest verifies (23 checks pass, 0 fail (1 applied and 0 refused public transactions, 1 privacy-preserving, 2 applied and 3 refused releases, in the manifest);21 checks pass, 0 fail;)
-  ok   mutation release-fake-hash caught: eth release-alice: 0xa4511e08f037f7… NOT FOUND on the Ethereum endpoint
+$ scripts/mutation-test-outbound.sh   (2026-11-16T11:40Z)
+  FAIL the recorded manifest does not verify
+== FAIL
+  ok   mutation release-fake-hash caught: eth release-alice: 0x73c4bd2a15bc71… NOT FOUND on the Ethereum endpoint
   ok   mutation release-wrong-nullifier caught: eth release-alice: no Release event of the vault names the recorded nullifier
   ok   mutation release-wrong-root caught: eth release-alice: its root is not the release-root
   ok   mutation release-refusal-as-applied caught: eth release-alice-not-final: status 0, recorded applied; no Release event of the vault names the recorded nullifier
@@ -8,16 +9,16 @@ $ scripts/mutation-test-outbound.sh   (2026-11-15T21:40Z)
   ok   mutation burn-tx-other caught: release-alice: LEZ burn: in LEZ block 79190, recorded 82365; it does not carry the release's Ethereum commitment (its instruction)
   ok   mutation burn-block caught: release-alice: LEZ burn: in LEZ block 82365, recorded 82366
   ok   mutation burn-private caught: release-alice: LEZ burn: a public transaction, recorded private=True; it does not carry the release's leaf (its Append)
-  ok   mutation recipient caught: release-alice: recorded recipient 0xa4511e08f037f788cfbff7dbf858ac593e15dd5c is not the release's 0x794dc407610f6a3b350f846cfb3fb6
+  ok   mutation recipient caught: release-alice: recorded recipient 0x73c4bd2a15bc71182f855d80d4f36921b8715ab8 is not the release's 0x794dc407610f6a3b350f846cfb3fb6
   ok   mutation amount caught: release-alice: recorded amount 10000000000000000 is not the release's 1000000000000000
-  ok   mutation leaf caught: release-alice: recorded leaf 0xa4511e08f037f788cfbff7dbf858ac593e15dd5cd1cf85a9b477ce33e6a5507c is not the release's 0x13a3cfadacb
+  ok   mutation leaf caught: release-alice: recorded leaf 0x73c4bd2a15bc71182f855d80d4f36921b8715ab81a07d1b0451b33d9dd490f23 is not the release's 0x13a3cfadacb
   ok   mutation attested-final caught: release-alice: attestation: the recorded attestation blocks are not the release's
-  ok   mutation verifier caught: the vault's VERIFIER() is 0x7340edb604ab33bfb7c48846ed741ca69fbcce67, recorded 0xa4511e08f037f788cfbff7dbf858ac593e15dd5c
+  ok   mutation verifier caught: the vault's VERIFIER() is 0x7340edb604ab33bfb7c48846ed741ca69fbcce67, recorded 0x73c4bd2a15bc71182f855d80d4f36921b8715ab8
   ok   mutation committee-member caught: members() ['0xf4e827cd18597f071fb8bca9a77319ad619927d7', '0xaaaa3e9eaf0db9c2db1c5efcfb4e143412b4162d', '0xa6d6b061fb1297d72aa78202
   ok   mutation threshold caught: THRESHOLD() = 2, recorded 1
   ok   mutation finality-depth caught: FINALITY_DEPTH() = 30, recorded 3
-  ok   mutation pairing caught: PAIRING() 0x3914993843097b9f73c987a8ffa3da5cc71baed264cdc91cb2b6ad8381a4be7a, recorded 0xa4511e08f037f788cfbff7dbf858ac593e15dd5cd
-  ok   mutation release-root caught: release-root 0xa4511e08f037f788… is not the LEZ burn tree's root (the sequencer has 0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd
+  ok   mutation pairing caught: PAIRING() 0x3914993843097b9f73c987a8ffa3da5cc71baed264cdc91cb2b6ad8381a4be7a, recorded 0x73c4bd2a15bc71182f855d80d4f36921b8715ab81
+  ok   mutation release-root caught: release-root 0x73c4bd2a15bc7118… is not the LEZ burn tree's root (the sequencer has 0xcaa24e7ee9c2d7a8998e9a5f78d2bbcff855fc05e8dd
   ok   mutation unreleased caught: eth final: nullifierSpent(0xa1c33caa82da…) = true, recorded false (alice)
   ok   mutation control-spent caught: eth final: nullifierSpent(0xd1864b66e830…) = false, recorded true (control)
   ok   mutation recipient-balance caught: eth final: alice-recipient holds 1000000000000000 wei, recorded 1000000000000001

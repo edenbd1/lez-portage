@@ -122,7 +122,11 @@ def main():
     report(good, f"the committed proof of knownRoot[{last[:18]}...] is under that state root, the vault's slot {slot[:18]}..., value 1")
     kr = lambda root: E("eth_call", [{"to": vault, "data": "0x" + keccak(b"knownRoot(bytes32)").hex()[:8] + root[2:]}, "latest"])
     report(int(kr(last), 16) == 1, "knownRoot[root] is true on Sepolia now")
-    report(int(kr("0x" + secrets.token_hex(32)), 16) == 0, "control: knownRoot of a random root is false")
+    # A random root, or under scripts/verify-archived.sh a fixed one: an archive can
+    # only answer the call it recorded, and the root was random when it was recorded.
+    ctl = os.environ.get("PORTAGE_CONTROL_ROOT") or "0x" + secrets.token_hex(32)
+    report(int(kr(ctl), 16) == 0, "control: knownRoot of a %s root (%s…) is false"
+           % ("recorded random" if os.environ.get("PORTAGE_CONTROL_ROOT") else "random", ctl[:12]))
     print(f"== LEZ: Sextant instance {sextant['name']}, header record {sextant['header']}")
     acc = call(a.rpc, "getAccount", [sextant["header"]]) or {}
     shards = (acc.get("data") or {}).get("shards") or {}

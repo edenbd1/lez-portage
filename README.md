@@ -361,6 +361,22 @@ prunes it. The outbound run rewrote three accounts the inbound run left, so
 `verify-testnet.sh` checks those against the outbound manifest
 (`--later`).
 
+The public LEZ testnet is reset when it moves to 0.4, and the runs above
+will no longer be on it. [`evidence/archive/`](evidence/archive/) keeps every
+LEZ testnet and Sepolia JSON-RPC answer those two re-checks read, recorded
+from the public endpoints while they served the runs (date in
+`evidence/archive/RECORDED`). `scripts/verify-archived.sh` runs the same two
+verifiers, unchanged, against it, offline: 26 + 14 and 23 + 29 checks, 0 fail.
+They still recompute every transaction and LEZ block hash from its bytes,
+every Merkle path, signature and Bedrock link; an archived answer altered in
+one byte fails. What an archive cannot show is that the public network
+served those bytes: that is what the live re-check showed while it could.
+
+```console
+scripts/verify-archived.sh --bedrock-tools bedrock/tools/target/release/bedrock-tools   # offline
+scripts/verify-archived.sh --record --bedrock-tools …   # re-record, live
+```
+
 ## Layout
 
 | path | what it is |

@@ -136,8 +136,17 @@ def gas_limit_of(tx):
         raise ValueError("a fee-exempt transaction")
     return struct.unpack_from("<Q", tx, o + 1 + 32)[0]
 
+# A LEZ block's hash: SHA256(prefix || borsh(id, prev, timestamp, transactions)),
+# lez/common/src/block.rs HashableBlockData; the header's own hash field and the
+# trailing Bedrock status byte are not covered.
+BLOCK_PREFIX = b"/LEE/v0.3/Message/Block/" + bytes(8)
+def block_hash_ok(raw):
+    return len(raw) > 81 and hashlib.sha256(BLOCK_PREFIX + raw[:40] + raw[72:-1]).digest() == raw[40:72]
+
 def fee_summary(block):
     raw = base64.b64decode(call("getBlock", block)["result"])
+    assert int.from_bytes(raw[:8], "little") == int(block), f"getBlock({block}) returned block {int.from_bytes(raw[:8], 'little')}"
+    assert block_hash_ok(raw), f"block {block}: its contents do not hash to its header's hash"
     i = raw.find(unb58(FEE) + struct.pack("<I", 4))
     assert i >= 0, f"block {block} has no fee transaction"
     o = i + 32 + 4 + 4 * 64
@@ -182,7 +191,9 @@ for line in lines:
     elif line.startswith("# deploy "):
         _, _, what, tx = line.split()[:4]
         res = call("getTransaction", tx).get("result")
-        report(isinstance(res, list) and len(res) > 1, f"deploy {what}: {tx[:16]}… resolves" + (f" (block {res[1]})" if isinstance(res, list) and len(res) > 1 else " NOT FOUND"))
+        found = isinstance(res, list) and len(res) > 1
+        hashes = found and hashlib.sha256(base64.b64decode(res[0])[1:]).hexdigest() == tx
+        report(hashes, f"deploy {what}: {tx[:16]}… resolves" + ((f" (block {res[1]}) and hashes to its bytes" if hashes else f" (block {res[1]}) but its bytes do not hash to it") if found else " NOT FOUND"))
     elif line.startswith("# final ") and line.split()[2] in rewritten:
         print(f"  --   final state of {line.split()[6]} ({line.split()[2][:12]}…): written again by the later run {later}, checked there")
     elif line.startswith("# final "):

@@ -293,6 +293,8 @@ def main():
             raw = lez_block(n)
             if raw is None or int.from_bytes(raw[:8], "little") != n:
                 why.append(f"block {n} missing"); break
+            if hashlib.sha256(b"/LEE/v0.3/Message/Block/" + bytes(8) + raw[:40] + raw[72:-1]).digest() != raw[40:72]:
+                why.append(f"block {n}'s contents do not hash to its header's hash"); break
             if prev_hash is not None and raw[8:40] != prev_hash:
                 why.append(f"block {n}'s prev is not block {n - 1}'s hash"); break
             prev_hash = raw[40:72]
