@@ -1,0 +1,49 @@
+== Sepolia: the contracts
+  ok   chain id
+  ok   RISC Zero Groth16 verifier 0x033bEF27626546b6e47914A2E59B4f44f7BDCc7f has code
+  ok   ZkBedrockBurnVerifier 0xf02D0456A0E5e1B023081D01686C67d506E94F44 has code
+  ok   vault 0x1b2aBe9Ebe3769Ff0615fe7Cae313F8389189223 has code
+  ok   the vault's verifier
+  ok   the vault's pairing
+  ok   the verifier's RISC Zero verifier
+  ok   ZkBedrockBurnVerifier.IMAGE_ID
+  ok   ZkBedrockBurnVerifier.CHAIN_IMAGE_ID
+  ok   ZkBedrockBurnVerifier.ANCHOR_IMAGE_ID
+  ok   ZkBedrockBurnVerifier.PROGRAM_ID
+  ok   ZkBedrockBurnVerifier.BURNS_ACCOUNT
+  ok   ZkBedrockBurnVerifier.ANCHOR_HASH
+  ok   ZkBedrockBurnVerifier.CHANNEL_ID
+  ok   ZkBedrockBurnVerifier.SEQUENCER_KEY
+  ok   ZkBedrockBurnVerifier.MIN_DEPTH
+  ok   bedrock_release: the committed guest's image id is the one pinned
+  ok   lez_chain: the committed guest's image id is the one pinned
+  ok   bedrock_anchor: the committed guest's image id is the one pinned
+== Sepolia: the deposits
+  ok   deposit 0x08eb0fff4d… succeeded, to the vault
+  ok   deposit 0x6b7dbe3ab2… succeeded, to the vault
+== Sepolia: carol's release
+  ok   release-carol-one-member: HeaderNotAttested (0x694db59738…, block 12160795)
+  ok   release-carol-tampered-journal: VerificationFailed (0x213d4961b5…, block 12160797)
+  ok   release-carol: applied (0xf6ac341150…, block 12160799)
+  ok   the journal is 800 bytes (release preimage, chain, Bedrock anchor)
+  ok   journal: Sepolia's chain id
+  ok   journal: this vault
+  ok   journal: the pairing
+  ok   journal: the recipient carol's burn committed to
+  ok   journal: 0.001 ETH
+  ok   the calldata's recipient and amount are the journal's
+  ok   the calldata's nullifier is the journal's
+  ok   the Groth16 seal verifies today on Sepolia (RISC Zero's verifier, the pinned image id, sha256 of the journal)
+  ok   the vault records the nullifier as spent
+  ok   journal: the channel the verifier pins
+  ok   journal: the sequencer key the verifier pins
+  ok   journal: the top Bedrock header is the committed anchor's
+  ok   journal: the depth is at least MIN_DEPTH
+  ok   journal: the Bedrock block is the committed anchor's
+  ok   journal: the LEZ tip is the committed chain proof's
+  ok   the anchor inscribes that LEZ tip
+  ok   the chain proof's anchor is the one the verifier pins
+  ok   carol's burn is a leaf of the burn tree the chain proof rebuilt
+  ok   two distinct committee members signed the top header
+  ok   release-carol-replay: AlreadyReleased (0x141e4bbd89…, block 12160801)
+== PASS: 0 failed

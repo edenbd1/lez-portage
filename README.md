@@ -27,6 +27,9 @@ Sepolia checkpoint finalized after them. `wrap_bridge` on the same testnet then
 minted both deposits, one by a public claim and one by a privacy-preserving
 claim into a shielded account. Each claim was attested against that header,
 by a storage proof checked on chain. `scripts/verify-testnet.sh` re-checks it.
+`scripts/privacy-check.py` checks that neither private transaction carries
+what it hides, and shows that the same check flags a leaky build
+([docs/PRIVACY-CONTROL.md](docs/PRIVACY-CONTROL.md)).
 
 **The outbound path ran on public networks** on 2026-11-14 and 15
 ([docs/TESTNET.md](docs/TESTNET.md#the-outbound-path-back-from-the-lez-testnet-to-sepolia)).
@@ -138,6 +141,7 @@ was not measured on native x86_64.
 |---|---|
 | [`evidence/testnet/`](evidence/testnet/), `scripts/testnet-inbound.sh`, **Sepolia and the public LEZ testnet** | 2 deposits on Sepolia; Sextant `Init` from a Sepolia checkpoint finalized after them; the public claim (451,107 gas) and the private claim (proven in 264.6 s, 257,739 B) applied; 2 refusals (a replay, a root the vault never had); `scripts/verify-testnet.sh`: 26 LEZ checks and 14 Sepolia checks, 0 fail; verifier mutation test 16 of 16; 35.4M of the testnet token |
 | [`evidence/testnet-outbound/`](evidence/testnet-outbound/), `scripts/testnet-outbound.sh`, **the public LEZ testnet and Sepolia** | alice's public burn (228,499 gas) and carol's private burn (proven in 258.6 s, 248,358 B) applied on LEZ; on Sepolia, through the deployed vault's `CommitteeBurnVerifier`, 2 releases applied (421,504 and 421,267 gas) and 3 refused (`NotFinal`, `RootNotAttested`, `AlreadyReleased`); the members checked each final LEZ block's inscription, 124 and 103 headers deep, on one node following the public Bedrock testnet; `scripts/verify-outbound.sh`: 23 + 21 checks, 0 fail; its mutation test 27 of 27; 1.84M of the testnet token |
+| [`evidence/zk-sepolia/`](evidence/zk-sepolia/), `scripts/zk-sepolia.sh`, **Sepolia (public), LEZ and Bedrock local** ([`docs/ZK-SEPOLIA.md`](docs/ZK-SEPOLIA.md)) | the zero-knowledge release verified on Sepolia: carol's private burn on a local LEZ v0.3.1 sequencer inscribing on a local Bedrock devnet, released by the Sepolia vault [`0x1b2a…9223`](https://sepolia.etherscan.io/address/0x1b2aBe9Ebe3769Ff0615fe7Cae313F8389189223) through `ZkBedrockBurnVerifier` on one 260-byte Groth16 seal ([`0xf6ac3411…`](https://sepolia.etherscan.io/tx/0xf6ac341150d27a5db9470d8f204c91186c9429a79fccfafda75bb5e0373dfc26), 717,185 gas), 3 refusals (`HeaderNotAttested`, `VerificationFailed`, `AlreadyReleased`); contracts source-verified on Sourcify; `scripts/verify-zk-sepolia.py` PASS from public RPC and from the archive. LEZ and Bedrock are local because the public LEZ testnet halted on 2026-11-17 |
 | [`evidence/local/`](evidence/local/), `scripts/e2e-local.sh` | PASS: 14 LEZ transactions (9 applied, 5 refused as expected), 11 zero-knowledge releases on anvil (2 applied, 9 refused as expected); verifier 81 checks, 0 fail; its mutation test 32 of 32 |
 | [`evidence/local-committee/`](evidence/local-committee/), `RELEASE_VERIFIER=committee` | PASS, releases opening the leaf: verifier 73 checks, mutation test 28 of 28 |
 | [`evidence/local-chain/`](evidence/local-chain/), `scripts/e2e-chain.sh` | PASS: 12 releases through `ZkChainBurnVerifier` (1 applied, 11 refused) |
@@ -201,8 +205,8 @@ measured at 304,478 gas for an `Attest` (v2 binary, ImageID `ad6fbedb…`;
 304,267 with the earlier `fa229edd…`), so a mainnet claim is about 490,000
 gas, under 5% of the cap.
 
-**Tests:** 131 Foundry tests (`vault/`, the 66 of the three zero-knowledge verifiers on real Groth16 seals, 26 of
-the rate limits, timelock and freezer), the vault's mutation test 106 of 106; 15 executor tests running the committed
+**Tests:** 146 Foundry tests (`vault/`, the 66 of the three zero-knowledge verifiers on real Groth16 seals, 26 of
+the rate limits, timelock and freezer), the vault's mutation test 125 of 125; 15 executor tests running the committed
 binaries through `lee::V03State`, plus 3 private-path tests in dev mode; the
 program's mutation test 21 of 21; `wrap-core` 9, `lez-chain` 10, `lez-bedrock`
 14 tests and its mutation test 30 of 30. Raw outputs: [`docs/raw/`](docs/raw/).
@@ -245,9 +249,10 @@ On the release path, in the strongest verifier (`ZkBedrockBurnVerifier`):
    of testnet: 34.8M cycles per leadership proof and 4.6-5.0M per note update
    ([docs/POL-MEASURED.md](docs/POL-MEASURED.md)). The
    committee's claim is checkable by anyone with a Bedrock node in one request.
-2. **Bedrock's own checks.** The leader's block signature, and the pinned key
-   being the channel's accredited key at that slot, are checked by Bedrock,
-   not by the proof.
+2. **Bedrock's own checks.** The leader's block signature, and the signing key
+   holding the channel's posting turn at that slot, are checked by Bedrock,
+   not by the proof. The verifier pins the channel's whole key set (the public
+   testnet's channel has four keys signing in turn; `scripts/check-channel-keys.sh`).
 3. **LEZ block validity.** LEZ v0.3.1 headers carry no state root; the proof
    rebuilds the burn tree from block contents, and an invalid block can still
    be inscribed. It also does not prove the inscribed block is the only LEZ
@@ -258,7 +263,13 @@ On the release path, in the strongest verifier (`ZkBedrockBurnVerifier`):
    invalidates its block.
 
 Forging a release for a burn that never happened needs the committee threshold
-and the sequencer's key together.
+and one of the channel's keys together.
+
+If the verification logic itself turns out flawed, what a release can take is
+still bounded: never more than its token's deposits brought in, never more than
+the caps over the time it takes to notice, and, with a release delay set, the
+freezer's pause stops booked payouts before they pay. Nobody can redirect or
+reassign them ([docs/FAILSAFE.md](docs/FAILSAFE.md), Security #6 and #9).
 
 Inbound, the trusted input is the checkpoint a light client starts from. Anvil
 has no beacon chain, so the local runs wrap its block in a beacon header and
@@ -277,8 +288,8 @@ claim carries the deposit's opening, so it links the claim to its deposit.
 Tests and reproducible builds (as in CI):
 
 ```console
-forge test --root vault                                            # 131 tests
-scripts/mutation-test-vault.sh                                     # 106 mutations, each must fail them
+forge test --root vault                                            # 146 tests
+scripts/mutation-test-vault.sh                                     # 125 mutations, each must fail them
 cargo test --release --manifest-path core/Cargo.toml --features zk
 cargo test --release --manifest-path chain/Cargo.toml --features release
 cargo test --release --manifest-path bedrock/Cargo.toml --features release

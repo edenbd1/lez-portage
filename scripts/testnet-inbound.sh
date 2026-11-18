@@ -116,9 +116,13 @@ local-up)
   : "${SEQUENCER:?}" "${WALLET:?}" "${LEZ_SRC:?}"
   PORT="${RPC##*:}"
   mkdir -p "$RUN/seq" "$LEE_WALLET_HOME_DIR"
-  python3 - "$LEZ_SRC/lez/sequencer/service/configs/debug/sequencer_config.json" "$RUN/seq/sequencer_config.json" <<'PY'
+  python3 - "$LEZ_SRC/lez/sequencer/service/configs/debug/sequencer_config.json" "$RUN/seq/sequencer_config.json" "${BEDROCK_NODE:-}" "${BEDROCK_CHANNEL:-}" <<'PY'
 import json, sys
 c = json.load(open(sys.argv[1])); c["block_create_timeout"] = "5s"
+if sys.argv[3]:   # BEDROCK_NODE: a sequencer built without `standalone` inscribes each block there
+    c["bedrock_config"]["node_url"] = sys.argv[3]
+    if sys.argv[4]:
+        c["bedrock_config"]["channel_id"] = sys.argv[4]
 json.dump(c, open(sys.argv[2], "w"), indent=2)
 PY
   (cd "$RUN/seq" && exec "$SEQUENCER" sequencer_config.json --listen-address 127.0.0.1 --port "$PORT" \
@@ -211,13 +215,15 @@ PY
   fi
   [ -f "$RUN/state/network.json" ] && { echo "network.json exists: deployed already"; exit 2; }
   # This deployment's identity, and fresh depositor seeds (kept in $RUN only).
-  python3 - "$RUN/state/network.json" "$INSTANCE" <<'PY'
+  # DEPLOYMENT_ID, LEZ_CHAIN_ID, ZONE_ID: this deployment's identity (the public run's by default)
+  python3 - "$RUN/state/network.json" "$INSTANCE" "${DEPLOYMENT_ID:-portage/sepolia/deployment/0001}" \
+    "${LEZ_CHAIN_ID:-lez/public-testnet/v0.3.1/chain1}" "${ZONE_ID:-lez/public-testnet/zone/00000001}" <<'PY'
 import json, secrets, sys
 amount = "1000000000000000"   # 0.001 ETH: the one permitted amount
 json.dump({
-  "deployment_id": "portage/sepolia/deployment/0001",
-  "lez_chain_id": "lez/public-testnet/v0.3.1/chain1",
-  "zone_id": "lez/public-testnet/zone/00000001",
+  "deployment_id": sys.argv[3],
+  "lez_chain_id": sys.argv[4],
+  "zone_id": sys.argv[5],
   "instance_id": sys.argv[2], "slot": 0, "chain_id": 11155111,
   "eth_name": "Wrapped Sepolia Ether",
   "eth_policy": {"denominations": [amount], "mint_cap": "10000000000000000"},

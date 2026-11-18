@@ -1,0 +1,39 @@
+{
+ "chain_id": 11155111,
+ "vault": "0x1b2aBe9Ebe3769Ff0615fe7Cae313F8389189223",
+ "usdt": "0x0000000000000000000000000000000000000000",
+ "verifier": "0xf02D0456A0E5e1B023081D01686C67d506E94F44",
+ "release_verifier": "zkbedrock",
+ "risc0_verifier": "0x033bEF27626546b6e47914A2E59B4f44f7BDCc7f",
+ "committee": [
+  "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+  "0xAAAa3E9eaF0DB9C2Db1c5efCFB4e143412b4162D",
+  "0xA6d6B061FB1297D72AA78202970D25f840a983Ec"
+ ],
+ "threshold": 2,
+ "pairing": "0x719bebf0ae62a7dcc6656a24cddac3c047ba4020effe55def2a98b40104c6be7",
+ "image_id": "0xa73cc9844b46381382ef408b54fffdf9efa2e831ff410e2498d84eacdfd9dc42",
+ "chain_image_id": "0x68718ab00f0218dff6943a7785bc41119afde9f6db4aafced1855231133b1b22",
+ "anchor_image_id": "0xcebe7a279169ea723ca8d1636f6f0d9a36198c51a21e6d182cfb73d9eac5b208",
+ "program_id": "0x3c1cf700a64270ce16587688ae8fe892642782343856a321d35f2396db93953a",
+ "burns_account": "0xc0bd5d270f9a1a3534a4188f25225c86f9cfd57a6553487bbc9fcef0caf4e71c",
+ "anchor_id": 322,
+ "anchor_hash": "0x3b6fc2cc09617c873c3379dbd9b60dd4ff4ea4ea95b1035459c1eaa241255a04",
+ "channel_id": "0303030303030303030303030303030303030303030303030303030303030303",
+ "sequencer_key": "e42fbb0df75acd4b34bd7599f0d4ad7b4abaf48a5bf53f37a7e8678551c8568b",
+ "min_depth": 5,
+ "finality_depth": null,
+ "outsiders": [],
+ "admin": "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+ "relayer": "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+ "alice": "0x4B4b34965Ab1936B30e436236A04988ECC1df5FE",
+ "bob": "0xf4e827cd18597f071FB8bca9A77319AD619927D7",
+ "carol": "0x2c0b647704112E77eda4Cb2470534d9FfA1703F4",
+ "deploy_block": 12160609,
+ "txs": {
+  "risc0": "0x9e98ea447997498a458183989e76a86d81f103e5368c5502f2310f49a8036f13",
+  "verifier": "0xfd7979e177699eac32a9a3cdb89481f9b0db21de7e169244b6edb0fabc596938",
+  "vault": "0x81ef4ab8e1445c46f27199c390e5d91722c6a5beb9fdd0373640ab4b2eccdfc9",
+  "register_eth": "0xb72a8c66fcfa0085412380efba5741e05604baa8c8ba2ddeede6417d08b42a60"
+ }
+}

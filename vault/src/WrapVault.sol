@@ -21,6 +21,17 @@ import {IBurnVerifier} from "./IBurnVerifier.sol";
 /// Releases are paid on a proof checked by `VERIFIER`, fixed at construction (Security #8), and
 /// spend a nullifier once (R.3).
 ///
+/// Supply (Security #6): `escrowed[token]` counts what deposits of `token` brought in and releases
+/// took out, and a release larger than what the token's deposits still back is refused. So even a
+/// release the verifier wrongly accepts can take no more than the deposits of its own token: never
+/// another token's escrow, never funds sent to the vault outside `deposit`.
+///
+/// Verification-flaw failsafe (Security #9, docs/FAILSAFE.md): with `releaseDelay` > 0, a verified
+/// release only books its payout (nullifier spent, caps and escrow charged, recipient, relayer and
+/// fee fixed by the proof) and `finalize`, callable by anyone after the delay, pays exactly that.
+/// A release pause blocks `finalize`, so a flaw found within the delay stops forged releases
+/// before they pay. Nobody can redirect, cancel or reassign a booked payout.
+///
 /// Value at risk is bounded by rate limits over a rolling window (F.11, Security #4): per token and
 /// direction, in token units, and globally per direction, in a common value unit. Each limit is a
 /// bucket that fills with every deposit or release and drains linearly, `cap` per `WINDOW`; a
@@ -113,8 +124,30 @@ contract WrapVault {
     /// Scheduled operations: keccak256(abi.encode(adminEpoch, calldata)) => earliest execution time.
     mapping(bytes32 => uint256) public readyAt;
 
+    /// Per token: units deposits brought in minus units releases took out (Security #6).
+    mapping(address => uint256) public escrowed;
+
+    /// Seconds between a verified release and its payout; 0 pays at once. Lengthening is immediate,
+    /// shortening must have been scheduled.
+    uint64 public releaseDelay;
+    uint64 public constant MAX_RELEASE_DELAY = 7 days;
+
+    /// A verified release waiting for `releaseDelay`: what the proof fixed, nothing else.
+    struct Pending {
+        address token;
+        uint64 payableAt;
+        address payable recipient;
+        address payable relayer;
+        uint256 amount;
+        uint256 fee;
+    }
+
+    mapping(bytes32 => Pending) public pending;
+
     event Deposit(uint256 indexed index, bytes32 leaf, bytes32 commitment, address indexed token, uint256 amount, bytes32 root);
     event Release(bytes32 indexed nullifier, address indexed token, uint256 amount, address recipient, address relayer, uint256 fee);
+    event ReleaseBooked(bytes32 indexed nullifier, address indexed token, uint256 amount, address recipient, address relayer, uint256 fee, uint64 payableAt);
+    event ReleaseDelaySet(uint64 releaseDelay);
     event TokenRegistered(address indexed token, uint8 decimals, uint256[] amounts, uint128 depositCap, uint128 releaseCap);
     event TokenDelisted(address indexed token);
     event TokenValueSet(address indexed token, uint128 value);
@@ -146,6 +179,8 @@ contract WrapVault {
     error AlreadyScheduled();
     error StalePause();
     error Unpriced();
+    error Insolvent();
+    error NotPending();
 
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAdmin();
@@ -295,6 +330,15 @@ contract WrapVault {
         emit DelaySet(d);
     }
 
+    /// The release delay (the failsafe window, Security #9). Lengthening is immediate, shortening
+    /// must have been scheduled; a booked release keeps the time it was booked with.
+    function setReleaseDelay(uint64 d) external onlyAdmin {
+        if (d > MAX_RELEASE_DELAY) revert BadConfig();
+        _authorize(d < releaseDelay);
+        releaseDelay = d;
+        emit ReleaseDelaySet(d);
+    }
+
     /// Rotate the freezer. Always scheduled; the freezer cannot block it.
     function setFreezer(address f) external onlyAdmin {
         if (f == address(0) || f == admin) revert BadConfig();
@@ -431,6 +475,7 @@ contract WrapVault {
             if (_balanceOf(token) - before != amount) revert TransferFailed();
         }
 
+        escrowed[token] += amount;
         bytes32 leaf = leafOf(token, amount, commitment);
         index = _insert(leaf);
         emit Deposit(index, leaf, commitment, token, amount, root);
@@ -497,7 +542,34 @@ contract WrapVault {
         uint256 g = globalReleaseCap;
         if (g != UNCAPPED) _spend(globalReleaseBucket, g, _value(t, amount));
         nullifierSpent[nullifier] = true;
+        uint256 e = escrowed[token];
+        if (amount > e) revert Insolvent();
+        escrowed[token] = e - amount;
 
+        uint64 d = releaseDelay;
+        if (d == 0) {
+            _payOut(nullifier, token, amount, recipient, relayer, fee);
+        } else {
+            uint64 at = uint64(block.timestamp) + d;
+            pending[nullifier] = Pending(token, at, recipient, relayer, amount, fee);
+            emit ReleaseBooked(nullifier, token, amount, recipient, relayer, fee, at);
+        }
+    }
+
+    /// Pay a booked release once its delay has passed, to the recipient and relayer its proof
+    /// fixed. Anyone may call it; a release pause blocks it.
+    function finalize(bytes32 nullifier) external nonReentrant {
+        Pending memory p = pending[nullifier];
+        if (p.payableAt == 0) revert NotPending();
+        if (block.timestamp < p.payableAt) revert TooEarly();
+        if (releasesFrozen || tokens[p.token].releasesFrozen) revert IsFrozen();
+        delete pending[nullifier];
+        _payOut(nullifier, p.token, p.amount, p.recipient, p.relayer, p.fee);
+    }
+
+    function _payOut(bytes32 nullifier, address token, uint256 amount, address payable recipient, address payable relayer, uint256 fee)
+        internal
+    {
         _pay(token, recipient, amount - fee);
         if (fee != 0) _pay(token, relayer, fee);
         emit Release(nullifier, token, amount, recipient, relayer, fee);

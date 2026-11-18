@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, stdStorage, StdStorage} from "forge-std/Test.sol";
 import {WrapVault} from "../src/WrapVault.sol";
 import {MockERC20, MockVerifier} from "./Mocks.sol";
 
 /// The rolling-window rate limits, the global caps, the timelock and the freezer (guardian),
 /// each tested against the admin or the freezer acting adversarially.
 contract WrapVaultGuardTest is Test {
+    using stdStorage for StdStorage;
+
     WrapVault v;
     MockVerifier ver;
     MockERC20 usdc;
@@ -39,6 +41,10 @@ contract WrapVaultGuardTest is Test {
         usdc.mint(address(v), 1e15);
         dai.mint(alice, 1e27);
         dai.mint(address(v), 1e27);
+        // The funds above stand for earlier deposits: release only pays what deposits brought in.
+        stdstore.target(address(v)).sig("escrowed(address)").with_key(ETH).checked_write(uint256(1000 ether));
+        stdstore.target(address(v)).sig("escrowed(address)").with_key(address(usdc)).checked_write(uint256(1e15));
+        stdstore.target(address(v)).sig("escrowed(address)").with_key(address(dai)).checked_write(uint256(1e27));
         vm.startPrank(alice);
         usdc.approve(address(v), type(uint256).max);
         dai.approve(address(v), type(uint256).max);

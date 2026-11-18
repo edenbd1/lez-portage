@@ -114,7 +114,11 @@ CHAIN_IMAGE="$(DV chain_image_id)"
 for g in bedrock_anchor bedrock_release; do
   echo "# binary $g $(jget "$IMG" $g.bytes) bytes sha256 $(jget "$IMG" $g.sha256) image_id 0x$(jget "$IMG" $g.image_id)" >> "$OUT"
 done
-CFG="($(DV risc0_verifier),$RELEASE_IMAGE,$CHAIN_IMAGE,$ANCHOR_IMAGE,$(DV program_id),$(DV burns_account),$(DV anchor_id),$(DV anchor_hash),0x$CHANNEL,0x$SEQ_KEY,$MIN_DEPTH)"
+# The channel's key set the verifier pins (ascending, comma-separated hex): CHANNEL_KEYS, or the
+# devnet sequencer's one key.
+CHANNEL_KEYS="${CHANNEL_KEYS:-$SEQ_KEY}"
+KEYS_ARR="[$(echo "$CHANNEL_KEYS" | tr ',' '\n' | sed 's/^/0x/' | paste -sd, -)]"
+CFG="($(DV risc0_verifier),$RELEASE_IMAGE,$CHAIN_IMAGE,$ANCHOR_IMAGE,$(DV program_id),$(DV burns_account),$(DV anchor_id),$(DV anchor_hash),0x$CHANNEL,$KEYS_ARR,$MIN_DEPTH)"
 VERIFIER="$(create src/ZkBedrockBurnVerifier.sol:ZkBedrockBurnVerifier --constructor-args "$CFG" "$COMMITTEE" 2)"
 DEPLOYER="$(cast wallet address "$DEPLOYER_KEY")"
 VAULT="$(create src/WrapVault.sol:WrapVault --constructor-args "$(DV pairing)" "$VERIFIER" 86400 "$DEPLOYER" "$DEPLOYER")"
@@ -124,19 +128,22 @@ cast send --private-key "$DEPLOYER_KEY" --rpc-url "$ANVIL" "$VAULT" "registerTok
 cast send --private-key "$ALICE_KEY" --rpc-url "$ANVIL" --value 1000000000000000000 "$VAULT" "deposit(address,uint256,bytes32)" \
   0x0000000000000000000000000000000000000000 1000000000000000000 "0x$(openssl rand -hex 32)" > /dev/null
 DEP3="$RUN/state/anvil/deployment-bedrock.json"
-python3 - "$DEP2" "$DEP3" "$VAULT" "$VERIFIER" "$ANCHOR_IMAGE" "$RELEASE_IMAGE" "$CHANNEL" "$SEQ_KEY" "$MIN_DEPTH" <<'PY'
+python3 - "$DEP2" "$DEP3" "$VAULT" "$VERIFIER" "$ANCHOR_IMAGE" "$RELEASE_IMAGE" "$CHANNEL" "$SEQ_KEY" "$MIN_DEPTH" "$CHANNEL_KEYS" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1]))
 d.update(vault=sys.argv[3], verifier=sys.argv[4], release_verifier="zkbedrock", anchor_image_id=sys.argv[5], image_id=sys.argv[6],
-         channel_id=sys.argv[7], sequencer_key=sys.argv[8], min_depth=int(sys.argv[9]))
+         channel_id=sys.argv[7], sequencer_key=sys.argv[8], min_depth=int(sys.argv[9]), channel_keys=sys.argv[10].split(","))
 json.dump(d, open(sys.argv[2], "w"), indent=1)
 PY
 cp "$DEP3" "$EVID/deployment-bedrock.json"
 echo "  vault $VAULT, verifier $VERIFIER"
-echo "# anvil vault $VAULT verifier $VERIFIER pairing $(DV pairing) channel $CHANNEL sequencer_key $SEQ_KEY min_depth $MIN_DEPTH" >> "$OUT"
-for k in IMAGE_ID:$RELEASE_IMAGE CHAIN_IMAGE_ID:$CHAIN_IMAGE ANCHOR_IMAGE_ID:$ANCHOR_IMAGE CHANNEL_ID:0x$CHANNEL SEQUENCER_KEY:0x$SEQ_KEY ANCHOR_HASH:$(DV anchor_hash); do
+echo "# anvil vault $VAULT verifier $VERIFIER pairing $(DV pairing) channel $CHANNEL sequencer_key $SEQ_KEY channel_keys $CHANNEL_KEYS min_depth $MIN_DEPTH" >> "$OUT"
+for k in IMAGE_ID:$RELEASE_IMAGE CHAIN_IMAGE_ID:$CHAIN_IMAGE ANCHOR_IMAGE_ID:$ANCHOR_IMAGE CHANNEL_ID:0x$CHANNEL ANCHOR_HASH:$(DV anchor_hash); do
   check "ZkBedrockBurnVerifier.${k%%:*}" "$(cast call "$VERIFIER" "${k%%:*}()(bytes32)" --rpc-url "$ANVIL")" "${k#*:}"
 done
+check "ZkBedrockBurnVerifier.isChannelKey(the sequencer's key)" "$(cast call "$VERIFIER" 'isChannelKey(bytes32)(bool)' 0x$SEQ_KEY --rpc-url "$ANVIL")" true
+check "ZkBedrockBurnVerifier.CHANNEL_KEYS_HASH" "$(cast call "$VERIFIER" 'CHANNEL_KEYS_HASH()(bytes32)' --rpc-url "$ANVIL")" \
+  "0x$(python3 -c 'import hashlib,sys;print(hashlib.sha256(b"rfp022/bedrock-channel-keys/v1".ljust(32,b"\0")+b"".join(bytes.fromhex(k) for k in sys.argv[1].split(","))).hexdigest())' "$CHANNEL_KEYS")"
 check "ZkBedrockBurnVerifier.MIN_DEPTH" "$(cast call "$VERIFIER" 'MIN_DEPTH()(uint32)' --rpc-url "$ANVIL")" "$MIN_DEPTH"
 
 measure() { # name -- wrap args: run under heavy and time(1), keep the raw output

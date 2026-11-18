@@ -1,0 +1,52 @@
+{
+ "deposits": [
+  {
+   "tx": "0x08eb0fff4d466abc83c960bc5cad0cf5d5ad1db0208a41b1e2420133294d5859",
+   "block": 12160613,
+   "gas": 834854
+  },
+  {
+   "tx": "0x6b7dbe3ab2545e8640265ba3770c7581d6b6bca16abf407c3a4498a154197c32",
+   "block": 12160614,
+   "gas": 529410
+  }
+ ],
+ "attempts": [
+  {
+   "label": "release-carol-one-member",
+   "expect": "HeaderNotAttested",
+   "verdict": "reverted",
+   "block": 12160795,
+   "tx": "0x694db5973840a0b6eb90286851823c7436d17e8c045197d381c1e6481aed3c6d",
+   "selector": "0x5c3c0a57",
+   "gas_used": 299026
+  },
+  {
+   "label": "release-carol-tampered-journal",
+   "expect": "VerificationFailed",
+   "verdict": "reverted",
+   "block": 12160797,
+   "tx": "0x213d4961b534c9c078f29b61b0787b4ea9afd1d30da4670315c8529484de378f",
+   "selector": "0x439cc0cd",
+   "gas_used": 294316
+  },
+  {
+   "label": "release-carol",
+   "expect": "applied",
+   "verdict": "applied",
+   "block": 12160799,
+   "tx": "0xf6ac341150d27a5db9470d8f204c91186c9429a79fccfafda75bb5e0373dfc26",
+   "selector": "-",
+   "gas_used": 717185
+  },
+  {
+   "label": "release-carol-replay",
+   "expect": "AlreadyReleased",
+   "verdict": "reverted",
+   "block": 12160801,
+   "tx": "0x141e4bbd89b2b1cd6e17708b3937cc51ff3f8f2a6fc9f228da6ea7ae4b0ac2e0",
+   "selector": "0x63b4904e",
+   "gas_used": 138136
+  }
+ ]
+}

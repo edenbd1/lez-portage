@@ -4,6 +4,20 @@
     sepolia_vault.py deploy   --plan plan.json --out DIR --keys KEYDIR
     sepolia_vault.py deposit  --plan plan.json --out DIR --keys KEYDIR
     sepolia_vault.py proofs   --out DIR --block-hash 0x...
+    sepolia_vault.py predict    --keys KEYDIR
+    sepolia_vault.py deploy-zk  --plan plan.json --out DIR --keys KEYDIR --chain-params CP.json --bedrock BEDROCK.json
+
+`predict` prints the deployer and the addresses its next three contracts will
+have (CREATE: deployer and nonce). `deploy-zk` deploys a vault whose release
+verifier is vault/src/ZkBedrockBurnVerifier.sol (scripts/testnet-zk.sh): RISC
+Zero's RiscZeroGroth16Verifier (risc0-ethereum v3.0.1 as vendored, its control
+root and BN254 control id), the verifier, pinned to the three guests, the
+bridge program and the burn-tree account of the configuration that names the
+vault's own address (hence `predict`: the configuration commits to the vault,
+the verifier to the configuration's burn tree, the vault to its verifier), the
+chain proof's anchor (a public LEZ block before the instance's Init), Bedrock's
+channel and the sequencer's key, and MIN_DEPTH; a 2-of-3 committee that attests
+Bedrock headers canonical; then the vault, with the plan's pairing.
 
 `deploy` deploys vault/src/WrapVault.sol with the pairing of the LEZ
 deployment (`wrap plan`), registers Ether with one permitted amount, and its
@@ -109,10 +123,28 @@ def send(keys, to, sig, *args, value=None):
 
 
 def create(keys, contract, *ctor):
-    out = run("forge", "create", "--root", "vault", "--rpc-url", RPC, *keystore(keys), "--broadcast", contract,
-              *(["--constructor-args", *ctor] if ctor else []))
-    field = lambda k: next(l.split()[-1] for l in out.splitlines() if l.startswith(k))
-    to, h = field("Deployed to:"), field("Transaction hash:")
+    me = deployer(keys)
+    n = int(rpc(RPC, "eth_getTransactionCount", [me, "latest"]), 16)
+    p = subprocess.run(["forge", "create", "--root", "vault", "--rpc-url", RPC, *keystore(keys), "--broadcast", contract,
+                        *(["--constructor-args", *ctor] if ctor else [])], cwd=ROOT, capture_output=True, text=True)
+    if p.returncode == 0:
+        field = lambda k: next(l.split()[-1] for l in p.stdout.splitlines() if l.startswith(k))
+        to, h = field("Deployed to:"), field("Transaction hash:")
+    else:
+        # Some public endpoints answer a rebroadcast of the same signed transaction with
+        # "nonce too low" after it was mined: find it by its nonce instead.
+        if "nonce too low" not in p.stderr:
+            sys.exit(f"forge create {contract} failed\n{p.stdout[-2000:]}\n{p.stderr[-2000:]}")
+        to, h = None, None
+        latest = int(rpc(RPC, "eth_blockNumber", []), 16)
+        for b in range(latest, latest - 30, -1):
+            for t in rpc(RPC, "eth_getBlockByNumber", [hex(b), True])["transactions"]:
+                if t["from"].lower() == me.lower() and t["to"] is None and int(t["nonce"], 16) == n:
+                    h = t["hash"]
+            if h:
+                break
+        assert h, f"forge create {contract}: no creation at nonce {n}"
+        to = rpc(RPC, "eth_getTransactionReceipt", [h])["contractAddress"]
     r = receipt(h)
     assert r["status"] in ("0x1", 1, "1") and r["contractAddress"].lower() == to.lower()
     return to, h, int(r["blockNumber"], 16)
@@ -152,6 +184,79 @@ def cmd_deploy(a):
         "committee": committee, "threshold": 2, "finality_depth": int(FINALITY_DEPTH), "pairing": plan["pairing"],
         "admin": me, "alice": me, "bob": me, "carol": me, "deploy_block": vblock,
         "txs": {"verifier": vtx, "vault": ttx, "register_eth": r["transactionHash"]}})
+
+
+def nonce(addr):
+    return int(rpc(RPC, "eth_getTransactionCount", [addr, "pending"]), 16)
+
+
+def create_address(sender, n):
+    import rlp  # noqa: F401  (eth_account depends on it)
+    from rlp import encode
+    return "0x" + keccak(encode([bytes.fromhex(sender[2:]), n]))[12:].hex()
+
+
+def checksum(a):
+    from eth_utils import to_checksum_address
+    return to_checksum_address(a)
+
+
+def cmd_predict(a):
+    me = deployer(a.keys)
+    n = nonce(me)
+    k = 0 if a.risc0 else 1
+    print(json.dumps({"deployer": me, "nonce": n, "risc0": a.risc0 or checksum(create_address(me, n)),
+                      "verifier": checksum(create_address(me, n + k)), "vault": checksum(create_address(me, n + k + 1))}))
+
+
+def cmd_deploy_zk(a):
+    plan = json.load(open(a.plan))
+    cp = json.load(open(a.chain_params))
+    bd = json.load(open(a.bedrock))
+    os.makedirs(a.out, exist_ok=True)
+    if os.path.exists(os.path.join(a.out, "deployment.json")) and json.load(open(os.path.join(a.out, "deployment.json"))).get("txs"):
+        sys.exit(f"{a.out}/deployment.json records a deployment: this vault is deployed")
+    assert int(run("cast", "chain-id", "--rpc-url", RPC)) == CHAIN_ID
+    me = deployer(a.keys)
+    n = nonce(me)
+    # --risc0 ADDRESS: reuse a RiscZeroGroth16Verifier already deployed (it is stateless and pinned to nothing of ours)
+    k = 0 if a.risc0 else 1
+    want = {"risc0": a.risc0 or create_address(me, n), "verifier": create_address(me, n + k), "vault": create_address(me, n + k + 1)}
+    assert want["vault"].lower() == cp["vault"].lower(), f"the configuration names vault {cp['vault']}, the next one is {want['vault']}"
+    assert cp["pairing"] == plan["pairing"], "the chain parameters are another deployment's"
+    cf = os.path.join(a.keys, "committee.json")
+    committee = [me] + [m["address"] for m in json.load(open(cf))]
+    run("forge", "build", "--root", "vault")
+    cid = open(os.path.join(ROOT, "vault/lib/risc0-ethereum/contracts/src/groth16/ControlID.sol")).read()
+    val = lambda k: "0x" + cid.split(k + ' = hex"')[1].split('"')[0]
+    if a.risc0:
+        risc0, rtx = a.risc0, None
+        assert run("cast", "call", risc0, "SELECTOR()(bytes4)", "--rpc-url", RPC), "no RISC Zero verifier at --risc0"
+    else:
+        risc0, rtx, _ = create(a.keys, "lib/risc0-ethereum/contracts/src/groth16/RiscZeroGroth16Verifier.sol:RiscZeroGroth16Verifier",
+                               val("CONTROL_ROOT"), val("BN254_CONTROL_ID"))
+    # The channel's accredited key set (ascending), or its one sequencer key: the verifier pins the set
+    keys = sorted(k.lower().removeprefix("0x") for k in (bd.get("channel_keys") or [bd["sequencer_key"]]))
+    cfg = (f"({risc0},{bd['release_image_id']},{bd['chain_image_id']},{bd['anchor_image_id']},{cp['program_id']},{cp['burns_account']},"
+           f"{cp['block_id']},{cp['block_hash']},0x{bd['channel_id']},[{','.join('0x' + k for k in keys)}],{bd['min_depth']})")
+    verifier, vtx, vblock = create(a.keys, "src/ZkBedrockBurnVerifier.sol:ZkBedrockBurnVerifier", cfg, "[" + ",".join(committee) + "]", "2")
+    vault, ttx, tblock = create(a.keys, "src/WrapVault.sol:WrapVault", plan["pairing"], verifier, "86400", me, me)
+    for k in ("risc0", "verifier", "vault"):
+        got = {"risc0": risc0, "verifier": verifier, "vault": vault}[k]
+        assert got.lower() == want[k].lower(), f"{k} landed at {got}, not {want[k]}"
+    amounts = sorted({int(d["amount"]) for d in plan["deposits"]})
+    cap = str(10 * max(amounts))
+    r = send(a.keys, vault, "registerToken(address,uint8,uint256[],uint128,uint128)", ETH, "18", "[" + ",".join(map(str, amounts)) + "]", cap, cap)
+    rec = json.load(open(os.path.join(a.keys, "recipients.json")))
+    print(f"risc0 {risc0} (tx {rtx}), verifier {verifier} (tx {vtx}), vault {vault} (tx {ttx}, block {tblock}), Ether registered (tx {r['transactionHash']})")
+    dump(a.out, "deployment.json", {
+        "chain_id": CHAIN_ID, "vault": vault, "usdt": ETH, "verifier": verifier, "release_verifier": "zkbedrock", "risc0_verifier": risc0,
+        "committee": committee, "threshold": 2, "pairing": plan["pairing"],
+        "image_id": bd["release_image_id"], "chain_image_id": bd["chain_image_id"], "anchor_image_id": bd["anchor_image_id"],
+        "program_id": cp["program_id"], "burns_account": cp["burns_account"], "anchor_id": cp["block_id"], "anchor_hash": cp["block_hash"],
+        "channel_id": bd["channel_id"], "channel_keys": keys, "min_depth": bd["min_depth"],
+        "admin": me, "relayer": me, "alice": rec["alice"], "bob": me, "carol": rec["carol"], "deploy_block": vblock,
+        "txs": {"risc0": rtx, "verifier": vtx, "vault": ttx, "register_eth": r["transactionHash"]}})
 
 
 def logs_of(d, to="latest"):
@@ -237,13 +342,16 @@ def cmd_proofs(a):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["deploy", "deposit", "proofs"])
+    ap.add_argument("cmd", choices=["deploy", "deposit", "proofs", "predict", "deploy-zk"])
     ap.add_argument("--plan")
     ap.add_argument("--out", required=True)
     ap.add_argument("--keys")
     ap.add_argument("--block-hash")
+    ap.add_argument("--chain-params")
+    ap.add_argument("--bedrock")
+    ap.add_argument("--risc0")
     a = ap.parse_args()
-    {"deploy": cmd_deploy, "deposit": cmd_deposit, "proofs": cmd_proofs}[a.cmd](a)
+    {"deploy": cmd_deploy, "deposit": cmd_deposit, "proofs": cmd_proofs, "predict": cmd_predict, "deploy-zk": cmd_deploy_zk}[a.cmd](a)
 
 
 if __name__ == "__main__":

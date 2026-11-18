@@ -33,6 +33,21 @@ jobs:
           python-version: "3.12"
       - run: pip install pycryptodome eth-account eth-abi
       - run: scripts/verify-archived.sh
+      # The privacy check on the public runs' private transactions, with its controls
+      # (public transactions and a leaky build it must flag) and its mutation test.
+      - run: scripts/privacy-check.py
+      - run: if scripts/privacy-check.py --build leaky; then echo "the leaky build passed"; exit 1; fi
+      - run: scripts/mutation-test-privacy.sh
+      # The zero-knowledge release on Sepolia (docs/ZK-SEPOLIA.md), re-checked from its recorded
+      # Sepolia answers: the deployed verifier re-verifies the seal by eth_call, the committee's
+      # signatures are recovered, the journal is checked against the committed proofs.
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.9.0
+      - run: |
+          python3 scripts/rpc-archive.py serve evidence/archive/zk-sepolia.jsonl.gz 8656 &
+          sleep 2
+          scripts/verify-zk-sepolia.py --eth-rpc http://127.0.0.1:8656
   core:
     name: wrap-core (hashes shared with the vault)
     runs-on: ubuntu-latest

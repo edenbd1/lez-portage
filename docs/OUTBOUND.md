@@ -448,8 +448,8 @@ header is canonical. The full account is in
 - **The anchor guest.** `zk/bedrock_anchor`, with its statement in the
   [`bedrock/`](../bedrock/) crate (`no_std`), verifies a chain receipt inside
   and proves that the chain's tip block is, byte for byte, the inscription
-  opening a Mantle transaction on the pinned channel, signed by the pinned
-  sequencer key (Ed25519 `verify_strict` over the transaction hash), under the
+  opening a Mantle transaction on the pinned channel, signed by the key its
+  journal names (Ed25519 `verify_strict` over the transaction hash), under the
   Merkle root a Bedrock header's body root commits to, with `depth` headers
   built on that block. Every format was read from the node's source and is
   checked against the node's own types on real blocks (`bedrock/tools`),
@@ -458,7 +458,10 @@ header is canonical. The full account is in
   inside and proves the burn under the chain's root. One Groth16 seal for
   three guests; an 800-byte journal.
 - **What the vault's verifier checks.** `ZkBedrockBurnVerifier`: the
-  preimage, the chain words, the anchor guest, channel and sequencer key,
+  preimage, the chain words, the anchor guest and channel, the signing key
+  among the channel's pinned keys (a Bedrock channel accredits several keys and
+  rotates which may post; the public testnet's channel has four, all of them
+  signing in turn: BEDROCK-FINALITY.md, "The channel's key set"),
   `depth >= MIN_DEPTH` (Bedrock's k), the seal, and 2 of 3 members of
   `BedrockHeaderCommittee` attesting the top header canonical.
 - **The run.** A separate local Bedrock devnet, the sequencer inscribing
@@ -476,16 +479,16 @@ The trust that remains, plainly:
 - **Canonicity.** The top header's place on Bedrock's canonical chain is the
   committee's word (no proof of leadership is checked; that needs the note
   ledger). It is a fact anyone with a Bedrock node can check in one request.
-- **Bedrock's own checks.** The leader's block signature and the pinned key
-  being the channel's accredited key at that slot are Bedrock's checks, not
+- **Bedrock's own checks.** The leader's block signature and the signing key
+  holding the channel's posting turn at that slot are Bedrock's checks, not
   the proof's.
 - **Validity, and one block per height.** LEZ blocks' validity rests on the
   sequencer and LEZ nodes; nothing proves the inscribed block is the only
   LEZ block the channel carries at its height.
 - **Public burns** still cannot release this way.
 
-Forging a release now needs the committee threshold and the sequencer's key
-together. F.7 is still not met as the RFP words it.
+Forging a release now needs the committee threshold and one of the channel's
+keys together. F.7 is still not met as the RFP words it.
 
 Run it, after `e2e-local.sh` (KEEP=1, with `BEDROCK_NODE`) and `e2e-chain.sh`
 on the same run:

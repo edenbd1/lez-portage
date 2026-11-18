@@ -57,7 +57,7 @@ contract ZkBedrockBurnVerifierTest is Test {
             anchorId: uint64(uint256(_word(14))),
             anchorHash: _word(15),
             channelId: _word(19),
-            sequencerKey: _word(20),
+            channelKeys: _one(_word(20)),
             minDepth: depth
         });
         top = _word(22);
@@ -82,6 +82,8 @@ contract ZkBedrockBurnVerifierTest is Test {
         vm.prank(admin);
         v.deposit{value: ONE}(ETH, ONE, bytes32(uint256(1)));
     }
+
+    bytes32 constant PUBLIC_KEYS_HASH = 0xee0c1980ecb6e98f1a2f9f69093d8633250a42e37b94140c18379d945f22a982;
 
     function _members() internal view returns (address[] memory m) {
         m = new address[](3);
@@ -288,7 +290,7 @@ contract ZkBedrockBurnVerifierTest is Test {
             if (k == 2) (c.anchorHash, err) = (keccak256("another anchor"), ZkBedrockBurnVerifier.NotThisChain.selector);
             if (k == 3) c.anchorImageId = keccak256("another anchor guest");
             if (k == 4) c.channelId = keccak256("another channel");
-            if (k == 5) c.sequencerKey = keccak256("another key");
+            if (k == 5) c.channelKeys = _one(keccak256("another key"));
             if (k == 6) (c.minDepth, err) = (depth + 1, ZkBedrockBurnVerifier.NotDeepEnough.selector);
             ZkBedrockBurnVerifier other = new ZkBedrockBurnVerifier(c, _members(), 2);
             vm.prank(vaultAddr);
@@ -361,7 +363,10 @@ contract ZkBedrockBurnVerifierTest is Test {
 
     function test_a_misconfigured_verifier_is_refused() public {
         ZkBedrockBurnVerifier.Config memory c = cfg;
-        c.sequencerKey = bytes32(0);
+        c.channelKeys = new bytes32[](0);
+        vm.expectRevert(BedrockHeaderCommittee.BadConfig.selector);
+        new ZkBedrockBurnVerifier(c, _members(), 2);
+        c.channelKeys = _one(bytes32(0));
         vm.expectRevert(BedrockHeaderCommittee.BadConfig.selector);
         new ZkBedrockBurnVerifier(c, _members(), 2);
         c = cfg;
@@ -370,5 +375,118 @@ contract ZkBedrockBurnVerifierTest is Test {
         new ZkBedrockBurnVerifier(c, _members(), 2);
         vm.expectRevert(BedrockHeaderCommittee.BadConfig.selector);
         new ZkBedrockBurnVerifier(cfg, _members(), 4);
+    }
+
+    function _one(bytes32 k) internal pure returns (bytes32[] memory a) {
+        a = new bytes32[](1);
+        a[0] = k;
+    }
+
+    /// The public LEZ testnet's channel 0101…01 keys (Bedrock, 2026-11-14 to 11-18), ascending.
+    function _publicKeys() internal pure returns (bytes32[] memory a) {
+        a = new bytes32[](4);
+        a[0] = 0x06abcb81d02a679c9756236e1c18d908c5d2e8df318ae71c3c56ad038c938e39;
+        a[1] = 0x0d27b7090beb0713bffbfa6961dcc17e071a410942e9d600a96c52e74aa592a8;
+        a[2] = 0x30cfd05a0fd5a056166f8d337b5e4018e40a6cf517140a8056db21f128959522;
+        a[3] = 0xa12da31c0df1e8cbd2416822b80864411d102355e049edc56609b076312259aa;
+    }
+
+    /// `keys` with `k` inserted in order.
+    function _with(bytes32[] memory keys, bytes32 k) internal pure returns (bytes32[] memory a) {
+        a = new bytes32[](keys.length + 1);
+        uint256 j;
+        bool put;
+        for (uint256 i; i < keys.length; ++i) {
+            if (!put && uint256(k) < uint256(keys[i])) {
+                a[j++] = k;
+                put = true;
+            }
+            a[j++] = keys[i];
+        }
+        if (!put) a[j] = k;
+    }
+
+    function _verifierWith(bytes32[] memory keys) internal returns (ZkBedrockBurnVerifier) {
+        ZkBedrockBurnVerifier.Config memory c = cfg;
+        c.channelKeys = keys;
+        return new ZkBedrockBurnVerifier(c, _members(), 2);
+    }
+
+    // ---- the channel's key set ----
+
+    /// A channel with several accredited keys: the release is accepted when the key that signed the
+    /// inscription is any one of the pinned set, wherever it sits in it.
+    function test_a_key_set_holding_the_signer_accepts_the_release() public {
+        bytes memory proof = abi.encode(_carol());
+        bytes32 digest = v.releaseDigest(ETH, ONE, carol, relayer, fee, root, nullifier);
+        bytes32[] memory pub = _publicKeys();
+        bytes32[3] memory extra = [bytes32(uint256(1)), _word(20), bytes32(type(uint256).max)];
+        for (uint256 i; i < 3; ++i) {
+            bytes32[] memory keys = _with(pub, _word(20));
+            if (i != 1) keys = _with(keys, extra[i]);
+            ZkBedrockBurnVerifier other = _verifierWith(keys);
+            assertTrue(other.isChannelKey(_word(20)));
+            vm.prank(vaultAddr);
+            assertTrue(other.verify(proof, digest));
+        }
+    }
+
+    /// The same release against the public channel's four keys, the signer not among them: refused.
+    function test_a_key_set_without_the_signer_refuses_the_release() public {
+        bytes memory proof = abi.encode(_carol());
+        bytes32 digest = v.releaseDigest(ETH, ONE, carol, relayer, fee, root, nullifier);
+        ZkBedrockBurnVerifier other = _verifierWith(_publicKeys());
+        assertFalse(other.isChannelKey(_word(20)));
+        vm.prank(vaultAddr);
+        vm.expectRevert(ZkBedrockBurnVerifier.NotThisChannel.selector);
+        other.verify(proof, digest);
+    }
+
+    /// A journal naming a pinned key other than the one that signed: the seal does not prove it.
+    function test_a_journal_naming_another_pinned_key_is_refused_by_the_seal() public {
+        bytes32[] memory pub = _publicKeys();
+        ZkBedrockBurnVerifier other = _verifierWith(_with(pub, _word(20)));
+        ZkBedrockBurnVerifier.Release memory r = _carol();
+        r.journal = _journalWith(20, pub[2]);
+        bytes32 digest = v.releaseDigest(ETH, ONE, carol, relayer, fee, root, nullifier);
+        vm.prank(vaultAddr);
+        vm.expectRevert(VerificationFailed.selector);
+        other.verify(abi.encode(r), digest);
+    }
+
+    function test_the_key_set_is_published_and_hashed() public {
+        bytes32[] memory pub = _publicKeys();
+        ZkBedrockBurnVerifier other = _verifierWith(pub);
+        bytes32[] memory got = other.channelKeys();
+        assertEq(got.length, 4);
+        for (uint256 i; i < 4; ++i) {
+            assertEq(got[i], pub[i]);
+            assertTrue(other.isChannelKey(pub[i]));
+        }
+        assertEq(other.CHANNEL_KEYS_HASH(), sha256(abi.encodePacked(bytes32("rfp022/bedrock-channel-keys/v1"), pub)));
+        // The vector bedrock/src/tests.rs computes for the same four keys.
+        assertEq(other.CHANNEL_KEYS_HASH(), PUBLIC_KEYS_HASH);
+    }
+
+    /// Unsorted, duplicated, zero, empty or too many keys: one set, one order, one hash.
+    function test_a_misconfigured_key_set_is_refused() public {
+        bytes32[] memory pub = _publicKeys();
+        bytes32[] memory bad = new bytes32[](4);
+        (bad[0], bad[1], bad[2], bad[3]) = (pub[1], pub[0], pub[2], pub[3]);
+        vm.expectRevert(BedrockHeaderCommittee.BadConfig.selector);
+        _verifierWith(bad);
+        (bad[0], bad[1], bad[2], bad[3]) = (pub[0], pub[1], pub[1], pub[3]);
+        vm.expectRevert(BedrockHeaderCommittee.BadConfig.selector);
+        _verifierWith(bad);
+        (bad[0], bad[1], bad[2], bad[3]) = (bytes32(0), pub[1], pub[2], pub[3]);
+        vm.expectRevert(BedrockHeaderCommittee.BadConfig.selector);
+        _verifierWith(bad);
+        bytes32[] memory many = new bytes32[](33);
+        for (uint256 i; i < 33; ++i) many[i] = bytes32(i + 1);
+        vm.expectRevert(BedrockHeaderCommittee.BadConfig.selector);
+        _verifierWith(many);
+        bytes32[] memory most = new bytes32[](32);
+        for (uint256 i; i < 32; ++i) most[i] = bytes32(i + 1);
+        assertEq(_verifierWith(most).channelKeys().length, 32);
     }
 }

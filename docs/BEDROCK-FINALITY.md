@@ -562,7 +562,8 @@ so the committee only has to say that one Bedrock header is canonical.
 - **`ZkBedrockBurnVerifier` + `BedrockHeaderCommittee`.** The verifier checks
   the preimage against the vault's digest; the chain words against the pinned
   chain guest, program, burn-tree account and LEZ anchor; the Bedrock words
-  against the pinned anchor guest, channel and sequencer key; `depth >=
+  against the pinned anchor guest and channel, and the inscription's signer
+  against the channel's pinned key set (`isChannelKey`); `depth >=
   MIN_DEPTH`; the seal; then that 2 of 3 members signed (EIP-191)
   `keccak256("rfp022/bedrock-header/v1", chainid, vault, pairing,
   topHeaderId)`. A member signs only if the header is on its own node's
@@ -583,8 +584,9 @@ Blake2b-256, Ed25519):
 - the burn tree is the private burns of the LEZ blocks from the pinned
   anchor to a tip (section 6);
 - that tip, byte for byte, is the inscription opening a Mantle transaction on
-  the pinned channel, signed by the pinned sequencer key over the
-  transaction's hash;
+  the pinned channel, signed over the transaction's hash by the key the
+  journal names, which the verifier requires to be one of the channel's pinned
+  keys;
 - that transaction is in the Bedrock block whose header commits to it
   (Merkle path, body root, header id);
 - `depth` headers are built on that block, each the parent of the next, the
@@ -598,11 +600,58 @@ Still trusted, stated plainly:
    Bedrock block, signed by the real sequencer key, is proven like a real one
    and refused only because the members' node does not have its top header.
 2. **The leader signatures and the accredited key.** The block's leader
-   signature is not in the API's block, and whether the pinned key was the
-   channel's accredited key at that slot is channel state. Bedrock checks
-   both; the proof does not. With one sequencer the channel's single
-   accredited key is the pinned one (the e2e reads it from `/channel`); a
-   rotation of the sequencer key needs a new verifier.
+   signature is not in the API's block, and whether the signing key held the
+   channel's posting turn at that slot is channel state. Bedrock checks both;
+   the proof does not. The verifier pins the channel's whole key set (below),
+   so a key the channel adds later needs a new verifier.
+
+### The channel's key set (2026-11-18)
+
+A Bedrock channel accredits a list of Ed25519 keys, not one: `ChannelConfig`
+sets `keys`, `posting_timeframe`, `posting_timeout`, and the
+`configuration_threshold` of those keys needed to change them (node source,
+`core/src/mantle/ops/channel/config.rs`, `core/src/mantle/channel.rs`).
+Bedrock rotates which key may post: the current one keeps the turn for
+`posting_timeframe` slots, or hands it on after `posting_timeout` slots
+without a post. The public LEZ testnet's channel `0101…01` now accredits four
+keys (configuration threshold 3, timeframe 900 slots), and its inscriptions
+are signed by all four in turn: in the 125 Bedrock blocks the public outbound
+run fetched on 2026-11-14 (`evidence/testnet-outbound/bedrock/`), 23
+inscriptions of LEZ blocks 82406 to 82428 are signed by `0d27b709…` (6),
+`a12da31c…` (11), `06abcb81…` (4) and `30cfd05a…` (2). A verifier pinning one
+key would have refused 17 of those 23 tips.
+
+So `ZkBedrockBurnVerifier` pins the set:
+
+- **The guests are unchanged.** The anchor guest already verifies the
+  inscription's signature against the key it is given and writes that key in
+  its journal (word 3; word 20 of the release journal); the key is the one that
+  signed, or there is no receipt. Its ImageID (`cebe7a27…`) and the release
+  guest's are the same, and so is every committed seal.
+- **The verifier** takes `channelKeys` at construction, strictly ascending
+  (no duplicate, so one set has one hash), none zero, 1 to 32, and requires
+  the journal's key to be one of them (`isChannelKey`). It publishes the list
+  (`channelKeys()`) and `CHANNEL_KEYS_HASH = sha256("rfp022/bedrock-channel-keys/v1"
+  ‖ keys)`. For the four public keys that is `ee0c1980…`, the same in
+  Solidity and in `bedrock-tools`. The set is fixed like every other
+  parameter (Security #8): a new set is a new verifier.
+- **What Bedrock checks, not the proof.** That the signer held the posting
+  turn at that slot, and was accredited at that slot. A key the channel
+  removes stays in a deployed verifier's set, but Bedrock no longer accepts
+  its inscriptions, and the committee attests only canonical headers. A key
+  the channel adds is refused until a new verifier pins it (fail-closed).
+- **Checked on the public blocks.** `scripts/check-channel-keys.sh`:
+  `bedrock-tools channel-keys` finds every inscription on the channel signed
+  by one of the four keys. `lez_bedrock::anchor` accepts each with its own
+  signer and refuses it with any other key of the set named (69 refusals).
+  `bedrock-tools anchor --keys` builds an anchor record, 3 deep, for one LEZ
+  block per signer. A one-key pin refuses the other signers' inscriptions.
+  Foundry (`ZkBedrockBurnVerifier.t.sol`, on the real Groth16 seal): a set
+  holding the signer accepts the release wherever the signer sits in it; the
+  four public keys without it refuse it (`NotThisChannel`); a journal naming
+  another pinned key fails the seal; unsorted, duplicate, zero, empty or 33
+  keys are refused at construction. `scripts/mutation-test-vault.sh` adds
+  nine mutants of these checks.
 3. **The LEZ blocks' validity** (section 6): an invalid block can be
    inscribed and become final.
 4. **One block per height.** The channel is a linear chain of messages, but

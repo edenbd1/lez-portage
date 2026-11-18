@@ -43,6 +43,14 @@ contract WrapVaultTest is Test {
         vm.stopPrank();
     }
 
+    function _backWithDeposits(uint256 n) internal {
+        vm.deal(alice, alice.balance + n * 1 ether);
+        for (uint256 i; i < n; ++i) {
+            vm.prank(alice);
+            v.deposit{value: 1 ether}(ETH, 1 ether, bytes32(1000 + i));
+        }
+    }
+
     function _amounts(uint256 a, uint256 b) internal pure returns (uint256[] memory r) {
         r = new uint256[](2);
         r[0] = a;
@@ -204,7 +212,7 @@ contract WrapVaultTest is Test {
     function test_release_cap_per_window() public {
         vm.prank(admin);
         v.registerToken(ETH, 18, _amounts(0.1 ether, 1 ether), 100 ether, 1 ether);
-        vm.deal(address(v), 10 ether);
+        _backWithDeposits(10); // releases are paid only from what deposits of the token brought in
         bytes32 r = bytes32(uint256(5));
         ver.approve(v.releaseDigest(ETH, 1 ether, bob, relayer, 0, r, bytes32(uint256(1))));
         ver.approve(v.releaseDigest(ETH, 1 ether, bob, relayer, 0, r, bytes32(uint256(2))));
@@ -219,7 +227,7 @@ contract WrapVaultTest is Test {
     // ---- freeze (F.14, Security #5) ----
 
     function test_freeze_per_token_and_global_each_direction_independently() public {
-        vm.deal(address(v), 10 ether);
+        _backWithDeposits(10); // releases are paid only from what deposits of the token brought in
         bytes32 r = bytes32(uint256(5));
         ver.approve(v.releaseDigest(ETH, 1 ether, bob, relayer, 0, r, bytes32(uint256(1))));
 

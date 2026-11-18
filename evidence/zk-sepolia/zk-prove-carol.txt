@@ -1,0 +1,40 @@
+# 2026-11-18T10:09:48Z wrap release-proof carol --zk --chain ~/data/ns.com/rfp-022/zk-sepolia-run/run/chain/chain-2.json --bedrock ~/data/ns.com/rfp-022/zk-sepolia-run/run/bedrock/anchor.json --relayer 0xf4e827cd18597f071FB8bca9A77319AD619927D7 --vault 0x1b2aBe9Ebe3769Ff0615fe7Cae313F8389189223, real proving (RISC0_DEV_MODE unset), r0vm 3.0.5
+# host Apple M4 Pro hw.memsize=25769803776 hw.ncpu=14
+# docker server 29.8.2 linux/aarch64 cpus=14 mem=12598894592; DOCKER_DEFAULT_PLATFORM=linux/amd64
+# groth16 image sha256:f6f756b0899c29d869d6a01fbbded3887a8f51429653177ee4b3ffad294324cd linux/amd64 2800107759
+# commit cd1ee65; guests sha256 bedrock_anchor=4469db985a9526f5 bedrock_release=2f0137c5c3272961 burn_membership=2c800cd93d4c2cc3 burn_release=2a377a260e713c4b lez_chain=8d8d6d33f450005c 
+# load before: load averages: 57.17 69.70 48.88
+      118.20 real       901.83 user         5.60 sys
+          4723818496  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              515688  page reclaims
+                1298  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  20  messages sent
+                  65  messages received
+                  91  signals received
+                  74  voluntary context switches
+              829790  involuntary context switches
+           547028767  instructions retired
+           179626446  cycles elapsed
+             7340440  peak memory footprint
+# docker 10:11:19 sweet_visvesvaraya 2.177GiB / 11.73GiB 330.79%
+# docker 10:11:21 sweet_visvesvaraya 3.088GiB / 11.73GiB 228.04%
+# docker 10:11:23 sweet_visvesvaraya 4.107GiB / 11.73GiB 211.70%
+# docker 10:11:26 sweet_visvesvaraya 4.634GiB / 11.73GiB 100.45%
+# docker 10:11:28 sweet_visvesvaraya 4.286GiB / 11.73GiB 105.81%
+# docker 10:11:30 sweet_visvesvaraya 5.457GiB / 11.73GiB 753.50%
+# docker 10:11:32 sweet_visvesvaraya 5.458GiB / 11.73GiB 786.75%
+# docker 10:11:34 sweet_visvesvaraya 6.617GiB / 11.73GiB 1059.32%
+# docker 10:11:36 sweet_visvesvaraya 6.869GiB / 11.73GiB 1153.85%
+# docker 10:11:39 sweet_visvesvaraya 7.019GiB / 11.73GiB 1065.59%
+# docker 10:11:41 sweet_visvesvaraya 7.056GiB / 11.73GiB 1102.99%
+# docker 10:11:43 sweet_visvesvaraya 7.074GiB / 11.73GiB 960.73%
+# docker 10:11:45 sweet_visvesvaraya 7.109GiB / 11.73GiB 792.59%
+# docker 10:11:47 sweet_visvesvaraya 7.158GiB / 11.73GiB 779.25%
+# exit 0; load after: load averages: 46.62 63.95 49.35
+# groth16 container peak memory (docker stats samples) 7.16 GiB

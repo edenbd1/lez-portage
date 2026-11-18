@@ -5,11 +5,18 @@
 //!       every block in DIR/chain.json: lez-bedrock's header id, body root,
 //!       transaction hashes, first-operation inscriptions and signature
 //!       verdicts against the node's types; prints a JSON summary.
-//!   bedrock-tools anchor DIR --channel HEX --signer HEX --lez-hash HEX --depth K --out FILE
+//!   bedrock-tools anchor DIR --channel HEX (--signer HEX | --keys HEX,HEX,...) --lez-hash HEX --depth K --out FILE
 //!       the guest's AnchorBlock for the LEZ block with that hash: the Bedrock
 //!       block whose transaction inscribes it on the channel, and the K headers
 //!       above it in DIR's chain; checked by lez_bedrock::anchor and the node's
-//!       types, written as JSON (hex).
+//!       types, written as JSON (hex). `--signer` requires one key; `--keys`
+//!       the channel's key set as ZkBedrockBurnVerifier pins it (ascending), and
+//!       the record names the key in it that signed.
+//!   bedrock-tools channel-keys DIR --channel HEX --keys HEX,HEX,...
+//!       every inscription on the channel in DIR's chain: which key signed it,
+//!       whether that key is in the set, and lez_bedrock::anchor's verdict with
+//!       the actual signer and with each other key of the set pinned; the set's
+//!       CHANNEL_KEYS_HASH. Fails if an inscription's signer is outside the set.
 //!
 //!   bedrock-tools forge --key FILE --lez-block FILE --channel HEX --depth K --out FILE
 //!       a Bedrock block no node produced: one transaction whose first operation
@@ -229,7 +236,7 @@ fn check(dir: &Path) -> Result<Value> {
               "lez_v031_blocks_by_channel": lez.iter().map(|(c, (n, lo, hi))| (c.clone(), json!({"blocks": n, "ids": [lo, hi]}))).collect::<BTreeMap<_, _>>(), "json_bytes": bytes, "identical": true}))
 }
 
-fn anchor(dir: &Path, channel: H256, signer: H256, lez_hash: H256, depth: usize, out: &Path) -> Result<Value> {
+fn anchor(dir: &Path, channel: H256, keys: &[H256], lez_hash: H256, depth: usize, out: &Path) -> Result<Value> {
     let ids = chain(dir)?;
     let read = |id: &String| -> Result<Decoded> { decode(&std::fs::read_to_string(dir.join(format!("{id}.json")))?).with_context(|| format!("block {id}")) };
     for (k, id) in ids.iter().enumerate() {
@@ -239,7 +246,8 @@ fn anchor(dir: &Path, channel: H256, signer: H256, lez_hash: H256, depth: usize,
         ensure!(ids.len() > k + depth, "only {} headers above the inscription's block {id}, {depth} asked for", ids.len() - k - 1);
         let tx = &d.txs[t];
         let (_, s, _, sig) = tx.inscription.as_ref().unwrap();
-        ensure!(*s == signer, "the inscription is signed by {}, not the pinned key", hx(s));
+        ensure!(keys.contains(s), "the inscription is signed by {}, not a pinned key", hx(s));
+        let signer = *s;
         let leaves: Vec<H256> = d.txs.iter().map(|t| t.hash).collect();
         let (tx_index, path) = path(&leaves, t);
         let descendants = ids[k + 1..=k + depth].iter().map(|i| Ok(read(i)?.header)).collect::<Result<Vec<_>>>()?;
@@ -248,7 +256,8 @@ fn anchor(dir: &Path, channel: H256, signer: H256, lez_hash: H256, depth: usize,
         ensure!(r.block_id == d.id && hx(&r.top_id) == ids[k + depth], "lez_bedrock::anchor ends elsewhere than the node's chain");
         let lez = r.inscription.data;
         let rec = json!({
-            "channel_id": hx(&channel), "signer": hx(&signer), "lez_hash": hx(&lez_hash),
+            "channel_id": hx(&channel), "signer": hx(&signer), "channel_keys": keys.iter().map(|k| hx(k)).collect::<Vec<_>>(),
+            "channel_keys_hash": hx(&channel_keys_hash(keys)), "lez_hash": hx(&lez_hash),
             "lez_block_id": u64::from_le_bytes(lez[0..8].try_into().unwrap()),
             "bedrock_block": {"id": id, "slot": r.block_slot, "tx_index": tx_index, "txs": leaves.len(), "path_len": a.path.len(),
                               "tx_hash": hx(&r.tx_hash), "ops_bytes": a.ops.len(), "inscription_bytes": lez.len(), "uncles": a.uncles[0]},
@@ -303,6 +312,102 @@ fn forge(key: &Path, lez_block: &Path, channel: H256, depth: usize, out: &Path) 
     Ok(json!({"forged": true, "signer": hx(&signer), "bedrock_block": rec["bedrock_block"], "top": rec["top"], "out": out}))
 }
 
+/// ZkBedrockBurnVerifier's CHANNEL_KEYS_HASH: sha256(KEYS_TAG ‖ the keys, ascending).
+fn channel_keys_hash(keys: &[H256]) -> H256 {
+    use sha2::Digest as _;
+    let mut h = sha2::Sha256::new();
+    h.update(KEYS_TAG);
+    for k in keys {
+        h.update(k);
+    }
+    h.finalize().into()
+}
+
+const KEYS_TAG: [u8; 32] = {
+    let s = b"rfp022/bedrock-channel-keys/v1";
+    let mut out = [0u8; 32];
+    let mut i = 0;
+    while i < s.len() {
+        out[i] = s[i];
+        i += 1;
+    }
+    out
+};
+
+/// A key set as the verifier pins it: comma-separated, strictly ascending, none zero, 1 to 32.
+fn keys(list: &str) -> Result<Vec<H256>> {
+    let k = list.split(',').map(|s| h256(s.trim())).collect::<Result<Vec<_>>>()?;
+    ensure!((1..=32).contains(&k.len()), "1 to 32 keys");
+    ensure!(k.iter().all(|x| *x != [0u8; 32]), "a zero key");
+    ensure!(k.windows(2).all(|w| w[0] < w[1]), "keys must be strictly ascending (sorted, no duplicate)");
+    Ok(k)
+}
+
+fn channel_keys(dir: &Path, channel: H256, set: &[H256]) -> Result<Value> {
+    let ids = chain(dir)?;
+    let mut by_key = BTreeMap::<String, usize>::new();
+    let mut lez_ids = BTreeMap::<String, (u64, u64)>::new();
+    let mut a_hash = BTreeMap::<String, String>::new();
+    let mut outside = Vec::new();
+    let (mut n, mut others_refused) = (0usize, 0usize);
+    for id in &ids {
+        let d = decode(&std::fs::read_to_string(dir.join(format!("{id}.json")))?).with_context(|| format!("block {id}"))?;
+        let leaves: Vec<H256> = d.txs.iter().map(|t| t.hash).collect();
+        for (t, tx) in d.txs.iter().enumerate() {
+            let Some((c, s, data, sig)) = &tx.inscription else { continue };
+            if *c != channel {
+                continue;
+            }
+            n += 1;
+            *by_key.entry(hx(s)).or_default() += 1;
+            let lez_id = data.get(0..8).map(|b| u64::from_le_bytes(b.try_into().unwrap())).unwrap_or(0);
+            let e = lez_ids.entry(hx(s)).or_insert((u64::MAX, 0));
+            *e = (e.0.min(lez_id), e.1.max(lez_id));
+            if let Some(h) = data.get(40..72) {
+                a_hash.entry(hx(s)).or_insert_with(|| hx(h));
+            }
+            if !set.contains(s) {
+                outside.push(json!({"bedrock_block": id, "signer": hx(s)}));
+                continue;
+            }
+            let (tx_index, path) = path(&leaves, t);
+            let a = AnchorBlock { header: d.header.clone(), uncles: d.uncles.clone(), ops: tx.ops.clone(), tx_index, path, signature: sig.to_vec(), descendants: vec![] };
+            // The anchor's statement with the key that signed: accepted.
+            lez_bedrock::anchor(&Params { channel_id: channel, signer: *s }, &a, 0).map_err(|e| anyhow!("block {id}: lez_bedrock::anchor with its own signer: {e:?}"))?;
+            // With any other key of the set named instead: refused (a journal names the key that signed).
+            for k in set.iter().filter(|k| *k != s) {
+                ensure!(
+                    lez_bedrock::anchor(&Params { channel_id: channel, signer: *k }, &a, 0) == Err(lez_bedrock::Error::Signer),
+                    "block {id}: an inscription by {} accepted with {} named", hx(s), hx(k)
+                );
+                others_refused += 1;
+            }
+        }
+    }
+    ensure!(n > 0, "no inscription on channel {} in {}", hx(&channel), dir.display());
+    ensure!(outside.is_empty(), "inscriptions signed outside the set: {outside:?}");
+    Ok(json!({"channel_id": hx(&channel), "blocks": ids.len(), "inscriptions": n,
+              "inscriptions_by_signer": by_key,
+              "lez_block_ids_by_signer": lez_ids.iter().map(|(k, (lo, hi))| (k.clone(), json!([lo, hi]))).collect::<BTreeMap<_, _>>(),
+              "a_lez_hash_by_signer": a_hash,
+              "accepted_with_their_signer": n, "refused_with_another_key_named": others_refused,
+              "channel_keys": set.iter().map(|k| hx(k)).collect::<Vec<_>>(), "channel_keys_hash": hx(&channel_keys_hash(set))}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The public channel's four keys hash to the vector ZkBedrockBurnVerifier.t.sol pins.
+    #[test]
+    fn channel_keys_hash_matches_the_solidity_vector() {
+        let k = keys("06abcb81d02a679c9756236e1c18d908c5d2e8df318ae71c3c56ad038c938e39,0d27b7090beb0713bffbfa6961dcc17e071a410942e9d600a96c52e74aa592a8,30cfd05a0fd5a056166f8d337b5e4018e40a6cf517140a8056db21f128959522,a12da31c0df1e8cbd2416822b80864411d102355e049edc56609b076312259aa").unwrap();
+        assert_eq!(hx(&channel_keys_hash(&k)), "ee0c1980ecb6e98f1a2f9f69093d8633250a42e37b94140c18379d945f22a982");
+        assert!(keys("0d27b7090beb0713bffbfa6961dcc17e071a410942e9d600a96c52e74aa592a8,06abcb81d02a679c9756236e1c18d908c5d2e8df318ae71c3c56ad038c938e39").is_err());
+        assert!(keys("06abcb81d02a679c9756236e1c18d908c5d2e8df318ae71c3c56ad038c938e39,06abcb81d02a679c9756236e1c18d908c5d2e8df318ae71c3c56ad038c938e39").is_err());
+    }
+}
+
 fn arg(args: &[String], name: &str) -> Result<String> {
     let i = args.iter().position(|a| a == name).ok_or_else(|| anyhow!("missing {name}"))?;
     args.get(i + 1).cloned().ok_or_else(|| anyhow!("{name} needs a value"))
@@ -315,10 +420,18 @@ fn main() -> Result<()> {
         Some("anchor") => anchor(
             Path::new(args.get(2).ok_or_else(|| anyhow!("anchor DIR ..."))?),
             h256(&arg(&args, "--channel")?)?,
-            h256(&arg(&args, "--signer")?)?,
+            &match arg(&args, "--keys") {
+                Ok(k) => keys(&k)?,
+                Err(_) => vec![h256(&arg(&args, "--signer")?)?],
+            },
             h256(&arg(&args, "--lez-hash")?)?,
             arg(&args, "--depth")?.parse()?,
             Path::new(&arg(&args, "--out")?),
+        )?,
+        Some("channel-keys") => channel_keys(
+            Path::new(args.get(2).ok_or_else(|| anyhow!("channel-keys DIR ..."))?),
+            h256(&arg(&args, "--channel")?)?,
+            &keys(&arg(&args, "--keys")?)?,
         )?,
         Some("forge") => forge(
             Path::new(&arg(&args, "--key")?),
@@ -327,7 +440,7 @@ fn main() -> Result<()> {
             arg(&args, "--depth")?.parse()?,
             Path::new(&arg(&args, "--out")?),
         )?,
-        _ => bail!("usage: bedrock-tools check DIR | anchor DIR --channel HEX --signer HEX --lez-hash HEX --depth K --out FILE | forge --key FILE --lez-block FILE --channel HEX --depth K --out FILE"),
+        _ => bail!("usage: bedrock-tools check DIR | anchor DIR --channel HEX (--signer HEX | --keys HEX,...) --lez-hash HEX --depth K --out FILE | channel-keys DIR --channel HEX --keys HEX,... | forge --key FILE --lez-block FILE --channel HEX --depth K --out FILE"),
     };
     println!("{}", serde_json::to_string(&out)?);
     Ok(())

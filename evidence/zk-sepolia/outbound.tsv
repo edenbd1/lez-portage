@@ -1,0 +1,33 @@
+# Portage outbound on public networks: LEZ http://127.0.0.1:3061 (testnet), Sepolia (chain 11155111), 2026-11-18T09:57:36Z
+# commit cd1ee65 (uncommitted changes)
+# payer 6iArKUXxhUJqS7kCaPNhwMWt3ro71PDyBj7jwAyE2VQV balance_before 9999942388648
+# inbound evidence/zk-sepolia/run.tsv
+# binary associated_token_account 396244 bytes sha256 246bea9d8385975f57f5b36820a5842562b9c02d2309fab86d252603c51a942e image_id 2b1d5580b54895db2544574929a2eed36186060f296fb5bf1d11040ab1d27e13
+# binary token 427292 bytes sha256 728e7a331cd357385c22f55d5724c440bb846dd8bdaab5d3c5e2bec28fa330d2 image_id 912d412c6e82c5a5be4a6ad0749358dd85e269655940147f274d3c168c4a14ab
+# binary wrap_bridge 446832 bytes sha256 6975794938335ab3715a9acdc783bc1e6eb5203e9fe411c5e7efd9f78cca1903 image_id 073f046ce2a6fffd6adec655f0e65e91fd1ab7e47774e2685c40f2d51ea1c670
+# program CEEe9CfjJhrhhE1aAxKb43Z7z8ke7HTvRCH2vWTwXFd3 912d412c6e82c5a5be4a6ad0749358dd85e269655940147f274d3c168c4a14ab token
+# program F8poXdL8Q2YJoJLhp8wJRDX9GbfcE2akUwjTvtNF58Ks 2b1d5580b54895db2544574929a2eed36186060f296fb5bf1d11040ab1d27e13 associated_token_account
+# program 53f5ZAy5knKS7RQzFguiJJDuLMFsKx3zHjfJ93CW2SLH 073f046ce2a6fffd6adec655f0e65e91fd1ab7e47774e2685c40f2d51ea1c670 wrap_bridge immutable
+# accounts admin 2FPcBfew8Y4yGRYjejpfxWCHpZUaXHEHAMAd7zMGTbxG freezer Eoyzh9pG5FgjqBdsJuG4T3EwBscfUxCPsFwCq2Yc7pMC alice 3T7iNZuscGqbFn2WqyQAj9cnGyErsdY4vYQdZaZtFAPx bob B2hoeqGhAsooSQn5Ci35kr1UQegXWnfueMhK764jubK7
+# private-account tz1hPPecEB5bCU5o5PpWMyTBZ6xcaMRvWbZpqyBWxu4 carol
+# network deployment_id portage/sepolia/deployment/0003 lez_chain_id lez/local-bedrock/v0.3.1/chain3 zone_id lez/local-bedrock/zone/00000003 instance sepolia-portage-zk-1118 pairing 0x719bebf0ae62a7dcc6656a24cddac3c047ba4020effe55def2a98b40104c6be7
+# sepolia vault 0x1b2aBe9Ebe3769Ff0615fe7Cae313F8389189223 verifier 0xf02D0456A0E5e1B023081D01686C67d506E94F44 pairing 0x719bebf0ae62a7dcc6656a24cddac3c047ba4020effe55def2a98b40104c6be7 txs 0x81ef4ab8e1445c46f27199c390e5d91722c6a5beb9fdd0373640ab4b2eccdfc9 0xb72a8c66fcfa0085412380efba5741e05604baa8c8ba2ddeede6417d08b42a60
+# eth-vault 0x1b2aBe9Ebe3769Ff0615fe7Cae313F8389189223 verifier 0xf02D0456A0E5e1B023081D01686C67d506E94F44 committee 0xf4e827cd18597f071FB8bca9A77319AD619927D7,0xAAAa3E9eaF0DB9C2Db1c5efCFB4e143412b4162D,0xA6d6B061FB1297D72AA78202970D25f840a983Ec threshold 2 finality_depth None
+# recipients alice 0x4B4b34965Ab1936B30e436236A04988ECC1df5FE carol 0x2c0b647704112E77eda4Cb2470534d9FfA1703F4
+# burns-account DyNkdtBZ93pVum3kKWW1H5b86TGs11iGjQhHwEtrGX71
+# frontier before next_index 0 root -
+burn-alice	applied	applied	602	2a0991b5f1f4ebbaa710504f0a4d8379f73a8650b03561b28e4c876c913465c5	2a0991b5f1f4ebbaa710504f0a4d8379f73a8650b03561b28e4c876c913465c5	gas=228499	240783	228499
+# line burn-alice {"attempts":["2a0991b5f1f4ebbaa710504f0a4d8379f73a8650b03561b28e4c876c913465c5"],"block":602,"block_gas_exec":228499,"block_gas_stor":1139,"gas_limit":240783,"label":"burn-alice","op":"burn","payer_balance_after":"9999940551544","payer_balance_before":"9999942388648","precheck":{"gas":228499},"state_changed":true,"tx":"2a0991b5f1f4ebbaa710504f0a4d8379f73a8650b03561b28e4c876c913465c5","tx_bytes":1139,"verdict":"applied"}
+# check ok: alice's burn applied = applied
+# check ok: alice holds no wrapped ETH = 0
+burn-carol-private	applied	applied	645	aae7430575d8981d25f27b54d4333aaac6d15c784898f642cca6db4c6eb53f57	aae7430575d8981d25f27b54d4333aaac6d15c784898f642cca6db4c6eb53f57	private	-	-
+# line burn-carol-private {"absent_from_tx":{"holder":true,"recipient":true,"secret":true},"attempts":["aae7430575d8981d25f27b54d4333aaac6d15c784898f642cca6db4c6eb53f57"],"block":645,"burns_account":"DyNkdtBZ93pVum3kKWW1H5b86TGs11iGjQhHwEtrGX71","dev_mode":false,"held_before":"1000000000000000","kind":"privacy-preserving","label":"burn-carol-private","leaf_in_tx":true,"op":"burn-private","prove_and_submit_ms":210901,"state_changed":true,"tx":"aae7430575d8981d25f27b54d4333aaac6d15c784898f642cca6db4c6eb53f57","tx_bytes":248358,"verdict":"applied"}
+# private burn-carol-private hides tz1hPPecEB5bCU5o5PpWMyTBZ6xcaMRvWbZpqyBWxu4 tx_bytes 248358
+# private-burn prove_and_submit_ms 210901 wall_s 214.99 peak_rss_bytes 7960952832 tx_bytes 248358 dev_mode False
+# check ok: carol's private burn landed = applied
+# check ok: RISC0 dev mode off (real proving) = False
+# show-private {"account":"Private/tz1hPPecEB5bCU5o5PpWMyTBZ6xcaMRvWbZpqyBWxu4","commitment_on_chain":true,"definition":"CCJJpgCCFhMUm92bGHcQktftpoDdWJE6x9d7wmWKz6qQ","op":"show-private","synced_to_block":645,"wrapped_balance":"0"}
+# check ok: carol's wallet decrypts 0 wrapped ETH in her private account = 0
+# frontier after next_index 2 root 0x9949737ce9bf156ef8dc5cce02400fac98bbb184fe747a54260dacf301afbf27
+# check ok: the burn tree's leaves are the recorded burns' = 2
+# payer balance_after_burns 9999940551544
