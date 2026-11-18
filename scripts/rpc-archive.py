@@ -34,6 +34,20 @@ LOOKUPS = {"getTransaction", "eth_getTransactionByHash", "eth_getTransactionRece
 
 
 def key(req):
+    # Clients differ in the call object they send for the same eth_call (one
+    # foundry release adds "from": the zero address and "chainId", another
+    # omits them): neither changes what a read-only call returns, so they are
+    # not part of the key. "input" and "data" carry the same calldata.
+    if isinstance(req, dict) and req.get("method") in ("eth_call", "eth_estimateGas"):
+        p = list(req.get("params") or [])
+        if p and isinstance(p[0], dict):
+            c = {k: (v.lower() if isinstance(v, str) else v) for k, v in p[0].items() if k != "chainId"}
+            if c.get("from") in ("0x" + "0" * 40,):
+                del c["from"]
+            if "input" in c:
+                c["data"] = c.pop("input")
+            p[0] = c
+        req = {"method": req["method"], "params": p}
     return json.dumps(req, sort_keys=True, separators=(",", ":"))
 
 
